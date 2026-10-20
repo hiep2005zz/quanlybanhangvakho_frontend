@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   getProductsApi,
   getDiscountPoliciesApi,
@@ -55,6 +55,7 @@ import { WarehouseStockBookView } from './WarehouseStockBookView';
 import { InventoryTurnoverReportView } from './InventoryTurnoverReportView';
 import { StockAuditManagementView } from './StockAuditManagementView';
 import { StockTransferManagementView } from './StockTransferManagementView';
+import { StockCardView } from './StockCardView';
 import { ModalPortal } from './ModalPortal';
 import { DashboardHeader } from './DashboardHeader';
 import { CustomerDebtView } from './CustomerDebtView';
@@ -69,11 +70,14 @@ import { SalesTargetManagementView } from './SalesTargetManagementView';
 import WarehousePickingView from './WarehousePickingView';
 import { StockAdjustmentPageView } from './StockAdjustmentPageView';
 import { PaymentCollectionView } from './PaymentCollectionView';
+import { WarehouseDispatchView } from './WarehouseDispatchView';
+import { DeliveryTripsView } from './DeliveryTripsView';
+import { ReturnOrdersManagementView } from './ReturnOrdersManagementView';
+import SalesInvoiceFromDeliveriesView from './SalesInvoiceFromDeliveriesView';
 import { DebtPaymentReconciliationView } from './DebtPaymentReconciliationView';
 import { DebtReconciliationView } from './DebtReconciliationView';
 import { DealerDebtStatementView } from './DealerDebtStatementView';
 import { DebtAdjustmentManagementView } from './DebtAdjustmentManagementView';
-import { downloadBlobFile } from '../utils/downloadHelper';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -136,7 +140,9 @@ export default function DashboardPage({
     officialRoles.some((r) => DEALER_ROLES.includes(r))
   );
   // Quyền xem Sổ chi tiết công nợ (Kế toán công nợ, Quản trị viên, Quản lý kinh doanh, hoặc Đại lý xem chính mình)
-  const canViewDebtStatement = Boolean(canManageDealerProfiles || isCustomer);
+  const canViewDebtStatement = Boolean(canManageDealerProfiles || isCustomer || isAdmin || isAccountant);
+  // Quyền lập & quản lý chứng từ điều chỉnh giảm trừ công nợ khi trả hàng (Kế toán công nợ, Admin)
+  const canAccessDebtAdjustments = Boolean(isAdmin || isAccountant);
   // Quyền xem Báo cáo tuổi nợ: Quản trị viên (admin), Quản lý kinh doanh (sales_manager), Kế toán công nợ (accountant)
   const canAccessDebtAging = !isCustomer && Boolean(isAdmin || isSalesManager || isAccountant);
   const canAccessExecutiveDashboard = !isCustomer && Boolean(isAdmin || isSalesManager);
@@ -180,9 +186,6 @@ export default function DashboardPage({
     isAccountant ||
     isSalesManager
   );
-
-  // Quyền lập & quản lý chứng từ điều chỉnh giảm trừ công nợ khi trả hàng (Kế toán công nợ, Admin)
-  const canAccessDebtAdjustments = Boolean(isAdmin || isAccountant);
 
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
@@ -232,6 +235,19 @@ export default function DashboardPage({
     officialRoles.includes('accountant')
   );
 
+  // Quyền truy cập Thẻ kho (S5-04: Thủ kho, Quản lý kho, Quản trị hệ thống, Kế toán)
+  const canAccessStockCard = Boolean(
+    isAdmin ||
+    (!isCustomer && !isSalesPerson && (
+      isAccountant ||
+      user.role === 'warehouse' ||
+      user.role === 'warehouse_manager' ||
+      officialRoles.includes('warehouse') ||
+      officialRoles.includes('warehouse_manager')
+    )) ||
+    (!isCustomer && isAccountant)
+  );
+
   // Quyền truy cập các phân hệ kho vận (Chỉ Admin, Quản lý kho, Thủ kho): Soạn hàng & Theo dõi Lô
   const isWarehouseOrAdmin = Boolean(
     isAdmin ||
@@ -260,6 +276,9 @@ export default function DashboardPage({
     officialRoles.includes('warehouse_manager') ||
     officialRoles.includes('warehouse_mgr')
   );
+
+  // Quyền xuất hóa đơn bán hàng từ phiếu giao hàng: Quản trị viên, Kế toán, Quản lý kinh doanh
+  const canAccessSalesInvoices = !isCustomer && Boolean(isAdmin || isAccountant || isSalesManager);
 
   // 2. Khởi tạo State với Clean URL
   const location = useLocation();
@@ -318,8 +337,6 @@ export default function DashboardPage({
     const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
-    const isDebtAdjustmentsPath = pathname === '/debt-adjustments' || pathname.startsWith('/debt-adjustments/');
-    const isDebtStatementPath = pathname === '/debt-statement' || pathname.startsWith('/debt-statement/');
     const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
     const isAgencyDebtsPath = pathname === '/agency-debts' || pathname.startsWith('/agency-debts/');
     const isDebtLedgerPath = pathname === '/debt-ledger' || pathname.startsWith('/debt-ledger/');
@@ -329,11 +346,14 @@ export default function DashboardPage({
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
     const isWarehousesPath = pathname === '/warehouses' || pathname.startsWith('/warehouses/');
     const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
+    const isStockCardPath = pathname === '/stock-card' || pathname.startsWith('/stock-card/');
     const isInventoryTurnoverPath = pathname === '/inventory-turnover' || pathname.startsWith('/inventory-turnover/');
     const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
     const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
     const isBatchesPath = pathname === '/batches' || pathname.startsWith('/batches/');
     const isPickingPath = pathname === '/picking' || pathname.startsWith('/picking/') || pathname === '/warehouse-picking' || pathname.startsWith('/warehouse-picking/');
+    const isWarehouseDispatchPath = pathname === '/warehouse/dispatch' || pathname.startsWith('/warehouse/dispatch') || pathname === '/warehouse/supplementary-deliveries' || pathname === '/warehouse/dispatch-history' || pathname === '/warehouse-dispatch';
+    const isDeliveryTripsPath = pathname === '/delivery-trips' || pathname.startsWith('/delivery-trips/') || pathname === '/warehouse/delivery-trips' || pathname.startsWith('/warehouse/delivery-trips');
     const isStockThresholdsPath = pathname === '/stock-thresholds' || pathname.startsWith('/stock-thresholds/');
     const isLowStockAlertsPath = pathname === '/low-stock-alerts' || pathname.startsWith('/low-stock-alerts/');
     const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
@@ -345,10 +365,26 @@ export default function DashboardPage({
     const isPaymentCollectionsPath = pathname === '/payment-collections' || pathname.startsWith('/payment-collections/');
     const isDebtPaymentsPath = pathname === '/debt-payments' || pathname.startsWith('/debt-payments/');
     const isDebtReconciliationPath = pathname === '/debt-reconciliation' || pathname.startsWith('/debt-reconciliation');
+    const isSalesInvoicesPath = pathname === '/sales-invoices' || pathname.startsWith('/sales-invoices/');
+    const isDebtAdjustmentsPath = pathname === '/debt-adjustments' || pathname.startsWith('/debt-adjustments/');
+    const isDebtStatementPath = pathname === '/debt-statement' || pathname.startsWith('/debt-statement/');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+    if (isDeliveryTripsPath || oldTabVal === 'delivery-trips' || oldTabVal === 'trips') {
+      if (hasOldTabParam || (pathname !== '/delivery-trips' && pathname !== '/warehouse/delivery-trips')) {
+        try { window.history.replaceState({}, '', '/delivery-trips'); } catch { }
+      }
+      return 'delivery-trips';
+    }
+    if (isWarehouseDispatchPath || oldTabVal === 'warehouse-dispatch' || oldTabVal === 'dispatch') {
+      if (hasOldTabParam || (pathname !== '/warehouse/dispatch' && pathname !== '/warehouse-dispatch')) {
+        try { window.history.replaceState({}, '', '/warehouse/dispatch'); } catch { }
+      }
+      return 'warehouse-dispatch';
+    }
 
     if (isPickingPath || oldTabVal === 'picking' || oldTabVal === 'warehouse-picking') {
       if (hasOldTabParam || (pathname !== '/picking' && pathname !== '/warehouse-picking')) {
@@ -399,6 +435,10 @@ export default function DashboardPage({
       return 'warehouses';
     }
 
+    if (isStockCardPath || oldTabVal === 'stock-card') {
+      return 'stock-card';
+    }
+
     if (isStockBookPath || oldTabVal === 'stock-book') {
       if (hasOldTabParam || pathname !== '/stock-book') {
         try { window.history.replaceState({}, '', '/stock-book'); } catch { }
@@ -425,6 +465,35 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/stock-audits'); } catch { }
       }
       return 'stock-audits';
+    }
+
+    if (isSalesInvoicesPath || oldTabVal === 'sales-invoices' || oldTabVal === 'sales-invoice') {
+      if (canAccessSalesInvoices) {
+        if (pathname !== '/sales-invoices' || hasOldTabParam) {
+          try { window.history.replaceState({}, '', '/sales-invoices'); } catch { }
+        }
+        return 'sales-invoices';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
+    }
+
+    if (isDebtAdjustmentsPath || oldTabVal === 'debt-adjustments') {
+      if (canAccessDebtAdjustments) {
+        if (hasOldTabParam || pathname !== '/debt-adjustments') {
+          try { window.history.replaceState({}, '', '/debt-adjustments'); } catch { }
+        }
+        return 'debt-adjustments';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
+    }
+
+    if (isDebtStatementPath || oldTabVal === 'debt-statement') {
+      if (hasOldTabParam || pathname !== '/debt-statement') {
+        try { window.history.replaceState({}, '', '/debt-statement'); } catch { }
+      }
+      return 'debt-statement';
     }
 
     if (isStockAdjustmentsPath || oldTabVal === 'stock-adjustments' || oldTabVal === 'stock-adjustment') {
@@ -492,22 +561,6 @@ export default function DashboardPage({
         }
       }
       return 'delivery-tracking';
-    }
-    if (isDebtAdjustmentsPath || oldTabVal === 'debt-adjustments') {
-      if (canAccessDebtAdjustments) {
-        if (hasOldTabParam || pathname !== '/debt-adjustments') {
-          try { window.history.replaceState({}, '', '/debt-adjustments'); } catch { }
-        }
-        return 'debt-adjustments';
-      }
-      try { window.history.replaceState({}, '', '/'); } catch { }
-      return 'inventory';
-    }
-    if (isDebtStatementPath || oldTabVal === 'debt-statement') {
-      if (hasOldTabParam || pathname !== '/debt-statement') {
-        try { window.history.replaceState({}, '', '/debt-statement'); } catch { }
-      }
-      return 'debt-statement';
     }
     if (isDealerProfilesPath || oldTabVal === 'dealer-profiles') {
       if (hasOldTabParam || pathname !== '/dealer-profiles') {
@@ -613,6 +666,10 @@ export default function DashboardPage({
     }
     return 'inventory';
   });
+  const [reminderInvoiceCode, setReminderInvoiceCode] = useState<string | null>(null);
+  const handleReminderInvoiceOpened = useCallback(() => {
+    setReminderInvoiceCode(null);
+  }, []);
   // 3. Chuyển đổi Route Clean URL
   const setActiveTab = (tab: TabType) => {
     // Luôn đóng màn hình Thêm/Sửa sản phẩm khi chuyển sang bất kỳ tab/nhánh nào
@@ -745,6 +802,11 @@ export default function DashboardPage({
       return;
     }
 
+    if (tab === 'stock-card') {
+      setActiveTabState('stock-card');
+      return;
+    }
+
     if (tab === 'stock-book') {
       setActiveTabState('stock-book');
       try {
@@ -766,9 +828,18 @@ export default function DashboardPage({
     }
 
     if (tab === 'orders') {
+      setSelectedOrderCodeForDetail(null);
+      setOrderSearchCode('');
       setActiveTabState('orders');
       try {
         window.history.pushState({}, '', '/orders');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'return-orders') {
+      setActiveTabState('return-orders');
+      try {
+        window.history.pushState({}, '', '/return-orders');
       } catch {
         // ignore
       }
@@ -790,25 +861,6 @@ export default function DashboardPage({
       setActiveTabState('delivery-tracking');
       try {
         window.history.pushState({}, '', '/delivery-tracking');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'debt-adjustments') {
-      if (!canAccessDebtAdjustments) {
-        setActiveTabState('inventory');
-        try { window.history.replaceState({}, '', '/'); } catch { }
-        return;
-      }
-      setActiveTabState('debt-adjustments');
-      try {
-        window.history.pushState({}, '', '/debt-adjustments');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'debt-statement') {
-      setActiveTabState('debt-statement');
-      try {
-        window.history.pushState({}, '', '/debt-statement');
       } catch {
         // ignore
       }
@@ -917,6 +969,32 @@ export default function DashboardPage({
         // ignore
       }
 
+    } else if (tab === 'warehouse-dispatch') {
+      setActiveTabState('warehouse-dispatch');
+      try {
+        window.history.pushState({}, '', '/warehouse/dispatch');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'delivery-trips') {
+      setActiveTabState('delivery-trips');
+      try {
+        window.history.pushState({}, '', '/delivery-trips');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'sales-invoices') {
+      if (!canAccessSalesInvoices) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch { }
+        return;
+      }
+      setActiveTabState('sales-invoices');
+      try {
+        window.history.pushState({}, '', '/sales-invoices');
+      } catch {
+        // ignore
+      }
     } else if (tab === 'agency-debts') {
       setActiveTabState('agency-debts');
       try {
@@ -931,13 +1009,31 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'debt-adjustments') {
+      if (!canAccessDebtAdjustments) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch { }
+        return;
+      }
+      setActiveTabState('debt-adjustments');
+      try {
+        window.history.pushState({}, '', '/debt-adjustments');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'debt-statement') {
+      setActiveTabState('debt-statement');
+      try {
+        window.history.pushState({}, '', '/debt-statement');
+      } catch {
+        // ignore
+      }
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
       return;
     }
   };
-
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -1000,18 +1096,42 @@ export default function DashboardPage({
       const isUsersPath = !isUsersImportPath && (pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/'));
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
+      const isReturnOrdersPath = pathname === '/return-orders' || pathname.startsWith('/return-orders');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
       const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
       const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
       const isBatchesPath = pathname === '/batches' || pathname.startsWith('/batches/');
       const isPickingPath = pathname === '/picking' || pathname.startsWith('/picking/') || pathname === '/warehouse-picking' || pathname.startsWith('/warehouse-picking/');
+      const isWarehouseDispatchPath = pathname === '/warehouse/dispatch' || pathname.startsWith('/warehouse/dispatch') || pathname === '/warehouse/supplementary-deliveries' || pathname === '/warehouse/dispatch-history' || pathname === '/warehouse-dispatch';
+      const isDeliveryTripsPath = pathname === '/delivery-trips' || pathname.startsWith('/delivery-trips/') || pathname === '/warehouse/delivery-trips' || pathname.startsWith('/warehouse/delivery-trips');
+
+      if (isDeliveryTripsPath || tabParam === 'delivery-trips' || tabParam === 'trips') {
+        if (pathname !== '/delivery-trips' || tabParam) {
+          try { window.history.replaceState({}, '', '/delivery-trips'); } catch { }
+        }
+        setActiveTabState('delivery-trips');
+        return;
+      }
+      if (isWarehouseDispatchPath || tabParam === 'warehouse-dispatch' || tabParam === 'dispatch') {
+        if (pathname !== '/warehouse/dispatch' || tabParam) {
+          try { window.history.replaceState({}, '', '/warehouse/dispatch'); } catch { }
+        }
+        setActiveTabState('warehouse-dispatch');
+        return;
+      }
 
       if (isProductsImportPath || tabParam === 'products-import') {
         if (pathname !== '/products/import' || tabParam) {
           try { window.history.replaceState({}, '', '/products/import'); } catch { }
         }
         setActiveTabState('products-import');
+        return;
+      }
+
+      const isStockCardPath = pathname === '/stock-card' || pathname.startsWith('/stock-card/');
+      if (isStockCardPath || tabParam === 'stock-card') {
+        setActiveTabState('stock-card');
         return;
       }
 
@@ -1084,6 +1204,20 @@ export default function DashboardPage({
         return;
       }
 
+      const isSalesInvoicesPath = pathname === '/sales-invoices' || pathname.startsWith('/sales-invoices/');
+      if (isSalesInvoicesPath || tabParam === 'sales-invoices' || tabParam === 'sales-invoice') {
+        if (canAccessSalesInvoices) {
+          if (pathname !== '/sales-invoices' || tabParam) {
+            try { window.history.replaceState({}, '', '/sales-invoices'); } catch { }
+          }
+          setActiveTabState('sales-invoices');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch { }
+        }
+        return;
+      }
+
       if (isProductHistoryPath || tabParam === 'product-history') {
         const code = params.get('code') || params.get('productCode');
         if (code) {
@@ -1121,6 +1255,14 @@ export default function DashboardPage({
         return;
       }
 
+      if (isReturnOrdersPath || tabParam === 'return-orders' || tabParam === 'returns') {
+        if (!pathname.startsWith('/return-orders') || tabParam) {
+          try { window.history.replaceState({}, '', pathname.startsWith('/return-orders') ? pathname : '/return-orders'); } catch { }
+        }
+        setActiveTabState('return-orders');
+        return;
+      }
+
       const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
       if (isDiscountsPath || tabParam === 'discounts' || tabParam === 'discount') {
         if (pathname !== '/discounts' || tabParam) {
@@ -1154,30 +1296,6 @@ export default function DashboardPage({
         }
         setActiveTabState('delivery-tracking');
         return;
-      }
-
-      const isDebtStatementPath = pathname === '/debt-statement' || pathname.startsWith('/debt-statement/');
-      if (isDebtStatementPath || tabParam === 'debt-statement') {
-        if (pathname !== '/debt-statement' || tabParam) {
-          try {
-            window.history.replaceState({}, '', '/debt-statement');
-          } catch { }
-        }
-        setActiveTabState('debt-statement');
-        return;
-      }
-
-      const isDebtAdjustmentsPath = pathname === '/debt-adjustments' || pathname.startsWith('/debt-adjustments/');
-      if (isDebtAdjustmentsPath || tabParam === 'debt-adjustments') {
-        if (canAccessDebtAdjustments) {
-          if (pathname !== '/debt-adjustments' || tabParam) {
-            try {
-              window.history.replaceState({}, '', '/debt-adjustments');
-            } catch { }
-          }
-          setActiveTabState('debt-adjustments');
-          return;
-        }
       }
 
       const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
@@ -1276,6 +1394,30 @@ export default function DashboardPage({
         setActiveTabState('debt-reconciliation');
         return;
       }
+
+      const isDebtAdjustmentsPath = pathname === '/debt-adjustments' || pathname.startsWith('/debt-adjustments/');
+      if (isDebtAdjustmentsPath || tabParam === 'debt-adjustments') {
+        if (canAccessDebtAdjustments) {
+          if (pathname !== '/debt-adjustments' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/debt-adjustments');
+            } catch { }
+          }
+          setActiveTabState('debt-adjustments');
+          return;
+        }
+      }
+
+      const isDebtStatementPath = pathname === '/debt-statement' || pathname.startsWith('/debt-statement/');
+      if (isDebtStatementPath || tabParam === 'debt-statement') {
+        if (pathname !== '/debt-statement' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/debt-statement');
+          } catch { }
+        }
+        setActiveTabState('debt-statement');
+        return;
+      }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       if (isDealersPath || tabParam === 'dealers') {
         if (pathname !== '/dealers' || tabParam) {
@@ -1351,7 +1493,15 @@ export default function DashboardPage({
 
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, canAccessSalesTargets, canAccessDebtReconciliation, canAccessDebtPayments, canAccessPaymentCollections, canAccessDebtAdjustments, canViewDebtStatement, isCustomer]);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, canAccessSalesTargets, canAccessDebtReconciliation, canAccessDebtPayments, canAccessPaymentCollections, canAccessSalesInvoices, canAccessDebtAdjustments, canViewDebtStatement, isCustomer]);
+
+  // Đại lý được chọn để xem Sổ chi tiết công nợ (/debt-statement)
+  const [selectedDebtStatementDealerId, setSelectedDebtStatementDealerId] = useState<number | undefined>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const d = params.get('dealer_id') || params.get('dealer');
+    return d ? Number(d) : undefined;
+  });
+
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [appliedPriceBook, setAppliedPriceBook] = useState<string | null>(null);
   const [serverTotalCount, setServerTotalCount] = useState<number>(0);
@@ -1365,13 +1515,6 @@ export default function DashboardPage({
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-
-  // Đại lý được chọn để xem Sổ chi tiết công nợ (/debt-statement)
-  const [selectedDebtStatementDealerId, setSelectedDebtStatementDealerId] = useState<number | undefined>(() => {
-    const params = new URLSearchParams(window.location.search);
-    const d = params.get('dealer_id') || params.get('dealer');
-    return d ? Number(d) : undefined;
-  });
 
   // Nạp danh mục ngành hàng từ Backend để đầy đủ dropdown khi phân trang Server-side
   useEffect(() => {
@@ -1467,7 +1610,16 @@ export default function DashboardPage({
     product: ProductItem | null;
     initialReason?: string;
   }>({ isOpen: false, actionType: 'receipt', product: null });
-  const [goodsReceiptInitialTab] = useState<'form' | 'list'>('form');
+  const [goodsReceiptInitialTab, setGoodsReceiptInitialTab] = useState<'form' | 'list'>('form');
+  const [selectedProductForStockCard, setSelectedProductForStockCard] = useState<{ id: number; name: string; code: string } | null>(null);
+  const [stockCardReturnTab, setStockCardReturnTab] = useState<TabType>('stock-book');
+  const [stockAuditSearchCode, setStockAuditSearchCode] = useState<string>('');
+  const [stockAuditSearchProduct, setStockAuditSearchProduct] = useState<string>('');
+  const [goodsReceiptInitialCode, setGoodsReceiptInitialCode] = useState<string>('');
+  const [stockTransferInitialCode, setStockTransferInitialCode] = useState<string>('');
+  const [selectedOrderCodeForDetail, setSelectedOrderCodeForDetail] = useState<string | null>(null);
+  const [orderSearchCode, setOrderSearchCode] = useState<string>('');
+  const isOrderDetailEffective = isOrderDetailSubpage || Boolean(selectedOrderCodeForDetail);
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
   const [cloneOrderData, setCloneOrderData] = useState<any>(() => {
     try {
@@ -1789,8 +1941,14 @@ export default function DashboardPage({
       </html>
     `;
     const blob = new Blob(['\uFEFF' + excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    const filename = `danh_sach_hang_hoa_${new Date().toISOString().slice(0, 10)}.xls`;
-    downloadBlobFile(blob, filename, 'application/vnd.ms-excel;charset=utf-8;');
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `danh_sach_hang_hoa_${new Date().toISOString().slice(0, 10)}.xls`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const roleLabelMap: Record<string, string> = {
@@ -1825,8 +1983,11 @@ export default function DashboardPage({
   const isUsersImportPage = activeTab === 'users-import';
   const isPaymentCollectionsPage = activeTab === 'payment-collections';
   const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath.startsWith('/delivery-tracking');
+  const isWarehouseDispatchPage = activeTab === 'warehouse-dispatch';
+  const isDeliveryTripsPage = activeTab === 'delivery-trips';
   const isStockAdjustmentsPage = activeTab === 'stock-adjustments';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && !isStockAdjustmentsPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
+  const isReturnOrderCreatePage = activeTab === 'return-orders' && currentPath.startsWith('/return-orders/create');
+  const isLockedScrollTab = !isReturnOrderCreatePage && !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailEffective && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && !isStockAdjustmentsPage && !isWarehouseDispatchPage && !isDeliveryTripsPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'return-orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-card' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
   return (
     <DashboardLayout
       header={
@@ -1854,7 +2015,7 @@ export default function DashboardPage({
       }
       noScroll={!isCustomer && !isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'debt-payments' || activeTab === 'debt-adjustments' || activeTab === 'debt-statement'
+        isOrderDetailEffective || isOrdersCreateSubpage || isReturnOrderCreatePage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'debt-payments' || activeTab === 'debt-adjustments' || activeTab === 'debt-statement' || activeTab === 'sales-invoices'
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
           : activeTab === 'agency-debts'
             ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
@@ -1905,8 +2066,10 @@ export default function DashboardPage({
           isWarehouseOrAdmin={isWarehouseOrAdmin}
           isAdmin={isAdmin}
           canAccessPaymentCollections={canAccessPaymentCollections}
-          canAccessDebtAdjustments={canAccessDebtAdjustments}
+          canAccessSalesInvoices={canAccessSalesInvoices}
           canAccessDebtReconciliation={canAccessDebtReconciliation}
+          canAccessDebtStatement={canViewDebtStatement}
+          canAccessDebtAdjustments={canAccessDebtAdjustments}
           canAccessInventoryTurnover={canAccessInventoryTurnover}
           onLogout={() => {
             if (isLoggingOut) return;
@@ -1920,7 +2083,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'payment-collections' || activeTab === 'debt-payments' || activeTab === 'debt-adjustments' || activeTab === 'debt-statement' || isMobileScreen ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailEffective || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'payment-collections' || activeTab === 'debt-payments' || activeTab === 'debt-adjustments' || activeTab === 'debt-statement' || activeTab === 'sales-invoices' || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -2049,12 +2212,16 @@ export default function DashboardPage({
                   onLogout={onLogout}
                 />
               )
-            ) : isOrderDetailSubpage ? (
+            ) : isOrderDetailEffective ? (
               <OrderDetailPage
                 currentUser={user}
                 token={token}
+                orderId={selectedOrderCodeForDetail || undefined}
                 onBack={() => {
+                  setSelectedOrderCodeForDetail(null);
+                  setOrderSearchCode('');
                   window.history.pushState({}, '', '/orders');
+                  window.dispatchEvent(new Event('popstate'));
                 }}
                 onCloneOrder={canCreateOrders ? (data) => {
                   try {
@@ -2062,6 +2229,7 @@ export default function DashboardPage({
                   } catch { }
                   setCloneOrderData(data);
                   window.history.pushState({}, '', '/orders/create');
+                  window.dispatchEvent(new Event('popstate'));
                 } : undefined}
                 onRefreshProducts={fetchProducts}
               />
@@ -2070,6 +2238,7 @@ export default function DashboardPage({
                 currentUser={user}
                 token={token}
                 products={products}
+                initialSearchTerm={orderSearchCode}
                 onBackToHome={() => setActiveTab('inventory')}
                 onRefreshProducts={fetchProducts}
                 onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
@@ -2079,6 +2248,7 @@ export default function DashboardPage({
                   } catch { }
                   setCloneOrderData(data);
                   window.history.pushState({}, '', '/orders/create');
+                  window.dispatchEvent(new Event('popstate'));
                 } : undefined}
               />
             )
@@ -2090,6 +2260,12 @@ export default function DashboardPage({
               onLogout={onLogout}
             />
           )
+        ) : activeTab === 'return-orders' ? (
+          <ReturnOrdersManagementView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
         ) : activeTab === 'goods-receipt' ? (
           canWriteInventory ? (
             <GoodsReceiptView
@@ -2097,6 +2273,7 @@ export default function DashboardPage({
               products={products}
               currentUserWarehouse={user.branch || user.warehouse_name || undefined}
               initialTab={goodsReceiptInitialTab}
+              initialSearchCode={goodsReceiptInitialCode}
               onBackToInventory={() => setActiveTab('inventory')}
               onSuccess={() => {
                 fetchProducts();
@@ -2253,53 +2430,14 @@ export default function DashboardPage({
             />
           )
         ) : activeTab === 'agency-debts' ? (
-          isCustomer ? (
-            <AgencyDebtInvoiceView
-              currentUser={user}
-              token={token}
-              onBackToPortal={() => setActiveTab('inventory')}
-              onNavigateToOrders={() => setActiveTab('orders')}
-            />
-          ) : (
-            <AccessDeniedView
-              currentUser={user}
-              requiredPermission="Cổng công nợ & Hóa đơn đại lý (Dành riêng cho khách hàng / đại lý)"
-              onBackToWorkflow={() => setActiveTab('inventory')}
-              onLogout={onLogout}
-            />
-          )
-        ) : activeTab === 'debt-adjustments' ? (
-          canAccessDebtAdjustments ? (
-            <DebtAdjustmentManagementView
-              token={token}
-              currentUserRole={user.role}
-              currentUserId={user.id}
-              currentUserName={user.full_name || user.username}
-            />
-          ) : (
-            <AccessDeniedView
-              currentUser={user}
-              requiredPermission="Giảm trừ công nợ khi trả hàng (Kế toán công nợ / Quản trị viên)"
-              onBackToWorkflow={() => setActiveTab('inventory')}
-              onLogout={onLogout}
-            />
-          )
-        ) : activeTab === 'debt-statement' ? (
-          canViewDebtStatement ? (
-            <DealerDebtStatementView
-              currentUser={user}
-              token={token}
-              initialDealerId={selectedDebtStatementDealerId}
-              onBack={() => setActiveTab('dealer-profiles')}
-            />
-          ) : (
-            <AccessDeniedView
-              currentUser={user}
-              requiredPermission="Sổ chi tiết công nợ (Kế toán công nợ / Quản trị viên / Quản lý kinh doanh)"
-              onBackToWorkflow={() => setActiveTab('inventory')}
-              onLogout={onLogout}
-            />
-          )
+          <AgencyDebtInvoiceView
+            currentUser={user}
+            token={token}
+            initialInvoiceCode={reminderInvoiceCode}
+            onInitialInvoiceOpened={handleReminderInvoiceOpened}
+            onBackToPortal={() => setActiveTab('inventory')}
+            onNavigateToOrders={() => setActiveTab('orders')}
+          />
         ) : activeTab === 'dealer-profiles' ? (
           canManageDealerProfiles ? (
             <DealerProfileManagementView
@@ -2417,6 +2555,38 @@ export default function DashboardPage({
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Đối chiếu công nợ (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-adjustments' ? (
+          canAccessDebtAdjustments ? (
+            <DebtAdjustmentManagementView
+              token={token}
+              currentUserRole={user.role}
+              currentUserId={user.id}
+              currentUserName={user.full_name || user.username}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Giảm trừ công nợ khi trả hàng (Kế toán công nợ / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-statement' ? (
+          canViewDebtStatement ? (
+            <DealerDebtStatementView
+              currentUser={user}
+              token={token}
+              initialDealerId={selectedDebtStatementDealerId}
+              onBack={() => setActiveTab('dealer-profiles')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Sổ chi tiết công nợ (Kế toán công nợ / Quản trị viên / Quản lý kinh doanh)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />
@@ -2552,11 +2722,50 @@ export default function DashboardPage({
               token={token}
               currentUser={user}
               onBackToHome={() => setActiveTab('inventory')}
+              initialSearchCode={stockTransferInitialCode}
             />
           ) : (
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Quản lý chuyển kho nội bộ (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'warehouse-dispatch' ? (
+          canWriteInventory || isWarehouseOrAdmin || isAdmin ? (
+            <WarehouseDispatchView
+              token={token}
+              currentUser={user}
+              initialTab={currentPath.includes('supplementary') ? 'supplementary' : currentPath.includes('history') ? 'history' : 'dispatch'}
+              onNavigateTab={(subTab) => {
+                const newUrl = subTab === 'supplementary'
+                  ? '/warehouse/supplementary-deliveries'
+                  : subTab === 'history'
+                    ? '/warehouse/dispatch-history'
+                    : '/warehouse/dispatch';
+                try { window.history.pushState({}, '', newUrl); } catch { }
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý xuất kho & giao thiếu (Quản lý kho / Thủ kho / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'delivery-trips' ? (
+          canWriteInventory || isWarehouseOrAdmin || isAdmin ? (
+            <DeliveryTripsView
+              token={token}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý chuyến giao hàng (Quản lý kho / Thủ kho / Quản trị viên)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />
@@ -2621,16 +2830,90 @@ export default function DashboardPage({
               onLogout={onLogout}
             />
           )
+        ) : activeTab === 'stock-card' ? (
+          canAccessStockCard ? (
+            <StockCardView
+              productId={selectedProductForStockCard?.id || 1}
+              productName={selectedProductForStockCard?.name}
+              productCode={selectedProductForStockCard?.code}
+              token={token}
+              onBack={() => {
+                setActiveTab(stockCardReturnTab || 'stock-book');
+                setSelectedProductForStockCard(null);
+              }}
+              onNavigateToTab={(tab, queryParam, productCode) => {
+                if (tab === 'stock-audits' && queryParam) {
+                  setStockAuditSearchCode(queryParam);
+                  if (productCode) setStockAuditSearchProduct(productCode);
+                  setActiveTabState('stock-audits');
+                  try { window.history.pushState({}, '', '/stock-audits'); } catch { }
+                } else if (tab === 'orders' && queryParam) {
+                  setSelectedOrderCodeForDetail(queryParam);
+                  setOrderSearchCode(queryParam);
+                  setActiveTabState('orders');
+                  try {
+                    window.history.pushState({}, '', `/orders/${queryParam}`);
+                    window.dispatchEvent(new Event('popstate'));
+                  } catch { }
+                } else if (tab === 'goods-receipt' && queryParam) {
+                  setGoodsReceiptInitialCode(queryParam);
+                  setGoodsReceiptInitialTab('list');
+                  setActiveTabState('goods-receipt');
+                  try { window.history.pushState({}, '', '/goods-receipt'); } catch { }
+                } else if (tab === 'stock-transfers' && queryParam) {
+                  setStockTransferInitialCode(queryParam);
+                  setActiveTabState('stock-transfers');
+                  try { window.history.pushState({}, '', '/stock-transfers'); } catch { }
+                } else {
+                  setActiveTab(tab as TabType);
+                }
+                setSelectedProductForStockCard(null);
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Xem Thẻ kho sản phẩm (Thủ kho / Quản lý kho / Quản trị hệ thống / Kế toán)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'sales-invoices' ? (
+          canAccessSalesInvoices ? (
+            <SalesInvoiceFromDeliveriesView
+              currentUser={user}
+              token={token}
+              onBackToWorkflow={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Xuất hóa đơn bán hàng từ phiếu giao hàng (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
         ) : activeTab === 'stock-book' ? (
           !isCustomer ? (
             <WarehouseStockBookView
               token={token}
+              canAccessStockCard={canAccessStockCard}
               currentUser={user}
               onBackToHome={() => setActiveTab('inventory')}
               onOpenTurnoverReport={canAccessInventoryTurnover ? () => setActiveTab('inventory-turnover') : undefined}
               onNavigateToAdjustments={() => {
                 setStockAdjustmentInitialMode('CREATE');
                 setActiveTab('stock-adjustments');
+              }}
+              onNavigateToTab={(tab) => {
+                setActiveTab(tab as TabType);
+              }}
+              onOpenStockCard={(productId, productName, productCode) => {
+                if (canAccessStockCard) {
+                  setSelectedProductForStockCard({ id: productId, name: productName, code: productCode });
+                  setStockCardReturnTab('stock-book');
+                  setActiveTab('stock-card');
+                }
               }}
             />
           ) : (
@@ -2691,6 +2974,8 @@ export default function DashboardPage({
             <StockAuditManagementView
               token={token}
               currentUser={user}
+              initialSearchCode={stockAuditSearchCode}
+              initialSearchProduct={stockAuditSearchProduct}
             />
           ) : (
             <AccessDeniedView
@@ -2885,7 +3170,10 @@ export default function DashboardPage({
             onViewChange={(view) => setActiveTab(view === 'cart' ? 'cart' : 'inventory')}
             onRefreshProducts={fetchProducts}
             onNavigateToOrders={() => setActiveTab('orders')}
-            onNavigateToDebt={() => setActiveTab('agency-debts')}
+            onNavigateToDebt={(invoiceCode) => {
+              setReminderInvoiceCode(invoiceCode);
+              setActiveTab('agency-debts');
+            }}
           />
         ) : (
           <>
@@ -4112,6 +4400,42 @@ export default function DashboardPage({
                                         <span>Xuất kho</span>
                                       </button>
                                     )}
+
+                                    {canAccessStockCard && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedProductForStockCard({ id: item.id, name: item.name, code: item.code });
+                                        setStockCardReturnTab('inventory');
+                                        setActiveTab('stock-card');
+                                        setOpenProductMenuId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        color: '#1d4ed8',
+                                        cursor: 'pointer',
+                                        boxShadow: 'none',
+                                        margin: 0,
+                                        transition: 'background 0.15s ease',
+                                        textAlign: 'left',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#eff6ff')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      title="Xem thẻ kho chi tiết để truy nguyên số tồn bị lệch"
+                                    >
+                                      <span>Xem thẻ kho</span>
+                                    </button>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -4588,4 +4912,3 @@ export default function DashboardPage({
     </DashboardLayout>
   );
 }
-

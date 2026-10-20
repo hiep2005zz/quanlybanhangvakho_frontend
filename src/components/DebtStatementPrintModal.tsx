@@ -1,7 +1,7 @@
 // frontend/src/components/DebtStatementPrintModal.tsx
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { DebtStatementData } from '../services/dealerSearchApi';
+import { DebtStatementData, DebtStatementItem } from '../services/dealerSearchApi';
 import { User } from '../services/api';
 import './debt-statement-print.css';
 
@@ -94,29 +94,14 @@ export const DebtStatementPrintModal: React.FC<DebtStatementPrintModalProps> = (
               type="button"
               onClick={handlePrint}
               className="debt-btn debt-btn-primary"
-              title="Mở hộp thoại in chứng từ sổ công nợ"
+              title="In ra máy in hoặc Lưu / Tải tệp PDF (Save as PDF)"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
                 <rect x="6" y="14" width="12" height="8"></rect>
               </svg>
-              In sổ công nợ
-            </button>
-
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="debt-btn debt-btn-pdf"
-              title="Lưu hoặc xuất chứng từ dạng tệp PDF (Save as PDF)"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="12" y1="18" x2="12" y2="12"></line>
-                <line x1="9" y1="15" x2="15" y2="15"></line>
-              </svg>
-              Tải PDF
+              In / Tải PDF
             </button>
 
             {onExportExcel && (
@@ -250,7 +235,7 @@ export const DebtStatementPrintModal: React.FC<DebtStatementPrintModalProps> = (
                     </td>
                   </tr>
                 ) : (
-                  transactions.map((tx, idx) => (
+                  transactions.map((tx: DebtStatementItem, idx: number) => (
                     <tr key={tx.id || idx}>
                       <td style={{ textAlign: 'center' }}>{idx + 2}</td>
                       <td style={{ textAlign: 'center' }}>{formatDate(tx.date)}</td>

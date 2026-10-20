@@ -7,6 +7,7 @@ export interface GoodsReceiptViewProps {
   products: ProductItem[];
   currentUserWarehouse?: string;
   initialTab?: 'form' | 'list';
+  initialSearchCode?: string;
   onBackToInventory: () => void;
   onSuccess?: () => void;
   onRequestAdjust?: (product: ProductItem | null, receiptCode: string) => void;
@@ -17,6 +18,7 @@ export const GoodsReceiptView: React.FC<GoodsReceiptViewProps> = ({
   products,
   currentUserWarehouse,
   initialTab = 'form',
+  initialSearchCode,
   onBackToInventory,
   onSuccess,
   onRequestAdjust,
@@ -37,6 +39,7 @@ export const GoodsReceiptView: React.FC<GoodsReceiptViewProps> = ({
         products={products}
         currentUserWarehouse={currentUserWarehouse}
         initialTab={initialTab}
+        initialSearchCode={initialSearchCode}
         onClose={onBackToInventory}
         onSuccess={() => {
           onSuccess?.();

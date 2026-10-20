@@ -5,6 +5,8 @@ interface DealerCreditBadgeProps {
   creditInfo: DealerCreditInfo | null;
   currentOrderAmount?: number;
   isLoading?: boolean;
+  compact?: boolean;
+  hidePolicyAlerts?: boolean;
 }
 
 const formatVND = (amount: number): string => {
@@ -19,6 +21,8 @@ export const DealerCreditBadge: React.FC<DealerCreditBadgeProps> = ({
   creditInfo,
   currentOrderAmount = 0,
   isLoading = false,
+  compact: _compact = false,
+  hidePolicyAlerts = false,
 }) => {
   if (isLoading) {
     return (
@@ -168,8 +172,8 @@ export const DealerCreditBadge: React.FC<DealerCreditBadgeProps> = ({
         </div>
       </div>
 
-      {/* 2. AC 3: CẢNH BÁO NỢ QUÁ HẠN (BLOCK HOÀN TOÀN) */}
-      {isOverdue && (
+      {/* 2. AC 3: CẢNH BÁO NỢ QUÁ HẠN (BLOCK HOÀN TOÀN) - Chỉ hiển thị nếu không cấu hình ẩn */}
+      {!hidePolicyAlerts && isOverdue && (
         <div
           id="alert-overdue-debt-blocked"
           role="alert"
@@ -194,8 +198,8 @@ export const DealerCreditBadge: React.FC<DealerCreditBadgeProps> = ({
         </div>
       )}
 
-      {/* 3. AC 2: CẢNH BÁO VƯỢT HẠN MỨC (SET STATUS CẦN DUYỆT) */}
-      {!isOverdue && (isOrderExceedingLimit || isCurrentlyOverLimit) && (
+      {/* 3. AC 2: CẢNH BÁO VƯỢT HẠN MỨC (SET STATUS CẦN DUYỆT) - Chỉ hiển thị nếu không cấu hình ẩn */}
+      {!hidePolicyAlerts && !isOverdue && (isOrderExceedingLimit || isCurrentlyOverLimit) && (
         <div
           id="alert-credit-limit-approval-needed"
           role="alert"

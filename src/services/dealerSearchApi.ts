@@ -30,6 +30,11 @@ export interface DealerSearchItem {
     max_debt_days?: number;
     current_debt?: number;
     debt_status?: string;
+    is_over_credit_limit?: boolean;
+    is_overdue?: boolean;
+    credit_warning_flag?: boolean;
+    credit_flag_reason?: string | null;
+    last_credit_evaluated_at?: string | null;
     lock_reason?: string | null;
     locked_at?: string | null;
     locked_by?: string | null;
@@ -66,10 +71,6 @@ export interface DealerTransactionsResponse {
     dealer_code: string;
     dealer_name: string;
     total: number;
-    total_transactions?: number;
-    total_amount?: number;
-    paid_amount?: number;
-    unpaid_amount?: number;
     items: DealerTransactionItem[];
 }
 
@@ -99,6 +100,7 @@ export interface DealerSearchParams {
     customer_group?: string;
     status?: string;
     has_transactions?: boolean;
+    credit_status?: string;
     page?: number;
     page_size?: number;
 }
@@ -168,6 +170,10 @@ export async function searchDealers(
 
     if (params?.has_transactions !== undefined) {
         query.set('has_transactions', String(params.has_transactions));
+    }
+
+    if (params?.credit_status?.trim()) {
+        query.set('credit_status', params.credit_status.trim());
     }
 
     if (params?.page) {
@@ -876,7 +882,6 @@ export async function exportDealerDebtStatementExcelApi(
     return response.blob();
 }
 
-
 /**
  * Yêu cầu máy chủ chạy logic / stored procedure đồng bộ lại dữ liệu công nợ SQL Server
  */
@@ -912,3 +917,6 @@ export async function resyncAllDealerDebts(dealerId?: number, token?: string): P
 
     return response.json();
 }
+
+
+

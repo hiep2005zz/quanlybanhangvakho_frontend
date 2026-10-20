@@ -1414,13 +1414,13 @@
 
 /* Viền kẻ dọc ngăn cách giữa cột 1 và cột 2 */
 .wh-form-master-frame .wh-col-info {
-  border-right: 1px solid #e2e8f0 !important;
+  border-right: 1px solid #cbd5e1 !important;
 }
 
 /* Viền kẻ dọc ngăn cách giữa cột 2 và cột 3 */
 .wh-form-master-frame .wh-col-contact,
 .wh-form-master-frame .wh-col-capacity {
-  border-right: 1px solid #e2e8f0 !important;
+  border-right: 1px solid #cbd5e1 !important;
 }
 
 /* Cột 3: Tổng kết có nền xám nhẹ dịu mát để phân biệt rõ với 2 cột nhập liệu */
@@ -1862,5 +1862,21 @@
     border-right: none !important;
     border-bottom: 1px solid #e2e8f0 !important;
   }
+}
+
+/* Custom scrollbar cho danh sách sản phẩm gán vào kệ */
+.wh-custom-scrollbar::-webkit-scrollbar {
+  width: 7px;
+}
+.wh-custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.wh-custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 4px;
+}
+.wh-custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 

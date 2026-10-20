@@ -803,9 +803,11 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const canCreateOrder = (isSalesOrAdmin || isCustomerRole) && !isStrictlyBlockedRole;
 
   // AC 2 & 3: Kiểm tra nợ quá hạn và vượt hạn mức
+  // Cấu hình chặn nợ quá hạn CHỈ áp dụng khi mua hàng ở trang đại lý (isCustomerRole). Ở trang admin tạo đơn không bị chặn bởi cấu hình.
   const isOverdueBlocked = Boolean(
-    creditInfo?.is_overdue ||
-    (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30))
+    isCustomerRole &&
+    (creditInfo?.is_overdue ||
+      (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30)))
   );
   const isOverLimit = Boolean(
     creditInfo &&
@@ -1083,12 +1085,13 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               </div>
             )}
 
-            {/* AC 1, 2, 3: Hiển thị 3 chỉ số công nợ của đại lý & cảnh báo */}
+            {/* AC 1, 2, 3: Hiển thị 3 chỉ số công nợ của đại lý & cảnh báo (ở trang admin không hiển thị cảnh báo cấu hình) */}
             <div style={{ marginTop: '12px' }}>
               <DealerCreditBadge
                 creditInfo={creditInfo}
                 currentOrderAmount={totalAmount}
                 isLoading={isLoadingCredit}
+                hidePolicyAlerts={!isCustomerRole}
               />
             </div>
           </div>

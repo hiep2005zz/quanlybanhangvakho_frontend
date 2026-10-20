@@ -16,6 +16,7 @@ import {
   transferLocationProductApi,
   getProductLocationAllocationStatusApi,
   ProductAllocationStatusResponse,
+  getWarehouseStocksMapApi,
   User,
   getProductsApi,
   Product,
@@ -33,9 +34,8 @@ import {
   deleteWarehouseRackApi,
 } from '../services/api';
 import './warehouse-management.css';
-import { emitStatusToast } from './StatusToast';
 import WarehousePickingView from './WarehousePickingView';
-import { ProductSelectDropdown } from './ProductSelectDropdown';
+import { emitStatusToast } from './StatusToast';
 import { WarehouseKeeperSelectDropdown } from './WarehouseKeeperSelectDropdown';
 
 
@@ -93,6 +93,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const [isProdLoading, setIsProdLoading] = useState<boolean>(false);
   const [prodSearch, setProdSearch] = useState<string>('');
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [warehouseStocksMap, setWarehouseStocksMap] = useState<Record<number, number>>({});
 
   // State Danh mục Master Data: Kệ, Dãy, Khu vực
   const [masterData, setMasterData] = useState<WarehouseMasterData>({
@@ -120,6 +121,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const [isLocFormPageActive, setIsLocFormPageActive] = useState<boolean>(false);
   const [isZoneFormPageActive, setIsZoneFormPageActive] = useState<boolean>(false);
   const [isRackFormPageActive, setIsRackFormPageActive] = useState<boolean>(false);
+  const [isAssignFormPageActive, setIsAssignFormPageActive] = useState<boolean>(false);
 
   // Modal Kho
   const [isWhModalOpen, setIsWhModalOpen] = useState<boolean>(false);
@@ -224,6 +226,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     quantity: 10,
   });
   const [isAssignSubmitting, setIsAssignSubmitting] = useState<boolean>(false);
+  const [assignProductSearch, setAssignProductSearch] = useState<string>('');
+  const [assignProductDisplayLimit, setAssignProductDisplayLimit] = useState<number>(4);
   const [assignAllocationStatus, setAssignAllocationStatus] = useState<ProductAllocationStatusResponse | null>(null);
   const [isFetchingAllocation, setIsFetchingAllocation] = useState<boolean>(false);
   const [selectedDropdownProduct, setSelectedDropdownProduct] = useState<any | null>(null);
@@ -320,15 +324,38 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     }
   }, [token]);
 
+  // 3.1 Tải bản đồ tồn kho thực tế của tất cả sản phẩm trong kho đang chọn
+  const fetchWarehouseStocksMap = useCallback(async (whId: number) => {
+    try {
+      const data = await getWarehouseStocksMapApi(token, whId);
+      setWarehouseStocksMap(data || {});
+    } catch (err) {
+      console.warn('Lỗi tải tồn kho sản phẩm theo kho:', err);
+    }
+  }, [token]);
+
+  // Helper lấy tổng tồn của một sản phẩm trong kho đang chọn (ưu tiên warehouseStocksMap -> locationProducts -> fallbackGlobalStock)
+  const getProductWarehouseStock = useCallback((productId: number, fallbackGlobalStock: number = 0): number => {
+    if (warehouseStocksMap && warehouseStocksMap[productId] !== undefined) {
+      return warehouseStocksMap[productId];
+    }
+    const lpItem = locationProducts.find((lp) => lp.product_id === productId);
+    if (lpItem && lpItem.warehouse_total_stock !== undefined) {
+      return lpItem.warehouse_total_stock;
+    }
+    return fallbackGlobalStock;
+  }, [warehouseStocksMap, locationProducts]);
+
   useEffect(() => {
     if (selectedWarehouse) {
       fetchMasterData(selectedWarehouse.id);
       fetchLocations(selectedWarehouse.id);
-      if (subTab === 'products') {
-        fetchLocationProducts(selectedWarehouse.id);
-      }
+      fetchLocationProducts(selectedWarehouse.id);
+      fetchWarehouseStocksMap(selectedWarehouse.id);
+    } else {
+      setWarehouseStocksMap({});
     }
-  }, [selectedWarehouse, subTab, fetchLocations, fetchLocationProducts, fetchMasterData]);
+  }, [selectedWarehouse, fetchLocations, fetchLocationProducts, fetchMasterData, fetchWarehouseStocksMap]);
 
   // Danh sách các Zone độc nhất trong kho đang chọn (bảo đảm không bị mất khi lọc)
   const uniqueZones = useMemo(() => {
@@ -905,55 +932,57 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       return;
     }
 
+    if (selectedWarehouse) {
+      fetchLocationProducts(selectedWarehouse.id);
+    }
+
     const actualPid = typeof preferredProductId === 'number' ? preferredProductId : undefined;
     const actualLocId = typeof preferredLocationId === 'number' ? preferredLocationId : undefined;
+    const initialLocationId = actualLocId || locations[0]?.id || 0;
 
-    // 1. Xác định sản phẩm: ưu tiên sản phẩm có tồn kho chưa phân bổ
-    let initialProd = allProducts[0] || null;
-    if (actualPid) {
-      initialProd = allProducts.find((p) => p.id === actualPid) || initialProd;
-    } else {
-      const prodWithUnallocated = allProducts.find((p) => {
-        const allocated = locationProducts
+    let targetProd = actualPid ? allProducts.find((p) => p.id === actualPid) : undefined;
+    if (!targetProd) {
+      targetProd = allProducts.find((p) => {
+        const assignedAll = locationProducts
           .filter((lp) => lp.product_id === p.id)
           .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
-        return (p.stock || 0) > allocated;
-      });
-      if (prodWithUnallocated) {
-        initialProd = prodWithUnallocated;
-      }
+        const whStock = getProductWarehouseStock(p.id, p.stock || 0);
+        return whStock - assignedAll > 0;
+      }) || allProducts[0];
     }
 
-    const initialPid = initialProd?.id || 1;
-    const curProductShelfItems = locationProducts.filter((lp) => lp.product_id === initialPid);
-
-    // 2. Xác định vị trí kệ: Nếu sản phẩm đã ở 1 kệ nào đó và không chỉ định kệ, ưu tiên kệ đó để không bị rơi vào trạng thái 0
-    let initialLocId = locations[0]?.id || 0;
-    if (actualLocId) {
-      initialLocId = actualLocId;
-    } else if (curProductShelfItems.length > 0 && curProductShelfItems[0].quantity > 0) {
-      initialLocId = curProductShelfItems[0].location_id;
-    }
-
-    const whStock = curProductShelfItems[0]?.warehouse_total_stock ?? (initialProd?.stock ?? 0);
-    const allocatedOther = curProductShelfItems
-      .filter((lp) => lp.location_id !== initialLocId)
+    const targetProdId = targetProd?.id || 1;
+    const curLocItem = locationProducts.find(
+      (lp) => lp.location_id === initialLocationId && lp.product_id === targetProdId
+    );
+    const existingQtyOnLoc = curLocItem ? Number(curLocItem.quantity) || 0 : 0;
+    const assignedOther = locationProducts
+      .filter((lp) => lp.product_id === targetProdId && lp.location_id !== initialLocationId)
       .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
-    const maxAssignable = Math.max(0, whStock - allocatedOther);
-    const curOnThisShelf = curProductShelfItems.find((lp) => lp.location_id === initialLocId)?.quantity || 0;
-    const defaultQty = curOnThisShelf > 0 ? curOnThisShelf : Math.min(10, maxAssignable);
+    const targetWhStock = getProductWarehouseStock(targetProdId, targetProd?.stock || 0);
+    const unassigned = Math.max(0, targetWhStock - assignedOther - existingQtyOnLoc);
 
-    setSelectedDropdownProduct(initialProd);
+    setSelectedDropdownProduct(targetProd || null);
     setAssignFormData({
-      location_id: initialLocId,
-      product_id: initialPid,
-      quantity: defaultQty,
+      location_id: initialLocationId,
+      product_id: targetProdId,
+      quantity: existingQtyOnLoc > 0 ? existingQtyOnLoc : unassigned,
     });
-    setIsAssignModalOpen(true);
+    setAssignProductSearch('');
+    setAssignProductDisplayLimit(4);
+    setIsAssignFormPageActive(true);
+    setIsAssignModalOpen(false);
     if (selectedWarehouse) {
-      fetchAllocationStatus(selectedWarehouse.id, initialPid);
+      fetchAllocationStatus(selectedWarehouse.id, targetProdId);
     }
   };
+
+  // Tự động đồng bộ chi tiết phân bổ khi đổi sản phẩm cần gán
+  useEffect(() => {
+    if (selectedWarehouse && assignFormData.product_id && (isAssignFormPageActive || isAssignModalOpen)) {
+      fetchAllocationStatus(selectedWarehouse.id, assignFormData.product_id);
+    }
+  }, [selectedWarehouse, assignFormData.product_id, isAssignFormPageActive, isAssignModalOpen, fetchAllocationStatus]);
 
   // --- KIỂM TRA SỨC CHỨA VỊ TRÍ KỆ (RACK LEVEL) ---
   const checkRackCapacity = (
@@ -1053,26 +1082,26 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     const netIncrease = targetQty - oldQty;
 
     // 0. KIỂM TRA TỒN CHƯA PHÂN BỔ CỦA SẢN PHẨM TRONG KHO
-    const selectedProd = allProducts.find((p) => p.id === assignFormData.product_id);
+    const targetProd = allProducts.find((p) => p.id === assignFormData.product_id);
     const curProductShelfItems = locationProducts.filter(
       (lp) => lp.product_id === assignFormData.product_id
     );
     const whStock =
       assignAllocationStatus?.warehouse_total_stock ??
-      (curProductShelfItems[0]?.warehouse_total_stock ??
-        (selectedProd?.stock ?? 0));
+      getProductWarehouseStock(assignFormData.product_id, targetProd?.stock ?? 0);
     const allocatedOther = curProductShelfItems
       .filter((lp) => lp.location_id !== assignFormData.location_id)
       .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
-    const maxAssignable = Math.max(0, whStock - allocatedOther);
+    const maxAllowedForLoc = Math.max(0, whStock - allocatedOther);
 
-    if (targetQty > maxAssignable) {
+    if (targetQty > maxAllowedForLoc) {
+      const msg = `Không thể gán ${targetQty} SP! Sản phẩm "${targetProd?.name}" đã được gán hết hoặc không đủ tồn chưa gán. Tối đa chỉ có thể gán ${maxAllowedForLoc} ${targetProd?.base_unit || 'Cái'} vào vị trí này (Tổng tồn: ${whStock}, đã gán ở các kệ khác: ${allocatedOther}).`;
       emitStatusToast({
-        message: `Vượt quá tồn chưa phân bổ của kho! Tối đa có thể gán vào kệ này là ${maxAssignable} ${selectedProd?.base_unit || 'Cái'}.`,
+        message: msg,
         type: 'error',
         title: 'Chặn gán vượt tồn kho',
       });
-      setErrorMsg(`Vượt quá tồn chưa phân bổ của kho! Vị trí này chỉ được gán tối đa ${maxAssignable} ${selectedProd?.base_unit || 'Cái'}.`);
+      setErrorMsg(msg);
       return;
     }
 
@@ -1112,6 +1141,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       );
       setSuccessMsg(res.message || 'Đã gán sản phẩm vào vị trí thành công.');
       setIsAssignModalOpen(false);
+      setIsAssignFormPageActive(false);
       await Promise.all([
         fetchLocationProducts(selectedWarehouse.id),
         fetchLocations(selectedWarehouse.id),
@@ -1966,6 +1996,570 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               <button type="submit" className="wh-btn wh-btn-primary" disabled={isRackSubmitting}>
                 {isRackSubmitting ? 'Đang lưu...' : editingRack ? 'Cập nhật dãy kệ' : 'Tạo dãy kệ'}
               </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // 5. TRANG GÁN SẢN PHẨM VÀO VỊ TRÍ KỆ (FULL PAGE VIEW SANG TRANG MỚI)
+  if (isAssignFormPageActive && selectedWarehouse) {
+    const currentSelectedProd = allProducts.find((p) => p.id === assignFormData.product_id);
+    const curUnit = currentSelectedProd?.base_unit || 'Cái';
+    const curTotalStock =
+      assignAllocationStatus?.warehouse_total_stock ??
+      getProductWarehouseStock(assignFormData.product_id, currentSelectedProd?.stock || 0);
+    const curAssignedAll = locationProducts
+      .filter((lp) => lp.product_id === assignFormData.product_id)
+      .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+    const curLocItem = locationProducts.find(
+      (lp) => lp.location_id === assignFormData.location_id && lp.product_id === assignFormData.product_id
+    );
+    const curQtyAtThisLoc = curLocItem ? Number(curLocItem.quantity) || 0 : 0;
+    const curAssignedOther = curAssignedAll - curQtyAtThisLoc;
+    const curMaxAllowed = Math.max(0, curTotalStock - curAssignedOther);
+    const curUnassigned = Math.max(0, curTotalStock - curAssignedAll);
+    const isOverAssigned = Number(assignFormData.quantity) > curMaxAllowed;
+
+    const filteredList = allProducts.filter((p) => {
+      if (!assignProductSearch.trim()) return true;
+      const q = assignProductSearch.trim().toLowerCase();
+      return (
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.code || '').toLowerCase().includes(q)
+      );
+    });
+    const displayedList = filteredList.slice(0, assignProductDisplayLimit);
+
+    return (
+      <div className="wh-container wh-form-fullscreen-wrap" style={{ padding: '16px 20px', minHeight: '100%', boxSizing: 'border-box' }}>
+        <div
+          className="wh-form-master-frame"
+          style={{
+            width: '100%',
+            maxWidth: '100%',
+            margin: '0',
+            borderRadius: '12px',
+            border: '1px solid #cbd5e1',
+            boxShadow: '0 2px 14px rgba(15, 23, 42, 0.07)',
+            background: '#ffffff',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            className="wh-form-page-header"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '14px 24px',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#ffffff',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <button
+                type="button"
+                className="wh-btn wh-btn-secondary"
+                onClick={() => setIsAssignFormPageActive(false)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  fontWeight: '600',
+                  fontSize: '12.5px',
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Quay lại
+              </button>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
+                  Gán Sản Phẩm Vào Vị Trí Kệ
+                </h2>
+                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                  Kho: <strong style={{ color: '#0f172a' }}>{selectedWarehouse.name}</strong> ({selectedWarehouse.code})
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>
+              Phân bổ hàng hóa từ tồn tổng vào từng vị trí kệ lưu trữ cụ thể
+            </div>
+          </div>
+
+          <form
+            onSubmit={handleSaveAssignProduct}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(420px, 1.15fr) minmax(380px, 1fr)',
+              margin: 0,
+              padding: 0,
+            }}
+          >
+            {/* CỘT 1 (BÊN TRÁI): CHỌN SẢN PHẨM */}
+            <div
+              style={{
+                padding: '18px 24px',
+                borderRight: '1px solid #e2e8f0',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                background: '#ffffff',
+                minHeight: 0,
+              }}
+            >
+              <div style={{ width: '100%', textAlign: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#0f172a', textAlign: 'center' }}>
+                  Chọn sản phẩm cần gán vào kệ <span style={{ color: '#ef4444' }}>*</span>
+                </h3>
+              </div>
+
+              {/* Khung tìm kiếm chứa danh sách sản phẩm bên dưới */}
+              <div
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  background: '#ffffff',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Ô tìm kiếm ở trên */}
+                <div
+                  style={{
+                    position: 'relative',
+                    padding: '8px 10px',
+                    borderBottom: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                  }}
+                >
+                  <input
+                    type="text"
+                    placeholder="Tìm theo tên hoặc mã sản phẩm (SP001, Polo...)..."
+                    value={assignProductSearch}
+                    onChange={(e) => {
+                      setAssignProductSearch(e.target.value);
+                      setAssignProductDisplayLimit(4);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 30px 8px 12px',
+                      fontSize: '13px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      outline: 'none',
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      boxSizing: 'border-box',
+                      transition: 'border-color 0.15s ease',
+                    }}
+                  />
+                  {assignProductSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssignProductSearch('');
+                        setAssignProductDisplayLimit(4);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        right: '18px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#94a3b8',
+                        fontSize: '12px',
+                        padding: '2px',
+                        lineHeight: 1,
+                      }}
+                      title="Xóa tìm kiếm"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Danh sách thẻ sản phẩm cuộn lướt hiển thị theo đợt 4 sản phẩm/lần */}
+                <div
+                  className="wh-custom-scrollbar"
+                  onScroll={(e) => {
+                    const target = e.currentTarget;
+                    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 60) {
+                      if (assignProductDisplayLimit < filteredList.length) {
+                        setAssignProductDisplayLimit((prev) => Math.min(prev + 4, filteredList.length));
+                      }
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    minHeight: '260px',
+                    maxHeight: '260px',
+                    overflowY: 'auto',
+                    padding: '6px 8px 6px 6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '5px',
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: '#94a3b8 #f1f5f9',
+                  }}
+                >
+                {displayedList.length === 0 ? (
+                  <div style={{ padding: '30px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                    Không tìm thấy sản phẩm nào phù hợp với &quot;{assignProductSearch}&quot;
+                  </div>
+                ) : (
+                  displayedList.map((p) => {
+                    const pWhTotal = getProductWarehouseStock(p.id, p.stock || 0);
+                    const pAssignedTotal = locationProducts
+                      .filter((lp) => lp.product_id === p.id)
+                      .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+                    const pAtThisLoc =
+                      locationProducts.find(
+                        (lp) => lp.location_id === assignFormData.location_id && lp.product_id === p.id
+                      )?.quantity || 0;
+                    const pAssignedOther = pAssignedTotal - pAtThisLoc;
+                    const pAvailableForLoc = Math.max(0, pWhTotal - pAssignedOther);
+                    const isExhausted = pAvailableForLoc <= 0 && pAtThisLoc === 0;
+                    const isSelected = assignFormData.product_id === p.id;
+
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          if (isExhausted) return;
+                          const otherAssigned = locationProducts
+                            .filter((lp) => lp.product_id === p.id && lp.location_id !== assignFormData.location_id)
+                            .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+                          const locQty = locationProducts.find(
+                            (lp) => lp.location_id === assignFormData.location_id && lp.product_id === p.id
+                          )?.quantity || 0;
+                          const unassigned = Math.max(0, pWhTotal - otherAssigned - locQty);
+                          setAssignFormData({
+                            ...assignFormData,
+                            product_id: p.id,
+                            quantity: locQty > 0 ? locQty : unassigned,
+                          });
+                          if (selectedWarehouse) {
+                            fetchAllocationStatus(selectedWarehouse.id, p.id);
+                          }
+                        }}
+                        style={{
+                          padding: '9px 12px',
+                          borderRadius: '6px',
+                          border: isSelected ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
+                          background: isSelected ? '#f0f9ff' : isExhausted ? '#f8fafc' : '#ffffff',
+                          cursor: isExhausted ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          transition: 'all 0.15s ease',
+                          opacity: isExhausted ? 0.6 : 1,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isExhausted && !isSelected) {
+                            e.currentTarget.style.backgroundColor = '#f8fafc';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isExhausted && !isSelected) {
+                            e.currentTarget.style.backgroundColor = '#ffffff';
+                          }
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: 1, paddingRight: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: '700', color: isSelected ? '#0284c7' : '#0f172a', fontSize: '13px' }}>
+                              [{p.code}] {p.name}
+                            </span>
+                            {isSelected && (
+                              <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: '800', background: '#e0f2fe', padding: '1px 6px', borderRadius: '4px' }}>
+                                Đang chọn
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '3px' }}>
+                            Tồn tại kho: <strong style={{ color: '#0f172a' }}>{pWhTotal}</strong> | Chưa gán:{' '}
+                            <strong style={{ color: isExhausted ? '#dc2626' : '#16a34a' }}>
+                              {Math.max(0, pWhTotal - pAssignedTotal)} {p.base_unit || 'Cái'}
+                            </strong>
+                            {isExhausted && (
+                              <span style={{ color: '#dc2626', fontWeight: '600', marginLeft: '4px' }}>
+                                (Đã gán hết)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ flexShrink: 0 }}>
+                          <input
+                            type="radio"
+                            name="fullscreen_selected_assign_product"
+                            checked={isSelected}
+                            disabled={isExhausted}
+                            readOnly
+                            style={{ cursor: isExhausted ? 'not-allowed' : 'pointer', width: '15px', height: '15px' }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                {displayedList.length < filteredList.length && (
+                  <div style={{ textAlign: 'center', padding: '6px', fontSize: '11px', color: '#94a3b8' }}>
+                    Cuộn xuống để xem thêm ({displayedList.length}/{filteredList.length} sản phẩm)
+                  </div>
+                )}
+                </div>
+              </div>
+            </div>
+
+            {/* CỘT 2 (BÊN PHẢI): THÔNG TIN PHÂN BỔ & VỊ TRÍ KỆ */}
+            <div
+              style={{
+                padding: '18px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                background: '#ffffff',
+                minHeight: 0,
+              }}
+            >
+              <div style={{ width: '100%', textAlign: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#0f172a', textAlign: 'center' }}>
+                  Thông tin phân bổ & Vị trí kệ
+                </h3>
+              </div>
+
+              {/* Khung 4 ô tóm tắt tồn kho trên 1 hàng */}
+              {currentSelectedProd && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                  <div
+                    style={{
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '10px 6px',
+                      textAlign: 'center',
+                      background: '#ffffff',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Tồn kho tổng</div>
+                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', marginTop: '4px' }}>
+                      {curTotalStock} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '10px 6px',
+                      textAlign: 'center',
+                      background: '#ffffff',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Đã gán ở kệ khác</div>
+                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#64748b', marginTop: '4px' }}>
+                      {curAssignedOther} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      border: '1px solid #bae6fd',
+                      borderRadius: '8px',
+                      padding: '10px 6px',
+                      textAlign: 'center',
+                      background: '#f0f9ff',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', color: '#0369a1', fontWeight: '600' }}>Hiện tại kệ này</div>
+                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#0284c7', marginTop: '4px' }}>
+                      {curQtyAtThisLoc} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      border: '1px solid #bbf7d0',
+                      borderRadius: '8px',
+                      padding: '10px 6px',
+                      textAlign: 'center',
+                      background: '#f0fdf4',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', color: '#166534', fontWeight: '700' }}>Tồn chưa gán</div>
+                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#16a34a', marginTop: '4px' }}>
+                      {curUnassigned} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="wh-form-group">
+                <label style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', marginBottom: '6px', display: 'block' }}>
+                  Chọn vị trí kệ lưu trữ <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  className="wh-form-select"
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    fontSize: '13px',
+                    borderRadius: '7px',
+                    border: '1px solid #cbd5e1',
+                    color: '#0f172a',
+                    backgroundColor: '#ffffff',
+                  }}
+                  value={assignFormData.location_id}
+                  onChange={(e) => {
+                    const newLocId = Number(e.target.value);
+                    const locQty = locationProducts.find(
+                      (lp) => lp.location_id === newLocId && lp.product_id === assignFormData.product_id
+                    )?.quantity || 0;
+                    setAssignFormData({ ...assignFormData, location_id: newLocId, quantity: locQty });
+                  }}
+                >
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.location_code} — {l.location_name || l.zone || 'Kệ'} (Hiện có: {l.total_quantity} SP / Sức chứa: {l.max_capacity || 500} SP)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="wh-form-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', margin: 0 }}>
+                    Số lượng gán tại vị trí này <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setAssignFormData({ ...assignFormData, quantity: curMaxAllowed })}
+                      style={{
+                        background: '#e0f2fe',
+                        color: '#0284c7',
+                        border: '1px solid #bae6fd',
+                        borderRadius: '5px',
+                        padding: '4px 10px',
+                        fontSize: '11.5px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title={`Gán tối đa có thể cho kệ này (${curQtyAtThisLoc} hiện có + ${curUnassigned} chưa gán)`}
+                    >
+                      Gán tối đa ({curMaxAllowed})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAssignFormData({ ...assignFormData, quantity: 0 })}
+                      style={{
+                        background: '#f1f5f9',
+                        color: '#475569',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '5px',
+                        padding: '4px 10px',
+                        fontSize: '11.5px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      0 (Gỡ khỏi kệ)
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="number"
+                    min={0}
+                    className="wh-form-input"
+                    style={{
+                      width: '100%',
+                      padding: '9px 40px 9px 12px',
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      borderRadius: '7px',
+                      border: isOverAssigned ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                      color: isOverAssigned ? '#dc2626' : '#0f172a',
+                      boxSizing: 'border-box',
+                    }}
+                    value={assignFormData.quantity}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                      setAssignFormData({ ...assignFormData, quantity: val });
+                    }}
+                  />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#64748b',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {curUnit}
+                  </span>
+                </div>
+
+                {isOverAssigned && (
+                  <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '5px', fontWeight: '600' }}>
+                    Số lượng vượt quá mức cho phép tối đa ({curMaxAllowed} {curUnit}).
+                  </div>
+                )}
+              </div>
+
+              {/* Nút lưu căn chỉnh độ rộng ngang với các ô nhập liệu và căn ngang tầm đáy khung chọn SP */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingTop: '6px',
+                  width: '100%',
+                }}
+              >
+                <button
+                  type="submit"
+                  className="wh-btn wh-btn-primary"
+                  disabled={isAssignSubmitting || isOverAssigned || Number(assignFormData.quantity) < 0 || !assignFormData.product_id || !assignFormData.location_id}
+                  style={{
+                    width: '100%',
+                    minWidth: '220px',
+                    padding: '11px 32px',
+                    fontWeight: '700',
+                    fontSize: '14px',
+                    borderRadius: '8px',
+                    background: '#16a34a',
+                    borderColor: '#16a34a',
+                    boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: isAssignSubmitting ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {isAssignSubmitting ? 'Đang lưu...' : 'Lưu phân bổ vào kệ'}
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -3517,56 +4111,31 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       {/* MODAL 5: GÁN SẢN PHẨM VÀO VỊ TRÍ                     */}
       {/* ==================================================== */}
       {isAssignModalOpen && (() => {
-        const selectedProd =
-          allProducts.find((p) => p.id === assignFormData.product_id) ||
-          (selectedDropdownProduct && selectedDropdownProduct.id === assignFormData.product_id
-            ? selectedDropdownProduct
-            : null);
-        const curProductShelfItems = locationProducts.filter((lp) => lp.product_id === assignFormData.product_id);
-        const whStock = assignAllocationStatus?.warehouse_total_stock ?? (curProductShelfItems[0]?.warehouse_total_stock ?? (selectedProd?.stock ?? 0));
-        const allocatedOther = curProductShelfItems
-          .filter((lp) => lp.location_id !== assignFormData.location_id)
+        const currentSelectedProd = allProducts.find((p) => p.id === assignFormData.product_id);
+        const curUnit = currentSelectedProd?.base_unit || 'Cái';
+        const curTotalStock =
+          assignAllocationStatus?.warehouse_total_stock ??
+          getProductWarehouseStock(assignFormData.product_id, currentSelectedProd?.stock || 0);
+        const curAssignedAll = locationProducts
+          .filter((lp) => lp.product_id === assignFormData.product_id)
           .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
-        const curOnThisShelf = curProductShelfItems.find((lp) => lp.location_id === assignFormData.location_id)?.quantity || 0;
-        const maxAssignable = Math.max(0, whStock - allocatedOther);
-        const unallocatedOverall = assignAllocationStatus?.unallocated_stock ?? Math.max(0, whStock - (allocatedOther + curOnThisShelf));
-        const isExhausted = maxAssignable === 0;
+        const curLocItem = locationProducts.find(
+          (lp) => lp.location_id === assignFormData.location_id && lp.product_id === assignFormData.product_id
+        );
+        const curQtyAtThisLoc = curLocItem ? Number(curLocItem.quantity) || 0 : 0;
+        const curAssignedOther = curAssignedAll - curQtyAtThisLoc;
+        const curMaxAllowed = Math.max(0, curTotalStock - curAssignedOther);
+        const isOverAssigned = Number(assignFormData.quantity) > curMaxAllowed;
 
         return (
-          <div className="wh-modal-backdrop" style={{ padding: '24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="wh-modal-card" style={{ maxWidth: '490px', width: '100%', maxHeight: 'calc(100vh - 48px)', margin: 'auto', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-              <div className="wh-modal-header" style={{ padding: '10px 18px', borderTopLeftRadius: '16px', borderTopRightRadius: '16px' }}>
-                <div style={{ minWidth: 0, flex: 1, paddingRight: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span>Gán Sản Phẩm Vào Vị Trí Kệ</span>
-                    {selectedProd && (
-                      <span
-                        className="wh-badge"
-                        style={{
-                          background: '#ecfdf5',
-                          color: '#047857',
-                          border: '1px solid #a7f3d0',
-                          fontSize: '11.5px',
-                          fontWeight: 600,
-                          maxWidth: '240px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        [{selectedProd.code}] {selectedProd.name}
-                      </span>
-                    )}
-                  </h3>
-                  {selectedWarehouse && (
-                    <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '1px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>Kho áp dụng:</span>
-                      <strong style={{ color: '#0f172a' }}>{selectedWarehouse.name}</strong>
-                      <span className="wh-badge wh-badge-code" style={{ fontSize: '10px', padding: '1px 5px' }}>
-                        {selectedWarehouse.code}
-                      </span>
-                    </div>
-                  )}
+          <div className="wh-modal-backdrop">
+            <div className="wh-modal-card" style={{ maxWidth: '820px', width: '95%', maxHeight: '92vh' }}>
+              <div className="wh-modal-header">
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>Gán Sản Phẩm Vào Vị Trí Kệ</h3>
+                  <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+                    Kho: <strong style={{ color: '#0f172a' }}>{selectedWarehouse?.name}</strong>
+                  </div>
                 </div>
                 <button type="button" className="wh-modal-close-btn" onClick={() => setIsAssignModalOpen(false)}>
                   ✕
@@ -3574,278 +4143,375 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               </div>
 
               <form onSubmit={handleSaveAssignProduct}>
-                <div className="wh-modal-body" style={{ padding: '12px 18px', overflow: 'visible' }}>
-                  <div className="wh-form-group" style={{ marginBottom: '8px' }}>
-                    <label
-                      style={{
-                        display: 'block',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        color: '#047857',
-                        letterSpacing: '0.05em',
-                        marginBottom: '3px',
-                      }}
-                    >
-                      SẢN PHẨM / SKU <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <ProductSelectDropdown
-                      token={token}
-                      selectedProductId={assignFormData.product_id}
-                      onSelectProduct={(p) => {
-                        setSelectedDropdownProduct(p);
-                        const pShelfItems = locationProducts.filter((lp) => lp.product_id === p.id);
-                        const existingShelfId = pShelfItems.find((lp) => Number(lp.quantity) > 0)?.location_id;
-                        const targetLocId = existingShelfId || assignFormData.location_id;
+                <div className="wh-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '16px 20px' }}>
+                  <div className="wh-form-group">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', margin: 0 }}>
+                        Chọn sản phẩm <span className="wh-required-star">*</span>
+                      </label>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>
+                        {isFetchingAllocation ? 'Đang tải phân bổ...' : selectedDropdownProduct ? `Đang chọn: ${selectedDropdownProduct.name}` : 'Hiển thị 4 SP/lượt (cuộn xuống để xem thêm)'}
+                      </span>
+                    </div>
 
-                        const allocOther = pShelfItems
-                          .filter((lp) => lp.location_id !== targetLocId)
-                          .reduce((s, lp) => s + (Number(lp.quantity) || 0), 0);
-                        const maxAssign = Math.max(0, (p.stock || 0) - allocOther);
-                        const onShelf = pShelfItems.find((lp) => lp.location_id === targetLocId)?.quantity || 0;
+                    {/* Thanh tìm kiếm sản phẩm trong modal gán vị trí */}
+                    <div style={{ position: 'relative', marginBottom: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="Tìm theo tên hoặc mã sản phẩm (SP001, Áo khoác...)..."
+                        value={assignProductSearch}
+                        onChange={(e) => {
+                          setAssignProductSearch(e.target.value);
+                          setAssignProductDisplayLimit(4);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '7px 30px 7px 10px',
+                          fontSize: '12.5px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          outline: 'none',
+                          color: '#0f172a',
+                          background: '#ffffff',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      {assignProductSearch && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAssignProductSearch('');
+                            setAssignProductDisplayLimit(4);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#94a3b8',
+                            fontSize: '11px',
+                            padding: '2px',
+                            lineHeight: 1,
+                          }}
+                          title="Xóa tìm kiếm"
+                        >
+                          X
+                        </button>
+                      )}
+                    </div>
 
-                        setAssignFormData((prev) => ({
-                          ...prev,
-                          product_id: p.id,
-                          location_id: targetLocId,
-                          quantity: onShelf > 0 ? onShelf : (maxAssign > 0 ? Math.min(10, maxAssign) : 0),
-                        }));
-                        if (selectedWarehouse) {
-                          fetchAllocationStatus(selectedWarehouse.id, p.id);
-                        }
-                      }}
-                      placeholder="Tìm kiếm theo mã SKU, tên hàng hóa hoặc ngành hàng..."
-                      dropdownMaxHeight="160px"
-                      autoSelectFirst={false}
-                      fallbackProduct={
-                        selectedProd
-                          ? {
-                              id: selectedProd.id,
-                              code: selectedProd.code,
-                              name: selectedProd.name,
-                              is_batch_managed: (selectedProd as any).is_batch_managed,
+                    {/* Danh sách sản phẩm dạng thẻ cuộn mượt mà có tải thêm 20 sản phẩm/lần */}
+                    {(() => {
+                      const filteredList = allProducts.filter((p) => {
+                        if (!assignProductSearch.trim()) return true;
+                        const q = assignProductSearch.trim().toLowerCase();
+                        return (
+                          (p.name || '').toLowerCase().includes(q) ||
+                          (p.code || '').toLowerCase().includes(q)
+                        );
+                      });
+                      const displayedList = filteredList.slice(0, assignProductDisplayLimit);
+
+                      return (
+                        <div
+                          style={{
+                            maxHeight: '210px',
+                            overflowY: 'auto',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            background: '#ffffff',
+                            padding: '4px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px',
+                          }}
+                          onScroll={(e) => {
+                            const target = e.currentTarget;
+                            if (target.scrollHeight - target.scrollTop <= target.clientHeight + 80) {
+                              if (assignProductDisplayLimit < filteredList.length) {
+                                setAssignProductDisplayLimit((prev) => Math.min(prev + 4, filteredList.length));
+                              }
                             }
-                          : null
-                      }
-                    />
+                          }}
+                        >
+                          {displayedList.length === 0 ? (
+                            <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                              Không tìm thấy sản phẩm nào phù hợp với &quot;{assignProductSearch}&quot;
+                            </div>
+                          ) : (
+                            displayedList.map((p) => {
+                              const pWhTotal = getProductWarehouseStock(p.id, p.stock || 0);
+                              const pAssignedTotal = locationProducts
+                                .filter((lp) => lp.product_id === p.id)
+                                .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+                              const pAtThisLoc =
+                                locationProducts.find(
+                                  (lp) => lp.location_id === assignFormData.location_id && lp.product_id === p.id
+                                )?.quantity || 0;
+                              const pAssignedOther = pAssignedTotal - pAtThisLoc;
+                              const pAvailableForLoc = Math.max(0, pWhTotal - pAssignedOther);
+                              const isExhausted = pAvailableForLoc <= 0 && pAtThisLoc === 0;
+                              const isSelected = assignFormData.product_id === p.id;
+
+                              return (
+                                <div
+                                  key={p.id}
+                                  onClick={() => {
+                                    if (isExhausted) return;
+                                    const otherAssigned = locationProducts
+                                      .filter((lp) => lp.product_id === p.id && lp.location_id !== assignFormData.location_id)
+                                      .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+                                    const locQty = locationProducts.find(
+                                      (lp) => lp.location_id === assignFormData.location_id && lp.product_id === p.id
+                                    )?.quantity || 0;
+                                    const unassigned = Math.max(0, pWhTotal - otherAssigned - locQty);
+                                    setAssignFormData({
+                                      ...assignFormData,
+                                      product_id: p.id,
+                                      quantity: locQty > 0 ? locQty : unassigned,
+                                    });
+                                    if (selectedWarehouse) {
+                                      fetchAllocationStatus(selectedWarehouse.id, p.id);
+                                    }
+                                  }}
+                                  style={{
+                                    padding: '7px 10px',
+                                    borderRadius: '5px',
+                                    border: isSelected ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
+                                    background: isSelected ? '#f0f9ff' : isExhausted ? '#f8fafc' : '#ffffff',
+                                    cursor: isExhausted ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    transition: 'all 0.1s ease',
+                                    opacity: isExhausted ? 0.6 : 1,
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!isExhausted && !isSelected) {
+                                      e.currentTarget.style.backgroundColor = '#f1f5f9';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!isExhausted && !isSelected) {
+                                      e.currentTarget.style.backgroundColor = '#ffffff';
+                                    }
+                                  }}
+                                >
+                                  <div style={{ minWidth: 0, flex: 1, paddingRight: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span style={{ fontWeight: '700', color: isSelected ? '#0284c7' : '#0f172a', fontSize: '12px' }}>
+                                        [{p.code}] {p.name}
+                                      </span>
+                                      {isSelected && (
+                                        <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: '800' }}>
+                                          Đang chọn
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                      Tồn tại kho: <strong style={{ color: '#0f172a' }}>{pWhTotal}</strong> | Chưa gán:{' '}
+                                      <strong style={{ color: isExhausted ? '#dc2626' : '#16a34a' }}>
+                                        {Math.max(0, pWhTotal - pAssignedTotal)} {p.base_unit || 'Cái'}
+                                      </strong>
+                                      {isExhausted && (
+                                        <span style={{ color: '#dc2626', fontWeight: '600', marginLeft: '6px' }}>
+                                          (Đã gán hết vào kệ)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div style={{ flexShrink: 0 }}>
+                                    <input
+                                      type="radio"
+                                      name="selected_assign_product"
+                                      checked={isSelected}
+                                      disabled={isExhausted}
+                                      readOnly
+                                      style={{ cursor: isExhausted ? 'not-allowed' : 'pointer' }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+
+
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  <div className="wh-form-group" style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '11.5px', marginBottom: '3px', fontWeight: 600, color: '#334155' }}>
+                  {/* Bảng tóm tắt trạng thái phân bổ tồn kho của sản phẩm liền khối ngay cạnh nhau không có khoảng trống */}
+                  {currentSelectedProd && (
+                    <div
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <div style={{ padding: '8px 4px', borderRight: '1px solid #e2e8f0', background: '#ffffff' }}>
+                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Tồn kho tổng</div>
+                        <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '2px' }}>
+                          {curTotalStock} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '8px 4px', borderRight: '1px solid #e2e8f0', background: '#ffffff' }}>
+                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Đã gán ở kệ khác</div>
+                        <div style={{ fontSize: '14px', fontWeight: '800', color: '#64748b', marginTop: '2px' }}>
+                          {curAssignedOther} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '8px 4px', borderRight: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Hiện tại kệ này</div>
+                        <div style={{ fontSize: '14px', fontWeight: '800', color: '#0284c7', marginTop: '2px' }}>
+                          {curQtyAtThisLoc} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '8px 4px', background: (curTotalStock - curAssignedAll) > 0 ? '#f0fdf4' : '#ffffff' }}>
+                        <div style={{ fontSize: '11px', color: (curTotalStock - curAssignedAll) > 0 ? '#166534' : '#64748b', fontWeight: '700' }}>
+                          Tồn chưa gán
+                        </div>
+                        <div style={{ fontSize: '14px', fontWeight: '800', color: (curTotalStock - curAssignedAll) > 0 ? '#16a34a' : '#64748b', marginTop: '2px' }}>
+                          {Math.max(0, curTotalStock - curAssignedAll)} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="wh-form-group">
+                    <label style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', marginBottom: '6px' }}>
                       Chọn vị trí kệ lưu trữ <span className="wh-required-star">*</span>
                     </label>
                     <select
                       className="wh-form-select"
-                      style={{ height: '34px', fontSize: '12.5px', padding: '4px 10px' }}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '13px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        color: '#0f172a',
+                        backgroundColor: '#ffffff'
+                      }}
                       value={assignFormData.location_id}
                       onChange={(e) => {
                         const newLocId = Number(e.target.value);
-                        const shelfItem = curProductShelfItems.find((lp) => lp.location_id === newLocId);
-                        const onThisShelf = shelfItem ? Number(shelfItem.quantity) || 0 : 0;
-                        const allocOther = curProductShelfItems
-                          .filter((lp) => lp.location_id !== newLocId)
-                          .reduce((s, lp) => s + (Number(lp.quantity) || 0), 0);
-                        const maxAssign = Math.max(0, whStock - allocOther);
-                        setAssignFormData((prev) => ({
-                          ...prev,
-                          location_id: newLocId,
-                          quantity: onThisShelf > 0 ? onThisShelf : (maxAssign > 0 ? Math.min(10, maxAssign) : 0),
-                        }));
+                        const locQty = locationProducts.find(
+                          (lp) => lp.location_id === newLocId && lp.product_id === assignFormData.product_id
+                        )?.quantity || 0;
+                        setAssignFormData({ ...assignFormData, location_id: newLocId, quantity: locQty });
                       }}
                     >
                       {locations.map((l) => (
                         <option key={l.id} value={l.id}>
-                          {l.location_code} — {l.location_name || l.zone || 'Kệ'} (Hiện có: {l.total_quantity} SP)
+                          {l.location_code} — {l.location_name || l.zone || 'Kệ'} (Hiện có: {l.total_quantity} SP / Sức chứa: {l.max_capacity || 500} SP)
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  {/* THẺ TỔNG HỢP PHÂN BỔ TỒN KHO (Dạng 4 ô ngang siêu gọn) */}
-                  <div
-                    style={{
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      padding: '6px 8px',
-                      marginBottom: '8px',
-                    }}
-                  >
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', textAlign: 'center' }}>
-                      <div style={{ background: '#ffffff', padding: '4px 2px', borderRadius: '5px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
-                          <span>Tổng tồn</span>
-                          {isFetchingAllocation && <span style={{ color: '#6366f1', fontSize: '9px' }}>...</span>}
-                        </div>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginTop: '1px' }}>
-                          {whStock.toLocaleString('vi-VN')}
-                        </div>
-                      </div>
-                      <div style={{ background: '#ffffff', padding: '4px 2px', borderRadius: '5px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase' }}>Kệ khác</div>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#475569', marginTop: '1px' }}>
-                          {allocatedOther.toLocaleString('vi-VN')}
-                        </div>
-                      </div>
-                      <div style={{ background: '#ffffff', padding: '4px 2px', borderRadius: '5px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase' }}>Kệ này</div>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#2563eb', marginTop: '1px' }}>
-                          {curOnThisShelf.toLocaleString('vi-VN')}
-                        </div>
-                      </div>
-                      <div style={{ background: unallocatedOverall > 0 ? '#f0fdf4' : '#fef2f2', padding: '4px 2px', borderRadius: '5px', border: `1px solid ${unallocatedOverall > 0 ? '#bbf7d0' : '#fecaca'}` }}>
-                        <div style={{ color: unallocatedOverall > 0 ? '#166534' : '#991b1b', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>Chưa gán</div>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: unallocatedOverall > 0 ? '#15803d' : '#dc2626', marginTop: '1px' }}>
-                          {unallocatedOverall.toLocaleString('vi-VN')}
-                        </div>
+                  <div className="wh-form-group">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', margin: 0 }}>
+                        Số lượng gán tại vị trí này <span className="wh-required-star">*</span>
+                      </label>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setAssignFormData((prev) => ({ ...prev, quantity: curMaxAllowed }))}
+                          style={{
+                            padding: '2px 8px',
+                            background: '#e0f2fe',
+                            border: '1px solid #bae6fd',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            color: '#0284c7',
+                            cursor: 'pointer',
+                          }}
+                          title={`Gán tối đa có thể cho kệ này (${curQtyAtThisLoc} hiện có + ${Math.max(0, curTotalStock - curAssignedAll)} chưa gán)`}
+                        >
+                          Gán tối đa ({curMaxAllowed})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAssignFormData((prev) => ({ ...prev, quantity: 0 }))}
+                          style={{
+                            padding: '2px 8px',
+                            background: '#f1f5f9',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            color: '#475569',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          0 (Gỡ khỏi kệ)
+                        </button>
                       </div>
                     </div>
 
-                    <div
-                      style={{
-                        marginTop: '5px',
-                        paddingTop: '4px',
-                        borderTop: '1px dashed #cbd5e1',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        fontSize: '11.5px',
-                      }}
-                    >
-                      <span style={{ color: '#475569', fontWeight: 500 }}>Tối đa có thể gán vào kệ này:</span>
-                      <span
-                        className="wh-badge"
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '1px 6px',
-                          background: maxAssignable > 0 ? '#dcfce7' : '#fee2e2',
-                          color: maxAssignable > 0 ? '#15803d' : '#b91c1c',
-                          borderRadius: '4px',
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        max={curMaxAllowed}
+                        className="wh-form-input"
+                        placeholder="Nhập số lượng..."
+                        value={assignFormData.quantity === '' ? '' : assignFormData.quantity}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            setAssignFormData((prev) => ({ ...prev, quantity: '' }));
+                            return;
+                          }
+                          const clean = raw.replace(/^0+(?=\d)/, '');
+                          setAssignFormData((prev) => ({ ...prev, quantity: clean === '' ? 0 : Number(clean) }));
                         }}
-                      >
-                        {maxAssignable.toLocaleString('vi-VN')} {selectedProd?.base_unit || 'Cái'}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          fontSize: '14px',
+                          fontWeight: '700',
+                          borderRadius: '6px',
+                          border: isOverAssigned ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                          outline: 'none',
+                          color: '#0f172a',
+                        }}
+                      />
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {curUnit}
                       </span>
                     </div>
-                  </div>
 
-                  {/* HƯỚNG DẪN / ĐIỀU CHUYỂN KHI HÀNG ĐANG Ở KỆ KHÁC */}
-                  {isExhausted && curOnThisShelf === 0 && (
-                    <div
-                      style={{
-                        background: '#eff6ff',
-                        border: '1px solid #bfdbfe',
-                        borderRadius: '8px',
-                        padding: '10px 12px',
-                        marginBottom: '8px',
-                        fontSize: '12px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#1e40af' }}>
-                        <span>💡</span>
-                        <span>Sản phẩm này hiện đang lưu tại các kệ khác trong kho:</span>
+                    {isOverAssigned && (
+                      <div style={{ fontSize: '12px', color: '#dc2626', fontWeight: '700', marginTop: '4px' }}>
+                        ⚠️ Cảnh báo: Số lượng nhập ({assignFormData.quantity}) vượt quá số lượng tối đa có thể gán ({curMaxAllowed} {curUnit}). Sản phẩm đã được gán hết tại các kệ khác!
                       </div>
-                      <div style={{ margin: '6px 0 2px 0' }}>
-                        {curProductShelfItems
-                          .filter((lp) => lp.location_id !== assignFormData.location_id && Number(lp.quantity) > 0)
-                          .map((lp) => (
-                            <div
-                              key={lp.id}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                background: '#ffffff',
-                                padding: '6px 10px',
-                                borderRadius: '6px',
-                                border: '1px solid #dbeafe',
-                                marginTop: '4px',
-                                fontSize: '12px',
-                              }}
-                            >
-                              <div>
-                                <span style={{ color: '#475569' }}>Kệ </span>
-                                <strong style={{ color: '#0f172a' }}>{lp.location_code}</strong>
-                                <span style={{ color: '#64748b', marginLeft: '6px' }}>
-                                  ({Number(lp.quantity).toLocaleString('vi-VN')} {selectedProd?.base_unit || 'Cái'})
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                className="wh-btn wh-btn-primary"
-                                style={{
-                                  padding: '4px 10px',
-                                  fontSize: '11.5px',
-                                  height: 'auto',
-                                  background: '#2563eb',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                }}
-                                onClick={() => {
-                                  setIsAssignModalOpen(false);
-                                  handleOpenTransferProduct(lp, assignFormData.location_id);
-                                }}
-                              >
-                                <span>⇄</span>
-                                <span>Chuyển sang kệ này</span>
-                              </button>
-                            </div>
-                          ))}
+                    )}
+                    {!isOverAssigned && (
+                      <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
+                        Nếu nhập 0, sản phẩm sẽ được gỡ khỏi vị trí kệ này (hàng trở về tồn chưa gán vị trí).
                       </div>
-                      <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b' }}>
-                        * Để xếp hàng vào kệ đang chọn, hãy nhấn <strong>Chuyển sang kệ này</strong> ở trên hoặc nút bên dưới.
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="wh-form-group" style={{ marginBottom: '4px' }}>
-                    <label style={{ fontSize: '11.5px', marginBottom: '3px', fontWeight: 600, color: '#334155' }}>
-                      Số lượng gán tại vị trí này <span className="wh-required-star">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max={maxAssignable}
-                      disabled={isExhausted && curOnThisShelf === 0}
-                      className="wh-form-input"
-                      style={{ height: '34px', fontSize: '13px' }}
-                      placeholder={isExhausted && curOnThisShelf === 0 ? 'Đã hết hàng để gán' : 'Nhập số lượng...'}
-                      value={assignFormData.quantity === '' ? '' : assignFormData.quantity}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (raw === '') {
-                          setAssignFormData((prev) => ({ ...prev, quantity: '' }));
-                          return;
-                        }
-                        const clean = raw.replace(/^0+(?=\d)/, '');
-                        const numVal = clean === '' ? 0 : Number(clean);
-                        setAssignFormData((prev) => ({ ...prev, quantity: numVal }));
-                      }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginTop: '2px' }}>
-                      <span style={{ color: '#64748b' }}>
-                        {curOnThisShelf > 0
-                          ? `Kệ này đang có ${curOnThisShelf.toLocaleString('vi-VN')} ${selectedProd?.base_unit || 'Cái'}. Nhập 0 để gỡ khỏi kệ.`
-                          : maxAssignable > 0
-                          ? `Gán tồn chưa phân bổ vào kệ này.`
-                          : `Không còn tồn chưa phân bổ. Bấm nút Chuyển hàng bên dưới.`}
-                      </span>
-                      {Number(assignFormData.quantity || 0) > maxAssignable ? (
-                        <span style={{ color: '#dc2626', fontWeight: 600 }}>
-                          Vượt mức tối đa ({maxAssignable})!
-                        </span>
-                      ) : (
-                        <span style={{ color: maxAssignable > 0 ? '#16a34a' : '#64748b', fontWeight: 500 }}>
-                          Tối đa: {maxAssignable}
-                        </span>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="wh-modal-footer" style={{ padding: '10px 18px', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
+                <div className="wh-modal-footer" style={{ padding: '12px 20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                   <button
                     type="button"
                     className="wh-btn wh-btn-secondary"
@@ -3854,41 +4520,17 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   >
                     Hủy bỏ
                   </button>
-                  {isExhausted && curOnThisShelf === 0 && allocatedOther > 0 ? (
-                    <button
-                      type="button"
-                      className="wh-btn wh-btn-primary"
-                      style={{ background: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                      onClick={() => {
-                        const sourceItem = curProductShelfItems.find(
-                          (lp) => lp.location_id !== assignFormData.location_id && Number(lp.quantity) > 0
-                        );
-                        if (sourceItem) {
-                          setIsAssignModalOpen(false);
-                          handleOpenTransferProduct(sourceItem, assignFormData.location_id);
-                        }
-                      }}
-                    >
-                      <span>⇄</span>
-                      <span>Chuyển hàng sang kệ này</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      className="wh-btn wh-btn-primary"
-                      disabled={
-                        isAssignSubmitting ||
-                        (isExhausted && curOnThisShelf === 0) ||
-                        Number(assignFormData.quantity || 0) > maxAssignable
-                      }
-                    >
-                      {isAssignSubmitting
-                        ? 'Đang lưu...'
-                        : curOnThisShelf > 0
-                        ? 'Cập nhật vị trí kệ'
-                        : 'Gán vào vị trí'}
-                    </button>
-                  )}
+                  <button
+                    type="submit"
+                    className="wh-btn wh-btn-primary"
+                    disabled={isAssignSubmitting || isOverAssigned || (curMaxAllowed === 0 && curQtyAtThisLoc === 0)}
+                    style={{
+                      opacity: isAssignSubmitting || isOverAssigned || (curMaxAllowed === 0 && curQtyAtThisLoc === 0) ? 0.6 : 1,
+                      cursor: isAssignSubmitting || isOverAssigned || (curMaxAllowed === 0 && curQtyAtThisLoc === 0) ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {isAssignSubmitting ? 'Đang lưu...' : 'Gán vào vị trí'}
+                  </button>
                 </div>
               </form>
             </div>

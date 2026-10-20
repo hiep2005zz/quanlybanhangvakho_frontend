@@ -3,6 +3,7 @@ import {
   DealerSearchItem,
   searchDealers,
   DebtStatementData,
+  DebtStatementItem,
   getDealerDebtStatementApi,
   exportDealerDebtStatementExcelApi,
   ReceiptVoucherData,
@@ -794,7 +795,7 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                       </td>
                     </tr>
                   ) : (
-                    transactions.map((tx, idx) => (
+                    transactions.map((tx: DebtStatementItem, idx: number) => (
                       <tr key={tx.id || idx}>
                         <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 2}</td>
                         <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{formatDate(tx.date)}</td>

@@ -13,6 +13,7 @@ import {
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { getOrderStatusLabel } from '../utils/orderPermissions';
+import { PaymentReminderNotifications } from '../features/payment-reminders/PaymentReminderNotifications';
 
 interface CartItem {
   product: ProductItem;
@@ -26,7 +27,7 @@ interface CustomerPortalViewProps {
   appliedPriceBook?: string | null;
   onRefreshProducts?: () => void;
   onNavigateToOrders?: () => void;
-  onNavigateToDebt?: () => void;
+  onNavigateToDebt?: (invoiceCode: string | null) => void;
   activeView?: 'products' | 'cart';
   onViewChange?: (view: 'products' | 'cart') => void;
 }
@@ -43,7 +44,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
   appliedPriceBook,
   onRefreshProducts,
   onNavigateToOrders,
-  onNavigateToDebt: _onNavigateToDebt,
+  onNavigateToDebt,
   activeView = 'products',
   onViewChange,
 }) => {
@@ -435,6 +436,10 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
   const remainingCredit = creditInfo ? creditInfo.remaining_credit : 0;
   const remainingAfterOrder = remainingCredit - totalCartAmount;
   const isOverCredit = remainingAfterOrder < 0;
+  const isBlockedByPolicy = Boolean(
+    (creditInfo?.is_overdue && creditInfo?.overdue_action === 'BLOCK') ||
+    (isOverCredit && creditInfo?.over_limit_action === 'BLOCK')
+  );
 
   // Gửi đơn đặt hàng
   const handleSubmitOrder = async (e: React.FormEvent) => {
@@ -495,6 +500,26 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
         type: 'warning',
         title: 'Điểm nhận hàng',
         message: 'Vui lòng chọn hoặc nhập điểm nhận hàng!',
+      });
+      return;
+    }
+
+    // Cấu hình chính sách công nợ: Chặn khi nợ quá hạn
+    if (creditInfo?.is_overdue && creditInfo?.overdue_action === 'BLOCK') {
+      emitStatusToast({
+        type: 'error',
+        title: 'Chặn tạo đơn do nợ quá hạn',
+        message: `Đại lý đang có khoản nợ quá hạn (${creditInfo.overdue_days_allowed || 30} ngày). Hệ thống đang cấu hình CHẶN đặt hàng mới theo chính sách công nợ. Vui lòng thanh toán công nợ cũ trước khi tiếp tục!`,
+      });
+      return;
+    }
+
+    // Cấu hình chính sách công nợ: Chặn khi vượt hạn mức
+    if (isOverCredit && creditInfo?.over_limit_action === 'BLOCK') {
+      emitStatusToast({
+        type: 'error',
+        title: 'Chặn tạo đơn do vượt hạn mức',
+        message: 'Đại lý đang vượt hạn mức công nợ cho phép. Hệ thống đang cấu hình CHẶN tạo đơn mới. Vui lòng liên hệ Kế toán thanh toán công nợ cũ trước khi tiếp tục!',
       });
       return;
     }
@@ -623,6 +648,10 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
 
             {/* Nút Giỏ Hàng ở góc trên bên phải */}
             <div className="flex items-center gap-2 shrink-0">
+              <PaymentReminderNotifications
+                token={token}
+                onOpenInvoice={(invoiceCode) => onNavigateToDebt?.(invoiceCode)}
+              />
               <button
                 type="button"
                 id="btn-portal-cart"
@@ -703,13 +732,6 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                 </div>
               </div>
             </div>
-
-            {creditInfo?.is_overdue && (
-              <div className="mt-2 px-2.5 py-1.5 bg-rose-50 border border-rose-300 text-rose-800 rounded-lg text-xs flex items-center gap-2">
-                <span className="text-sm">⚠️</span>
-                <span><strong>Cảnh báo quá hạn:</strong> Đại lý có khoản công nợ đã vượt quá số ngày cho phép ({creditInfo.overdue_days_allowed} ngày). Đơn hàng đặt mới sẽ yêu cầu Quản lý xét duyệt!</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -1348,8 +1370,28 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                     </div>
 
                     {isOverCredit && (
-                      <div className="mt-1.5 p-2 bg-amber-50 border border-amber-300 rounded-lg text-amber-800 text-xs leading-relaxed">
-                        ⚠️ <strong>Vượt hạn mức tín dụng:</strong> Đơn hàng sẽ ở trạng thái <strong>Chờ Quản Lý Duyệt</strong> trước khi được xuất kho.
+                      <div className={`mt-1.5 p-2 rounded-lg text-xs leading-relaxed ${
+                        creditInfo?.over_limit_action === 'BLOCK'
+                          ? 'bg-rose-50 border border-rose-300 text-rose-800'
+                          : 'bg-amber-50 border border-amber-300 text-amber-800'
+                      }`}>
+                        <strong>Vượt hạn mức tín dụng:</strong>{' '}
+                        {creditInfo?.over_limit_action === 'BLOCK'
+                          ? 'Đại lý đang vượt quá hạn mức công nợ. Hệ thống đang cấu hình CHẶN tạo đơn mới. Vui lòng liên hệ Kế toán thanh toán công nợ!'
+                          : 'Đơn hàng sẽ ở trạng thái Chờ Quản Lý Duyệt trước khi được xuất kho.'}
+                      </div>
+                    )}
+
+                    {creditInfo?.is_overdue && (
+                      <div className={`mt-1.5 p-2 rounded-lg text-xs leading-relaxed ${
+                        creditInfo?.overdue_action === 'BLOCK'
+                          ? 'bg-rose-50 border border-rose-300 text-rose-800'
+                          : 'bg-amber-50 border border-amber-300 text-amber-800'
+                      }`}>
+                        <strong>Khoản nợ quá hạn ({creditInfo.overdue_days_allowed || 30} ngày):</strong>{' '}
+                        {creditInfo?.overdue_action === 'BLOCK'
+                          ? 'Hệ thống đang cấu hình CHẶN đặt hàng mới. Vui lòng thanh toán công nợ quá hạn!'
+                          : 'Đơn hàng sẽ ở trạng thái Chờ Quản Lý Duyệt trước khi được xuất kho.'}
                       </div>
                     )}
                   </div>
@@ -1446,12 +1488,14 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                     disabled={
                       isSubmitting ||
                       cart.length === 0 ||
+                      isBlockedByPolicy ||
                       cart.some((it) => isOutOfStockProduct(it.product)) ||
                       cart.some((it) => it.product.stock !== undefined && it.product.stock !== null && it.quantity > it.product.stock)
                     }
                     className={`w-full py-3 px-4 rounded-xl text-sm font-bold text-white transition-all shadow-md flex items-center justify-center gap-2 ${
                       isSubmitting ||
                       cart.length === 0 ||
+                      isBlockedByPolicy ||
                       cart.some((it) => isOutOfStockProduct(it.product)) ||
                       cart.some((it) => it.product.stock !== undefined && it.product.stock !== null && it.quantity > it.product.stock)
                         ? 'bg-gray-400 cursor-not-allowed opacity-70'
@@ -1466,6 +1510,8 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                         </svg>
                         <span>Đang gửi đơn hàng...</span>
                       </>
+                    ) : isBlockedByPolicy ? (
+                      <span>CHẶN ĐẶT HÀNG THEO CẤU HÌNH CÔNG NỢ</span>
                     ) : (
                       <>
                         <span>GỬI ĐƠN ĐẶT HÀNG</span>
