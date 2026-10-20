@@ -686,7 +686,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           tab: 'warehouse-dispatch',
           path: '/warehouse/dispatch',
           label: 'Xuất kho & Giao thiếu',
-          visible: !isCustomer && (canAccessWarehouses || canWriteInventory || isAdmin),
+          visible: !isCustomer && (canWriteInventory || isWarehouseOrAdmin || isAdmin),
           icon: (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" />
@@ -701,7 +701,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           tab: 'delivery-trips',
           path: '/delivery-trips',
           label: 'Chuyến giao hàng',
-          visible: !isCustomer && (canAccessWarehouses || canWriteInventory || isAdmin),
+          visible: !isCustomer && (canWriteInventory || isWarehouseOrAdmin || isAdmin),
           icon: (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />

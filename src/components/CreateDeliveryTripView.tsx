@@ -75,9 +75,8 @@ export const CreateDeliveryTripView: React.FC<CreateDeliveryTripViewProps> = ({
   const handleBack = () => {
     if (onBack) {
       onBack();
-    } else {
-      navigate('/delivery-tracking');
     }
+    navigate('/delivery-tracking');
   };
 
   // Lọc đơn hàng theo từ khóa tìm kiếm
@@ -92,14 +91,21 @@ export const CreateDeliveryTripView: React.FC<CreateDeliveryTripViewProps> = ({
     );
   }, [readyOrders, orderSearchTerm]);
 
-  // Danh sách các đơn đã chọn
+  // Danh sách các đơn đã chọn (tính toán reactive)
   const selectedOrders = useMemo(() => {
-    return readyOrders.filter((o) => selectedOrderIds.includes(o.id));
+    const selectedSet = new Set(selectedOrderIds);
+    return readyOrders.filter((o) => selectedSet.has(o.id));
   }, [readyOrders, selectedOrderIds]);
 
   const totalSelectedAmount = useMemo(() => {
-    return selectedOrders.reduce((sum, o) => sum + (o.amount || 0), 0);
-  }, [selectedOrders]);
+    const selectedSet = new Set(selectedOrderIds);
+    return readyOrders
+      .filter((o) => selectedSet.has(o.id))
+      .reduce((sum, o) => sum + (o.amount || 0), 0);
+  }, [readyOrders, selectedOrderIds]);
+
+  // Khóa nút Xác nhận xuất chuyến khi chưa chọn ít nhất 1 đơn hàng
+  const isSubmitDisabled = submitting || !isAuthorizedManager || selectedOrderIds.length === 0;
 
   // Toggle chọn từng đơn
   const handleToggleOrder = (orderId: number) => {
@@ -260,382 +266,411 @@ export const CreateDeliveryTripView: React.FC<CreateDeliveryTripViewProps> = ({
 
   return (
     <div className="w-full flex-1 min-h-0 overflow-y-auto p-4 md:p-6 bg-slate-50 pb-20 text-slate-800 flex flex-col">
-      {/* I. Thanh tiêu đề đầu trang (Top Header Bar) chuẩn StockAudit layout */}
-      <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-transparent shrink-0">
-        {/* Bên trái: Tiêu đề */}
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-            Tạo chuyến giao hàng mới
-          </h1>
-        </div>
+      <div className="flex flex-col gap-5 max-w-7xl mx-auto w-full">
+        {/* 1. Thanh tiêu đề đầu trang (Top Header Bar) */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-transparent shrink-0">
+          {/* Bên trái: Tiêu đề + Dòng mô tả nhỏ */}
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+              Tạo chuyến giao hàng mới
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Gán tài xế, phương tiện và chọn các đơn hàng đã xuất kho cần vận chuyển
+            </p>
+          </div>
 
-        {/* Bên phải: Cụm nút hành động chính */}
-        <div className="flex items-center gap-2.5 self-end sm:self-auto">
-          <button
-            type="button"
-            onClick={handleBack}
-            disabled={submitting}
-            className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer border border-gray-300 bg-white transition-colors disabled:opacity-50"
-          >
-            Hủy bỏ
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSubmit()}
-            disabled={submitting || !isAuthorizedManager}
-            title={!isAuthorizedManager ? 'Chỉ quản lý kho hoặc thủ kho mới có quyền xuất chuyến' : undefined}
-            className="px-5 py-2 text-xs font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm disabled:opacity-50 cursor-pointer border-0 transition-all flex items-center gap-2"
-          >
-            {submitting ? (
-              <>
-                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Đang xuất chuyến...</span>
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
+          {/* Bên phải: Nút phụ "Hủy bỏ" & Nút chính "✓ Xác nhận xuất chuyến" */}
+          <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={handleBack}
+              disabled={submitting}
+              className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer border border-gray-300 bg-white transition-colors disabled:opacity-50"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSubmit()}
+              disabled={isSubmitDisabled}
+              title={
+                !isAuthorizedManager
+                  ? 'Chỉ quản lý kho hoặc thủ kho mới có quyền xuất chuyến'
+                  : selectedOrderIds.length === 0
+                  ? 'Vui lòng chọn ít nhất 1 đơn hàng để xuất chuyến'
+                  : undefined
+              }
+              className={`px-5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 border-0 ${
+                isSubmitDisabled
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-75'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer'
+              }`}
+            >
+              {submitting ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Đang xuất chuyến...</span>
+                </>
+              ) : (
                 <span>Xác nhận xuất chuyến</span>
-              </>
-            )}
-          </button>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* II. Bố cục 2 cột nội dung (Two-Column Layout 12 cột) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 items-start">
-        {/* Cột trái (4/12 cột ~ 35%): 1. Thông tin chuyến & Vận chuyển */}
-        <div className="lg:col-span-4 flex flex-col gap-4 lg:sticky lg:top-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-xs flex flex-col gap-4">
-            <div className="flex items-center gap-2 pb-2.5 border-b border-gray-100">
-              <h3 className="text-sm font-bold text-gray-900">1. Thông tin chuyến & Vận chuyển</h3>
+        {/* 2. Gộp thành 1 Khung Thẻ Duy Nhất (Single Card Layout) */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6 w-full max-w-7xl mx-auto">
+          {/* Phần 1: Thông tin chuyến & Vận chuyển (Ở trên) */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                1. Thông tin chuyến & Vận chuyển
+              </h3>
+              <span className="text-xs text-slate-400">Các trường có dấu (<span className="text-rose-500 font-bold">*</span>) là bắt buộc</span>
             </div>
 
-            {/* Tên tài xế phụ trách */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Tên tài xế phụ trách <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={driverName}
-                onChange={(e) => {
-                  setDriverName(e.target.value);
-                  if (fieldErrors.driverName) {
-                    setFieldErrors((prev) => {
-                      const next = { ...prev };
-                      delete next.driverName;
-                      return next;
-                    });
-                  }
-                }}
-                placeholder="VD: Nguyễn Văn Tuấn"
-                className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all ${
-                  fieldErrors.driverName ? 'border-rose-400 bg-rose-50/20' : 'border-gray-300'
-                }`}
-              />
-              {fieldErrors.driverName && (
-                <p className="text-[11px] text-rose-600 mt-1 font-medium">{fieldErrors.driverName}</p>
-              )}
-            </div>
-
-            {/* Số điện thoại tài xế */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Số điện thoại tài xế
-              </label>
-              <input
-                type="tel"
-                inputMode="numeric"
-                maxLength={10}
-                value={driverPhone}
-                onChange={handleDriverPhoneChange}
-                onKeyDown={handlePhoneKeyDown}
-                onBlur={handlePhoneBlur}
-                placeholder="VD: 0981234567 (10 chữ số)"
-                className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all ${
-                  fieldErrors.driverPhone ? 'border-rose-400 bg-rose-50/20' : 'border-gray-300'
-                }`}
-              />
-              {fieldErrors.driverPhone && (
-                <p className="text-[11px] text-rose-600 mt-1 font-medium">{fieldErrors.driverPhone}</p>
-              )}
-            </div>
-
-            {/* Biển số xe giao hàng */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Biển số xe giao hàng <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={vehiclePlate}
-                onChange={(e) => {
-                  setVehiclePlate(e.target.value.toUpperCase());
-                  if (fieldErrors.vehiclePlate) {
-                    setFieldErrors((prev) => {
-                      const next = { ...prev };
-                      delete next.vehiclePlate;
-                      return next;
-                    });
-                  }
-                }}
-                placeholder="VD: 29C-889.12"
-                className={`w-full px-3 py-2 text-xs font-mono uppercase border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all ${
-                  fieldErrors.vehiclePlate ? 'border-rose-400 bg-rose-50/20' : 'border-gray-300'
-                }`}
-              />
-              {fieldErrors.vehiclePlate && (
-                <p className="text-[11px] text-rose-600 mt-1 font-medium">{fieldErrors.vehiclePlate}</p>
-              )}
-            </div>
-
-            {/* Tuyến đường vận chuyển */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Tuyến đường vận chuyển
-              </label>
-              <input
-                type="text"
-                value={routeName}
-                onChange={(e) => setRouteName(e.target.value)}
-                placeholder="VD: Tuyến Cầu Giấy - Ba Đình - Đống Đa"
-                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all"
-              />
-            </div>
-
-            {/* Thời gian dự kiến hoàn tất */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Thời gian dự kiến hoàn tất <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="datetime-local"
-                value={estDeliveryTime}
-                onChange={(e) => {
-                  setEstDeliveryTime(e.target.value);
-                  if (fieldErrors.estDeliveryTime) {
-                    setFieldErrors((prev) => {
-                      const next = { ...prev };
-                      delete next.estDeliveryTime;
-                      return next;
-                    });
-                  }
-                }}
-                className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all ${
-                  fieldErrors.estDeliveryTime ? 'border-rose-400 bg-rose-50/20' : 'border-gray-300'
-                }`}
-              />
-              {fieldErrors.estDeliveryTime && (
-                <p className="text-[11px] text-rose-600 mt-1 font-medium">{fieldErrors.estDeliveryTime}</p>
-              )}
-            </div>
-
-            {/* Ghi chú chuyến */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Ghi chú chuyến giao
-              </label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Ghi chú thêm về hàng dễ vỡ, thời gian giao đặc biệt..."
-                rows={2}
-                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all resize-none"
-              />
-            </div>
-
-            {/* Khối metadata người tạo phiếu */}
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs flex flex-col gap-1.5 text-gray-600">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">Người tạo phiếu:</span>
-                <span className="font-semibold text-gray-900">{userName || 'Thủ kho'}</span>
+            {/* Hàng 1: Tài xế, SĐT, Biển số xe, Tuyến đường */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+              {/* Tên tài xế phụ trách */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Tên tài xế phụ trách <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={driverName}
+                  onChange={(e) => {
+                    setDriverName(e.target.value);
+                    if (fieldErrors.driverName) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.driverName;
+                        return next;
+                      });
+                    }
+                  }}
+                  placeholder="VD: Nguyễn Văn Tuấn"
+                  className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all ${
+                    fieldErrors.driverName ? 'border-rose-400 bg-rose-50/20' : 'border-gray-300'
+                  }`}
+                />
+                {fieldErrors.driverName && (
+                  <p className="text-[11px] text-rose-600 mt-1 font-medium">{fieldErrors.driverName}</p>
+                )}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">Vai trò:</span>
-                <span className="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  {userRole || 'Quản lý kho'}
-                </span>
+
+              {/* Số điện thoại tài xế */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Số điện thoại tài xế
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={driverPhone}
+                  onChange={handleDriverPhoneChange}
+                  onKeyDown={handlePhoneKeyDown}
+                  onBlur={handlePhoneBlur}
+                  placeholder="VD: 0981234567 (10 chữ số)"
+                  className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all ${
+                    fieldErrors.driverPhone ? 'border-rose-400 bg-rose-50/20' : 'border-gray-300'
+                  }`}
+                />
+                {fieldErrors.driverPhone && (
+                  <p className="text-[11px] text-rose-600 mt-1 font-medium">{fieldErrors.driverPhone}</p>
+                )}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">Thời điểm xuất:</span>
-                <span className="font-medium text-gray-800">{new Date().toLocaleString('vi-VN')}</span>
+
+              {/* Biển số xe giao hàng */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Biển số xe giao hàng <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={vehiclePlate}
+                  onChange={(e) => {
+                    setVehiclePlate(e.target.value.toUpperCase());
+                    if (fieldErrors.vehiclePlate) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.vehiclePlate;
+                        return next;
+                      });
+                    }
+                  }}
+                  placeholder="VD: 29C-889.12"
+                  className={`w-full px-3 py-2 text-xs font-mono uppercase border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all ${
+                    fieldErrors.vehiclePlate ? 'border-rose-400 bg-rose-50/20' : 'border-gray-300'
+                  }`}
+                />
+                {fieldErrors.vehiclePlate && (
+                  <p className="text-[11px] text-rose-600 mt-1 font-medium">{fieldErrors.vehiclePlate}</p>
+                )}
+              </div>
+
+              {/* Tuyến đường vận chuyển */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Tuyến đường vận chuyển
+                </label>
+                <input
+                  type="text"
+                  value={routeName}
+                  onChange={(e) => setRouteName(e.target.value)}
+                  placeholder="VD: Tuyến Cầu Giấy - Ba Đình - Đống Đa"
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all"
+                />
               </div>
             </div>
 
-            {/* Cảnh báo nếu chưa chọn đơn */}
+            {/* Hàng 2: Thời gian dự kiến, Ghi chú, Metadata người tạo */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs pt-1">
+              {/* Thời gian dự kiến hoàn tất */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Thời gian dự kiến hoàn tất <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  value={estDeliveryTime}
+                  onChange={(e) => {
+                    setEstDeliveryTime(e.target.value);
+                    if (fieldErrors.estDeliveryTime) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.estDeliveryTime;
+                        return next;
+                      });
+                    }
+                  }}
+                  className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all ${
+                    fieldErrors.estDeliveryTime ? 'border-rose-400 bg-rose-50/20' : 'border-gray-300'
+                  }`}
+                />
+                {fieldErrors.estDeliveryTime && (
+                  <p className="text-[11px] text-rose-600 mt-1 font-medium">{fieldErrors.estDeliveryTime}</p>
+                )}
+              </div>
+
+              {/* Ghi chú chuyến (span 2 cột trên lg) */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Ghi chú chuyến giao
+                </label>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Ghi chú thêm về hàng dễ vỡ, thời gian giao đặc biệt..."
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all"
+                />
+              </div>
+
+              {/* Khối metadata người tạo phiếu */}
+              <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 text-xs flex flex-col justify-between gap-1 text-slate-600">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Người tạo:</span>
+                  <span className="font-semibold text-slate-800">{userName || 'Thủ kho'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Vai trò:</span>
+                  <span className="font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[11px]">
+                    {userRole || 'Quản lý kho'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Thời điểm:</span>
+                  <span className="font-medium text-slate-700 text-[11px]">
+                    {new Date().toLocaleTimeString('vi-VN')} {new Date().toLocaleDateString('vi-VN')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Cảnh báo nếu chưa chọn đơn khi submit */}
             {fieldErrors.orders && (
               <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
                 ⚠️ {fieldErrors.orders}
               </div>
             )}
           </div>
-        </div>
 
-        {/* Cột phải (8/12 cột ~ 65%): 2. Danh sách đơn hàng xuất kho cần giao */}
-        <div className="lg:col-span-8 flex flex-col bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
-          {/* Header của bảng */}
-          <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-50/60 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <h3 className="text-sm font-bold text-gray-900">2. Danh sách đơn hàng cần giao</h3>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                {filteredOrders.length} đơn hàng
-              </span>
-            </div>
+          {/* Đường kẻ phân cách */}
+          <div className="border-t border-slate-200" />
 
-            {/* Ô tìm kiếm nhanh & Chọn tất cả */}
-            <div className="flex items-center gap-2.5">
-              <div className="relative w-full sm:w-64">
-                <input
-                  type="text"
-                  placeholder="Lọc mã đơn, khách, địa chỉ..."
-                  value={orderSearchTerm}
-                  onChange={(e) => setOrderSearchTerm(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all shadow-xs placeholder:text-gray-400"
-                />
+          {/* Phần 2: Danh sách đơn hàng cần giao (Ở dưới) */}
+          <div className="space-y-4">
+            {/* Header mục 2 & Ô tìm kiếm nhanh */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  2. Danh sách đơn hàng cần giao
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  {filteredOrders.length} đơn hàng
+                </span>
               </div>
 
-              {filteredOrders.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleToggleSelectAll}
-                  className="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 rounded-lg border border-gray-300 transition-colors whitespace-nowrap cursor-pointer shadow-2xs"
-                >
-                  {isAllFilteredSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Bảng danh sách đơn hàng xuất kho */}
-          <div
-            className="overflow-x-auto overflow-y-auto roles-grid-scroll overscroll-contain flex-1"
-            style={{
-              maxHeight: 'min(500px, calc(100vh - 340px))',
-              minHeight: '260px',
-            }}
-          >
-            {loadingOrders ? (
-              <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
-                <div className="w-7 h-7 border-3 border-[#0fad89] border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-xs font-medium">Đang tải danh sách đơn hàng đã xuất kho...</p>
-              </div>
-            ) : fetchError ? (
-              <div className="py-12 text-center text-rose-600 p-4">
-                <p className="text-xs font-semibold">{fetchError}</p>
-                <button
-                  type="button"
-                  onClick={fetchOrders}
-                  className="mt-2 text-xs text-[#0fad89] hover:underline font-bold"
-                >
-                  Thử lại
-                </button>
-              </div>
-            ) : readyOrders.length === 0 ? (
-              <div className="py-16 text-center text-slate-400 p-4 flex flex-col items-center justify-center gap-2">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="1" y="3" width="15" height="13" rx="1" />
-                    <polygon points="16 8 20 8 23 11 23 16 16 16 8" />
-                    <circle cx="5.5" cy="18.5" r="2.5" />
-                    <circle cx="18.5" cy="18.5" r="2.5" />
-                  </svg>
+              {/* Ô tìm kiếm nhanh & Chọn tất cả */}
+              <div className="flex items-center gap-2.5">
+                <div className="relative w-full sm:w-72">
+                  <input
+                    type="text"
+                    placeholder="Lọc mã đơn, khách, địa chỉ..."
+                    value={orderSearchTerm}
+                    onChange={(e) => setOrderSearchTerm(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white transition-all shadow-xs placeholder:text-gray-400"
+                  />
                 </div>
-                <p className="text-sm font-semibold text-slate-700">Hiện không có đơn hàng nào chờ xuất chuyến</p>
-                <p className="text-xs text-slate-400">
-                  Đơn hàng cần được xác nhận xuất kho (<span className="font-mono">EXPORTED</span>) trước khi có thể gán vào chuyến giao.
-                </p>
-              </div>
-            ) : filteredOrders.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 p-4">
-                <p className="text-xs font-medium">Không tìm thấy đơn hàng nào phù hợp với từ khóa tìm kiếm.</p>
-              </div>
-            ) : (
-              <table className="w-full text-left border-collapse text-xs">
-                <thead className="sticky top-0 z-10 bg-gray-50 shadow-2xs">
-                  <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                    <th className="py-3 px-3.5 w-10 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isAllFilteredSelected}
-                        onChange={handleToggleSelectAll}
-                        className="w-4 h-4 rounded text-[#0fad89] focus:ring-[#0fad89] cursor-pointer"
-                        title="Chọn/Bỏ chọn tất cả"
-                      />
-                    </th>
-                    <th className="py-3 px-3.5 w-12 text-center">STT</th>
-                    <th className="py-3 px-3.5">Mã đơn hàng</th>
-                    <th className="py-3 px-3.5">Khách hàng / Đại lý</th>
-                    <th className="py-3 px-3.5">Địa chỉ nhận hàng</th>
-                    <th className="py-3 px-3.5 text-right">Tiền hàng</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredOrders.map((order, idx) => {
-                    const isSelected = selectedOrderIds.includes(order.id);
 
-                    return (
-                      <tr
-                        key={order.id}
-                        onClick={() => handleToggleOrder(order.id)}
-                        className={`transition-colors cursor-pointer ${
-                          isSelected ? 'bg-emerald-50/40 hover:bg-emerald-50/70' : 'hover:bg-slate-50'
-                        }`}
-                      >
-                        <td className="py-3 px-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                {filteredOrders.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleToggleSelectAll}
+                    className="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 rounded-lg border border-gray-300 transition-colors whitespace-nowrap cursor-pointer shadow-2xs"
+                  >
+                    {isAllFilteredSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Bảng danh sách đơn hàng xuất kho */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+              <div
+                className="overflow-x-auto overflow-y-auto roles-grid-scroll overscroll-contain"
+                style={{
+                  maxHeight: 'min(480px, calc(100vh - 420px))',
+                  minHeight: '260px',
+                }}
+              >
+                {loadingOrders ? (
+                  <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
+                    <div className="w-7 h-7 border-3 border-[#0fad89] border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-xs font-medium">Đang tải danh sách đơn hàng đã xuất kho...</p>
+                  </div>
+                ) : fetchError ? (
+                  <div className="py-12 text-center text-rose-600 p-4">
+                    <p className="text-xs font-semibold">{fetchError}</p>
+                    <button
+                      type="button"
+                      onClick={fetchOrders}
+                      className="mt-2 text-xs text-[#0fad89] hover:underline font-bold"
+                    >
+                      Thử lại
+                    </button>
+                  </div>
+                ) : readyOrders.length === 0 ? (
+                  <div className="py-16 text-center text-slate-400 p-4 flex flex-col items-center justify-center gap-2">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="1" y="3" width="15" height="13" rx="1" />
+                        <polygon points="16 8 20 8 23 11 23 16 16 16 8" />
+                        <circle cx="5.5" cy="18.5" r="2.5" />
+                        <circle cx="18.5" cy="18.5" r="2.5" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">Hiện không có đơn hàng nào chờ xuất chuyến</p>
+                    <p className="text-xs text-slate-400">
+                      Đơn hàng cần được xác nhận xuất kho (<span className="font-mono">EXPORTED</span>) trước khi có thể gán vào chuyến giao.
+                    </p>
+                  </div>
+                ) : filteredOrders.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 p-4">
+                    <p className="text-xs font-medium">Không tìm thấy đơn hàng nào phù hợp với từ khóa tìm kiếm.</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
+                      <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="py-3 px-3.5 w-10 text-center">
                           <input
                             type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleToggleOrder(order.id)}
+                            checked={isAllFilteredSelected}
+                            onChange={handleToggleSelectAll}
                             className="w-4 h-4 rounded text-[#0fad89] focus:ring-[#0fad89] cursor-pointer"
+                            title="Chọn/Bỏ chọn tất cả"
                           />
-                        </td>
-                        <td className="py-3 px-3.5 text-center text-gray-400 font-medium">
-                          {idx + 1}
-                        </td>
-                        <td className="py-3 px-3.5">
-                          <span className="font-mono font-bold text-gray-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                            {order.order_code}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3.5">
-                          <div className="font-semibold text-gray-800">{order.dealer_name || 'Khách lẻ / Chưa gán'}</div>
-                        </td>
-                        <td className="py-3 px-3.5">
-                          <div className="text-gray-600 line-clamp-1">
-                            {order.delivery_point || 'Điểm nhận hàng đại lý'}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3.5 text-right">
-                          <div className="font-extrabold text-emerald-700">
-                            {formatVND(order.amount || 0)}
-                          </div>
+                        </th>
+                        <th className="py-3 px-3.5 w-12 text-center">STT</th>
+                        <th className="py-3 px-3.5">MÃ ĐƠN HÀNG</th>
+                        <th className="py-3 px-3.5">KHÁCH HÀNG / ĐẠI LÝ</th>
+                        <th className="py-3 px-3.5 min-w-[200px]">ĐỊA CHỈ NHẬN HÀNG</th>
+                        <th className="py-3 px-3.5 text-right pr-4 sm:pr-6 min-w-[140px]">TIỀN HÀNG</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredOrders.map((order, idx) => {
+                        const isSelected = selectedOrderIds.includes(order.id);
+
+                        return (
+                          <tr
+                            key={order.id}
+                            onClick={() => handleToggleOrder(order.id)}
+                            className={`transition-colors cursor-pointer ${
+                              isSelected ? 'bg-emerald-50/40 hover:bg-emerald-50/70' : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <td className="py-3 px-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleOrder(order.id)}
+                                className="w-4 h-4 rounded text-[#0fad89] focus:ring-[#0fad89] cursor-pointer"
+                              />
+                            </td>
+                            <td className="py-3 px-3.5 text-center text-slate-400 font-medium">
+                              {idx + 1}
+                            </td>
+                            <td className="py-3 px-3.5">
+                              <span className="font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                {order.order_code}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3.5">
+                              <div className="font-semibold text-slate-800">{order.dealer_name || 'Khách lẻ / Chưa gán'}</div>
+                            </td>
+                            <td className="py-3 px-3.5">
+                              <div className="text-slate-600 line-clamp-1" title={order.delivery_point || ''}>
+                                {order.delivery_point || 'Điểm nhận hàng đại lý'}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3.5 text-right pr-4 sm:pr-6 whitespace-nowrap">
+                              <div className="font-bold text-emerald-700">
+                                {formatVND(order.amount || 0)}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {/* Dòng đệm chân bảng */}
+                      <tr className="bg-slate-50/50 border-t border-slate-100">
+                        <td colSpan={6} className="py-3 px-4 text-center text-[11px] text-slate-400 select-none">
+                          — Đã hiển thị toàn bộ {filteredOrders.length} đơn hàng sẵn sàng xuất chuyến —
                         </td>
                       </tr>
-                    );
-                  })}
-                  {/* Dòng đệm chân bảng */}
-                  <tr className="bg-slate-50/50 border-t border-slate-100">
-                    <td colSpan={6} className="py-3 px-4 text-center text-[11px] text-slate-400 select-none">
-                      — Đã hiển thị toàn bộ {filteredOrders.length} đơn hàng sẵn sàng xuất chuyến —
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            )}
-          </div>
+                    </tbody>
+                  </table>
+                )}
+              </div>
 
-          {/* Dưới đáy bảng: Thống kê số đơn đã chọn và tổng tiền hàng tạm tính */}
-          <div className="p-3.5 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs shrink-0">
-            <div className="text-gray-600">
-              Đã chọn: <span className="font-bold text-emerald-700">{selectedOrders.length}</span> / {readyOrders.length} đơn hàng
-            </div>
-            <div className="text-gray-700 font-semibold">
-              Tổng tiền hàng tạm tính:{' '}
-              <span className="text-emerald-700 font-extrabold text-sm ml-1">
-                {formatVND(totalSelectedAmount)}
-              </span>
+              {/* Dưới đáy bảng: Thống kê số đơn đã chọn và tổng tiền hàng tạm tính */}
+              <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-600 font-medium">Đã chọn:</span>
+                  <span className="font-bold px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    {selectedOrderIds.length} / {readyOrders.length} đơn hàng
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-700 font-medium">Tổng tiền hàng tạm tính:</span>
+                  <span className="text-emerald-700 font-extrabold text-sm px-3 py-1 rounded-md bg-white border border-emerald-200 shadow-2xs">
+                    {formatVND(totalSelectedAmount)}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
