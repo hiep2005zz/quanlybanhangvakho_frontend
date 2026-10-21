@@ -1061,10 +1061,11 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
 
           {/* Danh sách các điểm dừng theo thứ tự */}
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {(selectedTrip.stops || []).map((st: any) => {
+            {(selectedTrip.stops || []).map((st: any, sIdx: number, sArr: any[]) => {
               const isPending = st.status === 'PENDING';
               const isDelivered = st.status === 'DELIVERED';
               const isFailed = st.status === 'FAILED';
+              const openUpward = sIdx > 0 && (sIdx >= sArr.length - 1 || (sArr.length >= 4 && sIdx >= sArr.length - 2));
 
               return (
                 <div
@@ -1074,6 +1075,8 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                     borderRadius: '8px',
                     padding: '8px 12px',
                     background: isDelivered ? '#f0fdf4' : isFailed ? '#fef2f2' : '#ffffff',
+                    position: 'relative',
+                    zIndex: activeDropdownStopId === st.id ? 50 : 1,
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '10px' }}>
@@ -1095,7 +1098,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, position: 'relative' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, position: 'relative', zIndex: activeDropdownStopId === st.id ? 60 : 1 }}>
                       <span
                         style={{
                           padding: '2px 8px',
@@ -1129,7 +1132,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                           </button>
 
                           {activeDropdownStopId === st.id && (
-                            <div className="wh-dropdown-menu open-down" style={{ minWidth: '145px', zIndex: 100 }}>
+                            <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '135px', zIndex: 100 }}>
                                 <button
                                 type="button"
                                 className="wh-dropdown-item"
@@ -2082,7 +2085,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                             {badge.text}
                           </span>
                         </td>
-                        <td style={{ padding: '6px 12px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownOuterTripId === t.id ? 35 : 1 }}>
+                        <td style={{ padding: '6px 12px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownOuterTripId === t.id ? 60 : 1 }}>
                           <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                             <button
                               type="button"
@@ -2101,9 +2104,9 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                             </button>
 
                             {activeDropdownOuterTripId === t.id && (() => {
-                              const openUpward = paginatedTrips.length > 3 && idx >= paginatedTrips.length - 2;
+                              const openUpward = idx > 0 && (idx >= paginatedTrips.length - 1 || (paginatedTrips.length >= 4 && idx >= paginatedTrips.length - 2));
                               return (
-                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '175px' }}>
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '165px' }}>
                                   <button
                                     type="button"
                                     className="wh-dropdown-item wh-dropdown-item-primary"

@@ -712,7 +712,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                     item.target_type === 'salesperson'
                       ? item.employee_name || `Nhân viên #${item.employee_id}`
                       : item.region || 'Chưa đặt khu vực';
-                  const openUpward = pageItems.length > 3 && index >= pageItems.length - 2;
+                  const openUpward = index > 0 && (index >= pageItems.length - 1 || (pageItems.length >= 3 && index >= pageItems.length - 2));
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50 transition-colors">
