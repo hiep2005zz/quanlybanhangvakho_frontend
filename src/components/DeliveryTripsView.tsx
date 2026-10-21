@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User,
   DeliveryTrip,
@@ -480,21 +481,38 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   const [activeFailureStopId, setActiveFailureStopId] = useState<number | null>(null);
   const [failureReasonInput, setFailureReasonInput] = useState('');
   const [isUpdatingStop, setIsUpdatingStop] = useState(false);
-  const [activeDropdownStopId, setActiveDropdownStopId] = useState<number | null>(null);
-  const [activeDropdownOuterTripId, setActiveDropdownOuterTripId] = useState<number | null>(null);
+  const [stopDropdownMenu, setStopDropdownMenu] = useState<{
+    stopId: number;
+    rect: DOMRect;
+    openUpward: boolean;
+    status: string;
+  } | null>(null);
+  const [tripDropdownMenu, setTripDropdownMenu] = useState<{
+    trip: DeliveryTrip;
+    rect: DOMRect;
+    openUpward: boolean;
+  } | null>(null);
 
-  // Đóng dropdown khi bấm ra ngoài
+  // Đóng dropdown khi bấm ra ngoài hoặc khi cuộn/thay đổi kích thước màn hình
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.wh-action-dropdown-container')) {
-        setActiveDropdownStopId(null);
-        setActiveDropdownOuterTripId(null);
+      if (!target.closest('.wh-action-dropdown-container') && !target.closest('.delivery-trip-dropdown-portal')) {
+        setStopDropdownMenu(null);
+        setTripDropdownMenu(null);
       }
     };
+    const handleScrollOrResize = () => {
+      setStopDropdownMenu(null);
+      setTripDropdownMenu(null);
+    };
     document.addEventListener('click', handleGlobalClick);
+    window.addEventListener('resize', handleScrollOrResize);
+    window.addEventListener('scroll', handleScrollOrResize, true);
     return () => {
       document.removeEventListener('click', handleGlobalClick);
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
     };
   }, []);
 
@@ -1061,11 +1079,9 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
 
           {/* Danh sách các điểm dừng theo thứ tự */}
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {(selectedTrip.stops || []).map((st: any, sIdx: number, sArr: any[]) => {
-              const isPending = st.status === 'PENDING';
+            {(selectedTrip.stops || []).map((st: any) => {
               const isDelivered = st.status === 'DELIVERED';
               const isFailed = st.status === 'FAILED';
-              const openUpward = sIdx > 0 && (sIdx >= sArr.length - 1 || (sArr.length >= 4 && sIdx >= sArr.length - 2));
 
               return (
                 <div
@@ -1076,7 +1092,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                     padding: '8px 12px',
                     background: isDelivered ? '#f0fdf4' : isFailed ? '#fef2f2' : '#ffffff',
                     position: 'relative',
-                    zIndex: activeDropdownStopId === st.id ? 50 : 1,
+                    zIndex: stopDropdownMenu?.stopId === st.id ? 50 : 1,
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '10px' }}>
@@ -1098,7 +1114,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, position: 'relative', zIndex: activeDropdownStopId === st.id ? 60 : 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, position: 'relative' }}>
                       <span
                         style={{
                           padding: '2px 8px',
@@ -1117,10 +1133,22 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                         <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                           <button
                             type="button"
-                            className={`wh-action-dots-btn ${activeDropdownStopId === st.id ? 'active' : ''}`}
+                            className={`wh-action-dots-btn ${stopDropdownMenu?.stopId === st.id ? 'active' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setActiveDropdownStopId((prev) => (prev === st.id ? null : st.id));
+                              if (stopDropdownMenu?.stopId === st.id) {
+                                setStopDropdownMenu(null);
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const spaceBelow = window.innerHeight - rect.bottom;
+                                const openUpward = spaceBelow < 150;
+                                setStopDropdownMenu({
+                                  stopId: st.id,
+                                  rect,
+                                  openUpward,
+                                  status: st.status,
+                                });
+                              }
                             }}
                             title="Tùy chọn trạng thái điểm dừng"
                           >
@@ -1130,47 +1158,6 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                               <span />
                             </span>
                           </button>
-
-                          {activeDropdownStopId === st.id && (
-                            <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '135px', zIndex: 100 }}>
-                                <button
-                                type="button"
-                                className="wh-dropdown-item"
-                                style={{ color: '#16a34a', fontWeight: isDelivered ? 700 : 500 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveDropdownStopId(null);
-                                  handleUpdateStopResult(st.id, 'DELIVERED');
-                                }}
-                              >
-                                Đã giao xong
-                              </button>
-                              <button
-                                type="button"
-                                className="wh-dropdown-item"
-                                style={{ color: '#dc2626', fontWeight: isFailed ? 700 : 500 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveDropdownStopId(null);
-                                  setActiveFailureStopId(activeFailureStopId === st.id ? null : st.id);
-                                }}
-                              >
-                                Báo thất bại
-                              </button>
-                              <button
-                                type="button"
-                                className="wh-dropdown-item"
-                                style={{ color: '#d97706', fontWeight: isPending ? 700 : 500 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveDropdownStopId(null);
-                                  handleUpdateStopResult(st.id, 'PENDING');
-                                }}
-                              >
-                                Chờ giao hàng
-                              </button>
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
@@ -1233,6 +1220,73 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
             })}
           </div>
         </div>
+
+        {/* Portal hiển thị menu trạng thái điểm dừng tránh bị thanh cuộn/khung che khuất */}
+        {stopDropdownMenu &&
+          createPortal(
+            <div
+              className="wh-dropdown-menu delivery-trip-dropdown-portal"
+              style={{
+                position: 'fixed',
+                ...(stopDropdownMenu.openUpward
+                  ? { bottom: `${Math.max(10, window.innerHeight - stopDropdownMenu.rect.top + 6)}px` }
+                  : { top: `${stopDropdownMenu.rect.bottom + 6}px` }),
+                right: `${Math.max(12, window.innerWidth - stopDropdownMenu.rect.right)}px`,
+                minWidth: '140px',
+                zIndex: 99999,
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.06)',
+                padding: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+                textAlign: 'left',
+              }}
+            >
+              <button
+                type="button"
+                className="wh-dropdown-item"
+                style={{ color: '#16a34a', fontWeight: stopDropdownMenu.status === 'DELIVERED' ? 700 : 500 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const sid = stopDropdownMenu.stopId;
+                  setStopDropdownMenu(null);
+                  handleUpdateStopResult(sid, 'DELIVERED');
+                }}
+              >
+                Đã giao xong
+              </button>
+              <button
+                type="button"
+                className="wh-dropdown-item"
+                style={{ color: '#dc2626', fontWeight: stopDropdownMenu.status === 'FAILED' ? 700 : 500 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const sid = stopDropdownMenu.stopId;
+                  setStopDropdownMenu(null);
+                  setActiveFailureStopId(activeFailureStopId === sid ? null : sid);
+                }}
+              >
+                Báo thất bại
+              </button>
+              <button
+                type="button"
+                className="wh-dropdown-item"
+                style={{ color: '#d97706', fontWeight: stopDropdownMenu.status === 'PENDING' ? 700 : 500 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const sid = stopDropdownMenu.stopId;
+                  setStopDropdownMenu(null);
+                  handleUpdateStopResult(sid, 'PENDING');
+                }}
+              >
+                Chờ giao hàng
+              </button>
+            </div>,
+            document.body
+          )}
       </div>
     );
   }
@@ -2041,7 +2095,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  paginatedTrips.map((t, idx) => {
+                  paginatedTrips.map((t) => {
                     const badge = getTripStatusBadge(t.status);
                     return (
                       <tr
@@ -2085,14 +2139,25 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                             {badge.text}
                           </span>
                         </td>
-                        <td style={{ padding: '6px 12px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownOuterTripId === t.id ? 60 : 1 }}>
+                        <td style={{ padding: '6px 12px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative' }}>
                           <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                             <button
                               type="button"
-                              className={`wh-action-dots-btn ${activeDropdownOuterTripId === t.id ? 'active' : ''}`}
+                              className={`wh-action-dots-btn ${tripDropdownMenu?.trip.id === t.id ? 'active' : ''}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setActiveDropdownOuterTripId((prev) => (prev === t.id ? null : t.id));
+                                if (tripDropdownMenu?.trip.id === t.id) {
+                                  setTripDropdownMenu(null);
+                                } else {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const spaceBelow = window.innerHeight - rect.bottom;
+                                  const openUpward = spaceBelow < 200;
+                                  setTripDropdownMenu({
+                                    trip: t,
+                                    rect,
+                                    openUpward,
+                                  });
+                                }
                               }}
                               title="Tùy chọn thao tác chuyến"
                             >
@@ -2102,96 +2167,6 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                                 <span />
                               </span>
                             </button>
-
-                            {activeDropdownOuterTripId === t.id && (() => {
-                              const openUpward = idx > 0 && (idx >= paginatedTrips.length - 1 || (paginatedTrips.length >= 4 && idx >= paginatedTrips.length - 2));
-                              return (
-                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '165px' }}>
-                                  <button
-                                    type="button"
-                                    className="wh-dropdown-item wh-dropdown-item-primary"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveDropdownOuterTripId(null);
-                                      handleOpenDetail(t.id);
-                                    }}
-                                  >
-                                    <span>Chi tiết</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    className="wh-dropdown-item"
-                                    style={{ color: '#0284c7', fontWeight: 600 }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveDropdownOuterTripId(null);
-                                      handleOpenPrint(t.id);
-                                    }}
-                                  >
-                                    <span>In danh sách</span>
-                                  </button>
-
-                                  {t.status === 'ASSIGNED' && (
-                                    <button
-                                      type="button"
-                                      className="wh-dropdown-item"
-                                      style={{ color: '#0284c7', fontWeight: 600 }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveDropdownOuterTripId(null);
-                                        handleUpdateTripStatusById(t.id, 'IN_PROGRESS');
-                                      }}
-                                    >
-                                      <span>Bắt đầu giao hàng</span>
-                                    </button>
-                                  )}
-
-                                  {t.status === 'IN_PROGRESS' && (
-                                    <button
-                                      type="button"
-                                      className="wh-dropdown-item"
-                                      style={{ color: '#16a34a', fontWeight: 600 }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveDropdownOuterTripId(null);
-                                        handleUpdateTripStatusById(t.id, 'COMPLETED');
-                                      }}
-                                    >
-                                      <span>Hoàn tất toàn bộ chuyến</span>
-                                    </button>
-                                  )}
-
-                                  {t.status !== 'COMPLETED' && t.status !== 'CANCELLED' && (
-                                    <button
-                                      type="button"
-                                      className="wh-dropdown-item wh-dropdown-item-danger"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveDropdownOuterTripId(null);
-                                        handleUpdateTripStatusById(t.id, 'CANCELLED');
-                                      }}
-                                    >
-                                      <span>Hủy chuyến</span>
-                                    </button>
-                                  )}
-
-                                  {t.status === 'DRAFT' && (
-                                    <button
-                                      type="button"
-                                      className="wh-dropdown-item wh-dropdown-item-danger"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveDropdownOuterTripId(null);
-                                        handleRequestDeleteDraftTrip(t.id);
-                                      }}
-                                    >
-                                      <span>Xóa nháp</span>
-                                    </button>
-                                  )}
-                                </div>
-                              );
-                            })()}
                           </div>
                         </td>
                       </tr>
@@ -2303,6 +2278,121 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           </div>
         </div>
       )}
+      {/* Portal hiển thị menu thao tác chuyến ở danh sách tránh bị tràn bảng che khuất */}
+      {tripDropdownMenu &&
+        createPortal(
+          <div
+            className="wh-dropdown-menu delivery-trip-dropdown-portal"
+            style={{
+              position: 'fixed',
+              ...(tripDropdownMenu.openUpward
+                ? { bottom: `${Math.max(10, window.innerHeight - tripDropdownMenu.rect.top + 6)}px` }
+                : { top: `${tripDropdownMenu.rect.bottom + 6}px` }),
+              right: `${Math.max(12, window.innerWidth - tripDropdownMenu.rect.right)}px`,
+              minWidth: '165px',
+              zIndex: 99999,
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.06)',
+              padding: '4px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+              textAlign: 'left',
+            }}
+          >
+            <button
+              type="button"
+              className="wh-dropdown-item wh-dropdown-item-primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                const tripId = tripDropdownMenu.trip.id;
+                setTripDropdownMenu(null);
+                handleOpenDetail(tripId);
+              }}
+            >
+              <span>Chi tiết</span>
+            </button>
+
+            <button
+              type="button"
+              className="wh-dropdown-item"
+              style={{ color: '#0284c7', fontWeight: 600 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                const tripId = tripDropdownMenu.trip.id;
+                setTripDropdownMenu(null);
+                handleOpenPrint(tripId);
+              }}
+            >
+              <span>In danh sách</span>
+            </button>
+
+            {tripDropdownMenu.trip.status === 'ASSIGNED' && (
+              <button
+                type="button"
+                className="wh-dropdown-item"
+                style={{ color: '#0284c7', fontWeight: 600 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const tripId = tripDropdownMenu.trip.id;
+                  setTripDropdownMenu(null);
+                  handleUpdateTripStatusById(tripId, 'IN_PROGRESS');
+                }}
+              >
+                <span>Bắt đầu giao hàng</span>
+              </button>
+            )}
+
+            {tripDropdownMenu.trip.status === 'IN_PROGRESS' && (
+              <button
+                type="button"
+                className="wh-dropdown-item"
+                style={{ color: '#16a34a', fontWeight: 600 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const tripId = tripDropdownMenu.trip.id;
+                  setTripDropdownMenu(null);
+                  handleUpdateTripStatusById(tripId, 'COMPLETED');
+                }}
+              >
+                <span>Hoàn tất toàn bộ chuyến</span>
+              </button>
+            )}
+
+            {tripDropdownMenu.trip.status !== 'COMPLETED' && tripDropdownMenu.trip.status !== 'CANCELLED' && (
+              <button
+                type="button"
+                className="wh-dropdown-item wh-dropdown-item-danger"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const tripId = tripDropdownMenu.trip.id;
+                  setTripDropdownMenu(null);
+                  handleUpdateTripStatusById(tripId, 'CANCELLED');
+                }}
+              >
+                <span>Hủy chuyến</span>
+              </button>
+            )}
+
+            {tripDropdownMenu.trip.status === 'DRAFT' && (
+              <button
+                type="button"
+                className="wh-dropdown-item wh-dropdown-item-danger"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const tripId = tripDropdownMenu.trip.id;
+                  setTripDropdownMenu(null);
+                  handleRequestDeleteDraftTrip(tripId);
+                }}
+              >
+                <span>Xóa nháp</span>
+              </button>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
