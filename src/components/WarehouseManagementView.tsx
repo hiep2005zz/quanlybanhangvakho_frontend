@@ -2824,7 +2824,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   type="button"
                   className="wh-btn"
                   style={{
-                    background: '#4f46e5',
+                    background: 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)',
                     color: '#ffffff',
                     fontWeight: 600,
                     display: 'inline-flex',
@@ -2832,6 +2832,14 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     gap: '6px',
                     border: 'none',
                     cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(15, 138, 95, 0.25)',
+                    transition: 'all 0.18s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #0c734f 0%, #065f46 100%)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)';
                   }}
                   onClick={() => setIsGlobalPickingOpen(true)}
                 >

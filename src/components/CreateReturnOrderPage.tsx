@@ -375,28 +375,35 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
 
       </div>
 
-      {/* Main Page Scrollable Body */}
+      {/* Main Page Scrollable Body: 1 Bảng ERP Hoàn Chỉnh */}
       <div
         style={{
           maxWidth: '1280px',
           width: '100%',
           margin: '0 auto',
-          padding: '16px 20px 80px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
+          padding: '16px 20px 40px 20px',
           boxSizing: 'border-box',
         }}
       >
-        {/* SECTION 1: Chọn Đơn Hàng Gốc */}
         <div
           style={{
             backgroundColor: '#ffffff',
             borderRadius: '10px',
             border: '1px solid #e2e8f0',
-            padding: '14px 18px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
           }}
         >
+          {/* PHẦN 1: Chọn Đơn Hàng Gốc */}
+          <div
+            style={{
+              padding: '14px 20px',
+              borderBottom: '1px solid #e2e8f0',
+              backgroundColor: '#ffffff',
+            }}
+          >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: selectedOrderId ? '0' : '10px' }}>
             <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
               1. Chọn Đơn Hàng Gốc <span style={{ color: '#ef4444' }}>*</span>
@@ -491,14 +498,14 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                               fontSize: '13px',
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f0f9ff';
+                              e.currentTarget.style.backgroundColor = '#f0fdf4';
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.backgroundColor = '#ffffff';
                             }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontWeight: '700', color: '#2563eb' }}>
+                              <span style={{ fontWeight: '700', color: '#0F8A5F' }}>
                                 {orderCode}
                               </span>
                               <span style={{ color: '#0f172a' }}>{dealerName}</span>
@@ -591,56 +598,58 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
           )}
         </div>
 
-        {/* SECTION 2: Danh Sách Dòng Hàng Trả */}
-        {selectedOrderId && (
+        {/* PHẦN 2: Danh Sách Dòng Hàng Trả */}
+        <div
+          style={{
+            borderBottom: '1px solid #e2e8f0',
+            backgroundColor: '#ffffff',
+          }}
+        >
           <div
             style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              overflow: 'hidden',
+              padding: '12px 20px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: '#f8fafc',
             }}
           >
-            <div
-              style={{
-                padding: '12px 18px',
-                borderBottom: '1px solid #e2e8f0',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
-                2. Danh Sách Dòng Hàng Trả
-              </div>
-
-              {itemsState.some((it) => it.remaining_quantity > 0) && (
-                <button
-                  type="button"
-                  onClick={handleToggleSelectAll}
-                  style={{
-                    background: '#f8fafc',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    padding: '4px 10px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: '#334155',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {itemsState.filter((it) => it.remaining_quantity > 0).every((it) => it.is_selected)
-                    ? 'Bỏ chọn tất cả'
-                    : 'Chọn tất cả dòng còn trả'}
-                </button>
-              )}
+            <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
+              2. Danh Sách Dòng Hàng Trả
             </div>
 
-            {isLoadingDetails ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                Đang tải dữ liệu dòng hàng...
-              </div>
+            {selectedOrderId && itemsState.some((it) => it.remaining_quantity > 0) && (
+              <button
+                type="button"
+                onClick={handleToggleSelectAll}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#334155',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {itemsState.filter((it) => it.remaining_quantity > 0).every((it) => it.is_selected)
+                  ? 'Bỏ chọn tất cả'
+                  : 'Chọn tất cả dòng còn trả'}
+              </button>
+            )}
+          </div>
+
+          {!selectedOrderId ? (
+            <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+              Vui lòng tìm và chọn một đơn hàng gốc ở trên để tải danh sách các mặt hàng có thể hoàn trả.
+            </div>
+          ) : isLoadingDetails ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+              Đang tải dữ liệu dòng hàng...
+            </div>
             ) : itemsState.length === 0 ? (
               <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
                 Đơn hàng này không có dòng hàng nào.
@@ -945,11 +954,11 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                                     display: 'inline-block',
                                     padding: '2px 6px',
                                     borderRadius: '4px',
-                                    backgroundColor: '#eff6ff',
-                                    color: '#1d4ed8',
+                                    backgroundColor: '#f0fdf4',
+                                    color: '#166534',
                                     fontSize: '11.5px',
                                     fontWeight: '700',
-                                    border: '1px solid #bfdbfe',
+                                    border: '1px solid #bbf7d0',
                                     cursor: 'help',
                                   }}
                                 >
@@ -968,153 +977,163 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
               </div>
             )}
           </div>
-        )}
 
-        {/* SECTION 3: Ghi Chú & Thống Kê Tổng Kết */}
-        {selectedOrderId && (
+          {/* PHẦN 3: Ghi Chú & Thống Kê Tổng Kết */}
+          {selectedOrderId && (
+            <div
+              style={{
+                padding: '16px 20px',
+                backgroundColor: '#f8fafc',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: '16px',
+              }}
+            >
+              {/* Ghi chú */}
+              <div
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  padding: '14px 16px',
+                }}
+              >
+                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
+                  Ghi chú phiếu trả hàng
+                </label>
+                <textarea
+                  rows={3}
+                  value={generalNote}
+                  onChange={(e) => setGeneralNote(e.target.value)}
+                  placeholder="Nhập thông tin ghi chú cho phiếu trả hàng..."
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    color: '#0f172a',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              {/* Bảng tổng kết số liệu */}
+              <div
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  padding: '14px 16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '4px' }}>
+                  Tổng Kết Phiếu Trả Hàng
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569' }}>
+                  <span>Số dòng hàng chọn trả:</span>
+                  <strong style={{ color: '#0f172a' }}>{totalReturnLines} dòng</strong>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569' }}>
+                  <span>Tổng số lượng sản phẩm trả:</span>
+                  <strong style={{ color: '#0f172a' }}>{totalReturnQty} sản phẩm</strong>
+                </div>
+
+                <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '2px 0' }} />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                    Tổng tiền hoàn trả:
+                  </span>
+                  <span style={{ fontSize: '18px', fontWeight: '800', color: '#059669', fontVariantNumeric: 'tabular-nums' }}>
+                    {totalRefundAmount.toLocaleString('vi-VN')} đ
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PHẦN 4: Chân Bảng Hành Động (Action Bar tích hợp trực tiếp trong bảng) */}
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '16px',
+              padding: '12px 20px',
+              backgroundColor: '#ffffff',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
             }}
           >
-            {/* Ghi chú */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '10px',
-                border: '1px solid #e2e8f0',
-                padding: '16px 18px',
-              }}
-            >
-              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
-                Ghi chú phiếu trả hàng
-              </label>
-              <textarea
-                rows={3}
-                value={generalNote}
-                onChange={(e) => setGeneralNote(e.target.value)}
-                placeholder="Nhập thông tin ghi chú cho phiếu trả hàng..."
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: '#475569' }}>
+              <span>Đã chọn: <strong style={{ color: '#0f172a' }}>{totalReturnLines}</strong> dòng</span>
+              <span>&bull;</span>
+              <span>Số lượng: <strong style={{ color: '#0f172a' }}>{totalReturnQty}</strong></span>
+              <span>&bull;</span>
+              <span>Tổng hoàn trả: <strong style={{ color: '#059669', fontSize: '15px' }}>{totalRefundAmount.toLocaleString('vi-VN')} đ</strong></span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={onBack}
+                disabled={isSubmitting}
                 style={{
-                  width: '100%',
-                  padding: '8px 10px',
+                  padding: '7px 16px',
                   borderRadius: '6px',
                   border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#475569',
                   fontSize: '13px',
-                  color: '#0f172a',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  resize: 'vertical',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
                 }}
-              />
-            </div>
+              >
+                Quay lại
+              </button>
 
-            {/* Bảng tổng kết số liệu */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '10px',
-                border: '1px solid #e2e8f0',
-                padding: '16px 18px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                gap: '10px',
-              }}
-            >
-              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '4px' }}>
-                Tổng Kết Phiếu Trả Hàng
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569' }}>
-                <span>Số dòng hàng chọn trả:</span>
-                <strong style={{ color: '#0f172a' }}>{totalReturnLines} dòng</strong>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569' }}>
-                <span>Tổng số lượng sản phẩm trả:</span>
-                <strong style={{ color: '#0f172a' }}>{totalReturnQty} sản phẩm</strong>
-              </div>
-
-              <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '2px 0' }} />
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
-                  Tổng tiền hoàn trả:
-                </span>
-                <span style={{ fontSize: '18px', fontWeight: '800', color: '#059669', fontVariantNumeric: 'tabular-nums' }}>
-                  {totalRefundAmount.toLocaleString('vi-VN')} đ
-                </span>
-              </div>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSubmitting || selectedRows.length === 0}
+                style={{
+                  padding: '7px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: isSubmitting || selectedRows.length === 0 ? '#94a3b8' : 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)',
+                  color: '#ffffff',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: isSubmitting || selectedRows.length === 0 ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  boxShadow: isSubmitting || selectedRows.length === 0 ? 'none' : '0 2px 4px rgba(15, 138, 95, 0.25)',
+                  transition: 'all 0.18s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSubmitting && selectedRows.length > 0) {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #0c734f 0%, #065f46 100%)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSubmitting && selectedRows.length > 0) {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)';
+                  }
+                }}
+              >
+                {isSubmitting ? 'Đang lưu...' : 'Lưu Phiếu Trả Hàng'}
+              </button>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Sticky Bottom Action Bar */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: '#ffffff',
-          borderTop: '1px solid #e2e8f0',
-          padding: '10px 24px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.05)',
-          zIndex: 40,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: '#475569' }}>
-          <span>Đã chọn: <strong style={{ color: '#0f172a' }}>{totalReturnLines}</strong> dòng</span>
-          <span>&bull;</span>
-          <span>Số lượng: <strong style={{ color: '#0f172a' }}>{totalReturnQty}</strong></span>
-          <span>&bull;</span>
-          <span>Tổng hoàn trả: <strong style={{ color: '#059669', fontSize: '15px' }}>{totalRefundAmount.toLocaleString('vi-VN')} đ</strong></span>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={onBack}
-            disabled={isSubmitting}
-            style={{
-              padding: '7px 14px',
-              borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              backgroundColor: '#ffffff',
-              color: '#475569',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Quay lại
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting || selectedRows.length === 0}
-            style={{
-              padding: '7px 20px',
-              borderRadius: '6px',
-              border: 'none',
-              backgroundColor: isSubmitting || selectedRows.length === 0 ? '#94a3b8' : '#2563eb',
-              color: '#ffffff',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: isSubmitting || selectedRows.length === 0 ? 'not-allowed' : 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {isSubmitting ? 'Đang lưu...' : 'Lưu Phiếu Trả Hàng'}
-          </button>
         </div>
       </div>
     </div>
