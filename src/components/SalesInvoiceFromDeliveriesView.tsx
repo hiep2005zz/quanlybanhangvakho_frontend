@@ -1211,377 +1211,377 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
           {/* =========================================================================
               MÀN HÌNH CHÍNH: DANH SÁCH XUẤT HÓA ĐƠN BÁN HÀNG
               ========================================================================= */}
-          {/* 1. KHUNG GỘP TIÊU ĐỀ, THỐNG KÊ, TABS & BỘ LỌC TÌM KIẾM */}
-          <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-3 mb-2.5 space-y-2.5">
-        {/* Tiêu đề trang */}
-        <div className="flex items-center justify-between pb-1">
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight m-0">
-            Xuất Hóa Đơn Bán Hàng
-          </h1>
-        </div>
-
-        {/* 4 Ô màu to vừa với khung như ở trang đối chiếu công nợ đại lý */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
-          {/* Card 1: Chờ xuất HĐ */}
-          <div
-            style={{
-              background: '#fffbeb',
-              border: '1px solid #fde68a',
-              borderLeft: '4px solid #f59e0b',
-              borderRadius: '10px',
-              padding: '12px 16px',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#b45309' }}>
-              Chờ xuất hóa đơn
-            </div>
-            <div style={{ fontSize: '22px', fontWeight: '800', color: '#92400e', marginTop: '6px', lineHeight: 1.2 }}>
-              {quickStats.total_pending_invoices.toLocaleString()}{' '}
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#b45309' }}>phiếu</span>
-            </div>
-            <div style={{ fontSize: '11px', color: '#78350f', marginTop: '4px' }}>
-              Phiếu giao đủ điều kiện xuất hóa đơn
-            </div>
+          {/* 1. Tiêu đề trang ra ngoài trên cùng */}
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight m-0">
+              Xuất Hóa Đơn Bán Hàng
+            </h1>
           </div>
 
-          {/* Card 2: Đã xuất HĐ */}
-          <div
-            style={{
-              background: '#ecfdf5',
-              border: '1px solid #a7f3d0',
-              borderLeft: '4px solid #10b981',
-              borderRadius: '10px',
-              padding: '12px 16px',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#047857' }}>
-              Đã xuất hóa đơn
-            </div>
-            <div style={{ fontSize: '22px', fontWeight: '800', color: '#065f46', marginTop: '6px', lineHeight: 1.2 }}>
-              {quickStats.total_issued_invoices.toLocaleString()}{' '}
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#047857' }}>phiếu</span>
-            </div>
-            <div style={{ fontSize: '11px', color: '#064e3b', marginTop: '4px' }}>
-              Đã phát hành hóa đơn tài chính
-            </div>
-          </div>
-
-          {/* Card 3: Chứng từ điều chỉnh */}
-          <div
-            style={{
-              background: '#eef2ff',
-              border: '1px solid #c7d2fe',
-              borderLeft: '4px solid #6366f1',
-              borderRadius: '10px',
-              padding: '12px 16px',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#4338ca' }}>
-              Chứng từ điều chỉnh
-            </div>
-            <div style={{ fontSize: '22px', fontWeight: '800', color: '#3730a3', marginTop: '6px', lineHeight: 1.2 }}>
-              {(quickStats.total_adjustments || 0).toLocaleString()}{' '}
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#4338ca' }}>chứng từ</span>
-            </div>
-            <div style={{ fontSize: '11px', color: '#312e81', marginTop: '4px' }}>
-              Lịch sử điều chỉnh sai sót hóa đơn
-            </div>
-          </div>
-
-          {/* Card 4: Tổng tiền dự kiến */}
-          <div
-            style={{
-              background: '#eff6ff',
-              border: '1px solid #bfdbfe',
-              borderLeft: '4px solid #3b82f6',
-              borderRadius: '10px',
-              padding: '12px 16px',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#0369a1' }}>
-              Tổng tiền dự kiến
-            </div>
+          {/* 2. 4 Ô màu thống kê tách ra bên dưới tiêu đề như minh họa */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full mb-3">
+            {/* Card 1: Chờ xuất HĐ */}
             <div
-              style={{ fontSize: '20px', fontWeight: '800', color: '#1e40af', marginTop: '6px', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-              title={formatVND(quickStats.total_pending_amount)}
+              style={{
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderLeft: '4px solid #f59e0b',
+                borderRadius: '10px',
+                padding: '12px 16px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
             >
-              {formatVND(quickStats.total_pending_amount)}
-            </div>
-            <div style={{ fontSize: '11px', color: '#1e3a8a', marginTop: '4px' }}>
-              Doanh số tất cả phiếu chờ xuất
-            </div>
-          </div>
-        </div>
-
-
-        {/* Thanh tìm kiếm nhanh phong cách Chọn sản phẩm theo kệ (chuẩn 5 đơn/lượt) */}
-        <div className="pt-2.5 pb-2 border-t border-slate-100">
-          <div className="mb-1.5">
-            <span className="text-xs font-bold text-slate-800">
-              Tìm kiếm đơn hàng & phiếu giao
-            </span>
-          </div>
-
-          <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="Tìm nhanh theo mã phiếu giao, mã đơn hàng, tên đại lý (VD: GH-001, DH-002, Minh Khang...)..."
-              value={quickSearchText}
-              onChange={(e) => {
-                setQuickSearchText(e.target.value);
-                setCurrentPage(1);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setCurrentPage(1);
-                  fetchDispatches();
-                }
-              }}
-              className="w-full h-8 px-2.5 pr-7 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-800 placeholder:text-slate-400"
-            />
-            {quickSearchText && (
-              <button
-                type="button"
-                onClick={() => {
-                  setQuickSearchText('');
-                  setCurrentPage(1);
-                }}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-[11px] text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer"
-                title="Xóa tìm kiếm"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Bộ lọc lưới 4 cột gọn gàng vừa vặn */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-end pt-2 border-t border-slate-100">
-          {/* Cột 1: Trạng thái giao hoặc Loại điều chỉnh */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              {activeTab === 'ADJUSTMENTS' ? 'Loại điều chỉnh' : 'Trạng thái giao'}
-            </label>
-            {activeTab === 'ADJUSTMENTS' ? (
-              <select
-                value={adjustmentTypeFilter}
-                onChange={(e) => setAdjustmentTypeFilter(e.target.value)}
-                className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer transition-colors text-slate-800"
-              >
-                <option value="">Tất cả loại điều chỉnh</option>
-                <option value="INCREASE">Điều chỉnh tăng (+)</option>
-                <option value="DECREASE">Điều chỉnh giảm (-)</option>
-                <option value="INFO">Điều chỉnh thông tin</option>
-              </select>
-            ) : (
-              <select
-                value={deliveryStatusFilter}
-                onChange={(e) => setDeliveryStatusFilter(e.target.value)}
-                className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer transition-colors text-slate-800"
-              >
-                <option value="">Tất cả trạng thái</option>
-                <option value="DELIVERED">Đã giao thành công</option>
-                <option value="PENDING">Đang chờ giao</option>
-                <option value="FAILED">Giao thất bại</option>
-              </select>
-            )}
-          </div>
-
-          {/* Cột 2: Từ ngày */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Từ ngày</label>
-            <input
-              type="date"
-              value={fromDateFilter}
-              onChange={(e) => setFromDateFilter(e.target.value)}
-              className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-700"
-            />
-          </div>
-
-          {/* Cột 3: Đến ngày */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Đến ngày</label>
-            <input
-              type="date"
-              value={toDateFilter}
-              onChange={(e) => setToDateFilter(e.target.value)}
-              className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-700"
-            />
-          </div>
-
-          {/* Cột 4: Nút Lọc và Đặt lại */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1 invisible select-none">
-              Thao tác
-            </label>
-            <div className="flex items-center gap-1.5 h-8">
-              <button
-                type="button"
-                onClick={() => {
-                  setCurrentPage(1);
-                  fetchDispatches();
-                }}
-                className="flex-1 h-8 bg-slate-800 text-white rounded-md text-xs font-semibold hover:bg-slate-900 transition-colors cursor-pointer border-0"
-              >
-                Lọc
-              </button>
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="flex-1 h-8 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold hover:bg-slate-200 transition-colors cursor-pointer border border-slate-300"
-              >
-                Đặt lại
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Thanh ngang gộp đặt bên trong ô tìm kiếm với màu nền sáng trang nhã, chiều cao h-7 */}
-        {activeTab === 'ADJUSTMENTS' ? (
-          <div className="bg-amber-50/80 border border-amber-200/90 rounded py-1 px-2 flex flex-wrap items-center justify-between gap-1.5 text-amber-900 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-bold uppercase tracking-wider text-[11px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded">
-                Sổ Lưu Vết Kế Toán
-              </span>
-              <span className="text-slate-700 font-medium">
-                Ghi nhận đầy đủ lịch sử tất cả các lần điều chỉnh giá trị, tiền thuế hoặc thông tin hóa đơn bán hàng theo nguyên tắc bất biến.
-              </span>
-            </div>
-            <div className="font-bold text-amber-900">
-              Tổng số: {totalRecords} chứng từ
-            </div>
-          </div>
-        ) : (
-          <div className="bg-slate-50/90 border border-slate-200/90 rounded py-1 px-2 flex flex-wrap items-center justify-between gap-1.5 text-slate-800">
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  id="master-checkbox"
-                  checked={isAllEligibleSelected}
-                  onChange={handleToggleSelectAll}
-                  disabled={eligibleDispatchesOnPage.length === 0}
-                  className="w-3.5 h-3.5 text-emerald-600 rounded cursor-pointer"
-                />
-                <span className="text-[11px] font-semibold text-slate-700">
-                  Chọn tất cả ({eligibleDispatchesOnPage.length} phiếu đủ điều kiện)
-                </span>
-              </label>
-
-              <div className="h-3 w-px bg-slate-300 hidden sm:block" />
-
-              <div className="text-[11px] text-slate-600">
-                Đã chọn: <strong className="text-emerald-700 font-bold text-[11px]">{selectedSummary.count}</strong> phiếu
-                {selectedSummary.count > 0 && (
-                  <>
-                    {' '}
-                    | Tổng tiền:{' '}
-                    <strong className="text-slate-900 font-bold text-[11px]">{formatVND(selectedSummary.totalAmount)}</strong>
-                    {selectedSummary.dealersCount > 1 && (
-                      <span className="ml-1.5 px-1 py-0.2 bg-red-100 text-red-700 text-[10px] rounded border border-red-300 font-semibold">
-                        Chọn nhiều đại lý khác nhau
-                      </span>
-                    )}
-                  </>
-                )}
+              <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#b45309' }}>
+                Chờ xuất hóa đơn
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: '#92400e', marginTop: '6px', lineHeight: 1.2 }}>
+                {quickStats.total_pending_invoices.toLocaleString()}{' '}
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#b45309' }}>phiếu</span>
+              </div>
+              <div style={{ fontSize: '11px', color: '#78350f', marginTop: '4px' }}>
+                Phiếu giao đủ điều kiện xuất hóa đơn
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              {selectedSummary.count > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedIds([])}
-                  className="px-2 py-0.5 text-[11px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border-0 bg-transparent"
-                >
-                  Bỏ chọn
-                </button>
-              )}
+            {/* Card 2: Đã xuất HĐ */}
+            <div
+              style={{
+                background: '#ecfdf5',
+                border: '1px solid #a7f3d0',
+                borderLeft: '4px solid #10b981',
+                borderRadius: '10px',
+                padding: '12px 16px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#047857' }}>
+                Đã xuất hóa đơn
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: '#065f46', marginTop: '6px', lineHeight: 1.2 }}>
+                {quickStats.total_issued_invoices.toLocaleString()}{' '}
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#047857' }}>phiếu</span>
+              </div>
+              <div style={{ fontSize: '11px', color: '#064e3b', marginTop: '4px' }}>
+                Đã phát hành hóa đơn tài chính
+              </div>
+            </div>
 
-              <button
-                type="button"
-                id="btn-consolidate-issue-invoice"
-                onClick={handleOpenPreview}
-                disabled={isPreviewLoading}
-                title={selectedSummary.count === 0 ? "Vui lòng tích chọn phiếu giao hàng bên dưới" : "Bấm để xem trước và xuất hóa đơn"}
-                className={`px-3 h-7 rounded text-[11px] font-bold transition-all cursor-pointer border-0 ${
-                  selectedSummary.count > 0 && !isPreviewLoading
-                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                }`}
+            {/* Card 3: Chứng từ điều chỉnh */}
+            <div
+              style={{
+                background: '#eef2ff',
+                border: '1px solid #c7d2fe',
+                borderLeft: '4px solid #6366f1',
+                borderRadius: '10px',
+                padding: '12px 16px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#4338ca' }}>
+                Chứng từ điều chỉnh
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: '#3730a3', marginTop: '6px', lineHeight: 1.2 }}>
+                {(quickStats.total_adjustments || 0).toLocaleString()}{' '}
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#4338ca' }}>chứng từ</span>
+              </div>
+              <div style={{ fontSize: '11px', color: '#312e81', marginTop: '4px' }}>
+                Lịch sử điều chỉnh sai sót hóa đơn
+              </div>
+            </div>
+
+            {/* Card 4: Tổng tiền dự kiến */}
+            <div
+              style={{
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderLeft: '4px solid #3b82f6',
+                borderRadius: '10px',
+                padding: '12px 16px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#0369a1' }}>
+                Tổng tiền dự kiến
+              </div>
+              <div
+                style={{ fontSize: '20px', fontWeight: '800', color: '#1e40af', marginTop: '6px', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                title={formatVND(quickStats.total_pending_amount)}
               >
-                {isPreviewLoading ? 'Đang kiểm tra...' : `Gộp & Xuất Hóa Đơn (${selectedSummary.count})`}
-              </button>
+                {formatVND(quickStats.total_pending_amount)}
+              </div>
+              <div style={{ fontSize: '11px', color: '#1e3a8a', marginTop: '4px' }}>
+                Doanh số tất cả phiếu chờ xuất
+              </div>
             </div>
           </div>
-        )}
 
-        {/* 3 nút chuyển trạng thái đặt bên dưới cùng ô bên trên */}
-        <div className="pt-2.5 border-t border-slate-100 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('PENDING');
-              setCurrentPage(1);
-            }}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'PENDING'
-                ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
-            }`}
-          >
-            Chờ xuất hóa đơn ({quickStats.total_pending_invoices})
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('INVOICED');
-              setCurrentPage(1);
-            }}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'INVOICED'
-                ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
-            }`}
-          >
-            Đã xuất hóa đơn ({quickStats.total_issued_invoices})
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('ADJUSTMENTS');
-              setCurrentPage(1);
-            }}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'ADJUSTMENTS'
-                ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
-            }`}
-          >
-            Lịch sử chứng từ điều chỉnh ({quickStats.total_adjustments || 0})
-          </button>
-        </div>
-      </div>
+          {/* 3. KHUNG GỘP BỘ LỌC TÌM KIẾM VÀ BẢNG DỮ LIỆU LÀM 1 */}
+          <div className="bg-white rounded-xl shadow-xs border border-slate-200 flex flex-col" style={{ overflow: 'visible' }}>
+            {/* 3 nút chuyển trạng thái đặt bên trên thanh tìm kiếm */}
+            <div className="p-3 pb-0 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('PENDING');
+                  setCurrentPage(1);
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === 'PENDING'
+                    ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
+                }`}
+              >
+                Chờ xuất hóa đơn ({quickStats.total_pending_invoices})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('INVOICED');
+                  setCurrentPage(1);
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === 'INVOICED'
+                    ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
+                }`}
+              >
+                Đã xuất hóa đơn ({quickStats.total_issued_invoices})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('ADJUSTMENTS');
+                  setCurrentPage(1);
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === 'ADJUSTMENTS'
+                    ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
+                }`}
+              >
+                Lịch sử chứng từ điều chỉnh ({quickStats.total_adjustments || 0})
+              </button>
+            </div>
 
-      {/* 5. Bảng danh sách phiếu giao hàng */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 flex flex-col" style={{ overflow: 'visible' }}>
-        <div className="overflow-x-auto w-full" style={{ minHeight: '260px', overflowY: 'visible' }}>
+            {/* Phần bộ lọc & tìm kiếm */}
+            <div className="p-3 space-y-2.5">
+              {/* Thanh tìm kiếm nhanh phong cách Chọn sản phẩm theo kệ (chuẩn 5 đơn/lượt) */}
+              <div className="pt-2 border-t border-slate-100">
+                <div className="mb-1.5">
+                  <span className="text-xs font-bold text-slate-800">
+                    Tìm kiếm đơn hàng & phiếu giao
+                  </span>
+                </div>
+
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    placeholder="Tìm nhanh theo mã phiếu giao, mã đơn hàng, tên đại lý (VD: GH-001, DH-002, Minh Khang...)..."
+                    value={quickSearchText}
+                    onChange={(e) => {
+                      setQuickSearchText(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setCurrentPage(1);
+                        fetchDispatches();
+                      }
+                    }}
+                    className="w-full h-8 px-2.5 pr-7 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-800 placeholder:text-slate-400"
+                  />
+                  {quickSearchText && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickSearchText('');
+                        setCurrentPage(1);
+                      }}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-[11px] text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer"
+                      title="Xóa tìm kiếm"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Bộ lọc lưới 4 cột gọn gàng vừa vặn */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-end pt-2 border-t border-slate-100">
+                {/* Cột 1: Trạng thái giao hoặc Loại điều chỉnh */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {activeTab === 'ADJUSTMENTS' ? 'Loại điều chỉnh' : 'Trạng thái giao'}
+                  </label>
+                  {activeTab === 'ADJUSTMENTS' ? (
+                    <select
+                      value={adjustmentTypeFilter}
+                      onChange={(e) => setAdjustmentTypeFilter(e.target.value)}
+                      className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer transition-colors text-slate-800"
+                    >
+                      <option value="">Tất cả loại điều chỉnh</option>
+                      <option value="INCREASE">Điều chỉnh tăng (+)</option>
+                      <option value="DECREASE">Điều chỉnh giảm (-)</option>
+                      <option value="INFO">Điều chỉnh thông tin</option>
+                    </select>
+                  ) : (
+                    <select
+                      value={deliveryStatusFilter}
+                      onChange={(e) => setDeliveryStatusFilter(e.target.value)}
+                      className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer transition-colors text-slate-800"
+                    >
+                      <option value="">Tất cả trạng thái</option>
+                      <option value="DELIVERED">Đã giao thành công</option>
+                      <option value="PENDING">Đang chờ giao</option>
+                      <option value="FAILED">Giao thất bại</option>
+                    </select>
+                  )}
+                </div>
+
+                {/* Cột 2: Từ ngày */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Từ ngày</label>
+                  <input
+                    type="date"
+                    value={fromDateFilter}
+                    onChange={(e) => setFromDateFilter(e.target.value)}
+                    className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-700"
+                  />
+                </div>
+
+                {/* Cột 3: Đến ngày */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Đến ngày</label>
+                  <input
+                    type="date"
+                    value={toDateFilter}
+                    onChange={(e) => setToDateFilter(e.target.value)}
+                    className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-700"
+                  />
+                </div>
+
+                {/* Cột 4: Nút Lọc và Đặt lại */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1 invisible select-none">
+                    Thao tác
+                  </label>
+                  <div className="flex items-center gap-1.5 h-8">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCurrentPage(1);
+                        fetchDispatches();
+                      }}
+                      className="flex-1 h-8 bg-slate-800 text-white rounded-md text-xs font-semibold hover:bg-slate-900 transition-colors cursor-pointer border-0"
+                    >
+                      Lọc
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetFilters}
+                      className="flex-1 h-8 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold hover:bg-slate-200 transition-colors cursor-pointer border border-slate-300"
+                    >
+                      Đặt lại
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Thanh ngang gộp đặt bên trong ô tìm kiếm với màu nền sáng trang nhã, chiều cao h-7 */}
+              {activeTab === 'ADJUSTMENTS' ? (
+                <div className="bg-amber-50/80 border border-amber-200/90 rounded py-1 px-2 flex flex-wrap items-center justify-between gap-1.5 text-amber-900 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold uppercase tracking-wider text-[11px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded">
+                      Sổ Lưu Vết Kế Toán
+                    </span>
+                    <span className="text-slate-700 font-medium">
+                      Ghi nhận đầy đủ lịch sử tất cả các lần điều chỉnh giá trị, tiền thuế hoặc thông tin hóa đơn bán hàng theo nguyên tắc bất biến.
+                    </span>
+                  </div>
+                  <div className="font-bold text-amber-900">
+                    Tổng số: {totalRecords} chứng từ
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-50/90 border border-slate-200/90 rounded py-1 px-2 flex flex-wrap items-center justify-between gap-1.5 text-slate-800">
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        id="master-checkbox"
+                        checked={isAllEligibleSelected}
+                        onChange={handleToggleSelectAll}
+                        disabled={eligibleDispatchesOnPage.length === 0}
+                        className="w-3.5 h-3.5 text-emerald-600 rounded cursor-pointer"
+                      />
+                      <span className="text-[11px] font-semibold text-slate-700">
+                        Chọn tất cả ({eligibleDispatchesOnPage.length} phiếu đủ điều kiện)
+                      </span>
+                    </label>
+
+                    <div className="h-3 w-px bg-slate-300 hidden sm:block" />
+
+                    <div className="text-[11px] text-slate-600">
+                      Đã chọn: <strong className="text-emerald-700 font-bold text-[11px]">{selectedSummary.count}</strong> phiếu
+                      {selectedSummary.count > 0 && (
+                        <>
+                          {' '}
+                          | Tổng tiền:{' '}
+                          <strong className="text-slate-900 font-bold text-[11px]">{formatVND(selectedSummary.totalAmount)}</strong>
+                          {selectedSummary.dealersCount > 1 && (
+                            <span className="ml-1.5 px-1 py-0.2 bg-red-100 text-red-700 text-[10px] rounded border border-red-300 font-semibold">
+                              Chọn nhiều đại lý khác nhau
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    {selectedSummary.count > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedIds([])}
+                        className="px-2 py-0.5 text-[11px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border-0 bg-transparent"
+                      >
+                        Bỏ chọn
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      id="btn-consolidate-issue-invoice"
+                      onClick={handleOpenPreview}
+                      disabled={isPreviewLoading}
+                      title={selectedSummary.count === 0 ? "Vui lòng tích chọn phiếu giao hàng bên dưới" : "Bấm để xem trước và xuất hóa đơn"}
+                      className={`px-3 h-7 rounded text-[11px] font-bold transition-all cursor-pointer border-0 ${
+                        selectedSummary.count > 0 && !isPreviewLoading
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                      }`}
+                    >
+                      {isPreviewLoading ? 'Đang kiểm tra...' : `Gộp & Xuất Hóa Đơn (${selectedSummary.count})`}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bảng danh sách phiếu giao hàng */}
+            <div className="overflow-x-auto w-full border-t border-slate-200" style={{ minHeight: '260px', overflowY: 'visible' }}>
           <table className="w-full text-left text-xs border-collapse">
             <thead className="bg-slate-100 shadow-xs">
               <tr className="bg-slate-100/95 text-slate-700 font-semibold uppercase text-[11px] border-b border-slate-200 tracking-wider">
