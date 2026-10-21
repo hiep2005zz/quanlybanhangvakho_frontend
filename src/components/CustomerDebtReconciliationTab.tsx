@@ -58,9 +58,23 @@ export const CustomerDebtReconciliationTab: React.FC<CustomerDebtReconciliationT
   const [confirmingRec, setConfirmingRec] = useState<DebtReconciliationItemResponse | null>(null);
   const [isSubmittingConfirm, setIsSubmittingConfirm] = useState<boolean>(false);
 
+  // Thao tác 3 chấm (Action Dropdown Menu)
+  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.rec-action-menu-container')) {
+        setOpenActionMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
+    setOpenActionMenuId(null);
     try {
       const res = await getDebtReconciliationsApi(token, {
         page,
@@ -311,18 +325,18 @@ export const CustomerDebtReconciliationTab: React.FC<CustomerDebtReconciliationT
       </div>
 
       {/* Bảng danh sách */}
-      <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden', overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', minHeight: '180px', width: '100%', boxSizing: 'border-box' }}>
         <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12.5px' }}>
           <thead>
             <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '12px' }}>
-              <th style={{ width: '14%', padding: '10px 8px' }}>Mã biên bản</th>
-              <th style={{ width: '16%', padding: '10px 8px' }}>Kỳ đối chiếu</th>
-              <th style={{ width: '8%', padding: '10px 6px', textAlign: 'right' }}>Dư nợ đầu kỳ</th>
-              <th style={{ width: '10%', padding: '10px 6px', textAlign: 'right' }}>Mua trong kỳ</th>
-              <th style={{ width: '9%', padding: '10px 6px', textAlign: 'right' }}>Đã trả trong kỳ</th>
-              <th style={{ width: '11%', padding: '10px 6px', textAlign: 'right' }}>Dư nợ cuối kỳ</th>
-              <th style={{ width: '10%', padding: '10px 6px', textAlign: 'center' }}>Trạng thái</th>
-              <th style={{ width: '22%', padding: '10px 4px', textAlign: 'center' }}>Thao tác</th>
+              <th style={{ width: '15%', padding: '10px 8px' }}>Mã biên bản</th>
+              <th style={{ width: '18%', padding: '10px 8px' }}>Kỳ đối chiếu</th>
+              <th style={{ width: '10%', padding: '10px 6px', textAlign: 'right' }}>Dư nợ đầu kỳ</th>
+              <th style={{ width: '12%', padding: '10px 6px', textAlign: 'right' }}>Mua trong kỳ</th>
+              <th style={{ width: '12%', padding: '10px 6px', textAlign: 'right' }}>Đã trả trong kỳ</th>
+              <th style={{ width: '13%', padding: '10px 6px', textAlign: 'right' }}>Dư nợ cuối kỳ</th>
+              <th style={{ width: '13%', padding: '10px 6px', textAlign: 'center' }}>Trạng thái</th>
+              <th style={{ width: '7%', padding: '10px 4px', textAlign: 'center' }}>Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -362,69 +376,197 @@ export const CustomerDebtReconciliationTab: React.FC<CustomerDebtReconciliationT
                       </span>
                     )}
                   </td>
-                  <td style={{ padding: '10px 4px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center', flexWrap: 'nowrap' }}>
+                  <td
+                    style={{
+                      padding: '8px 4px',
+                      textAlign: 'center',
+                      position: 'relative',
+                      zIndex: openActionMenuId === r.id ? 40 : 1,
+                    }}
+                  >
+                    <div
+                      className="rec-action-menu-container"
+                      style={{
+                        position: 'relative',
+                        display: 'inline-flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
                       <button
-                        onClick={() => setSelectedRec(r)}
-                        style={{
-                          padding: '4px 7px',
-                          backgroundColor: '#ffffff',
-                          color: '#2563eb',
-                          border: '1px solid #bfdbfe',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '11.5px',
-                          fontWeight: '600',
-                          whiteSpace: 'nowrap',
-                          flexShrink: 0,
-                          lineHeight: '1.2',
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenActionMenuId(openActionMenuId === r.id ? null : r.id);
                         }}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: openActionMenuId === r.id ? '#f1f5f9' : '#ffffff',
+                          color: openActionMenuId === r.id ? '#0f172a' : '#475569',
+                          border: '1px solid',
+                          borderColor: openActionMenuId === r.id ? '#94a3b8' : '#e2e8f0',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '18px',
+                          fontWeight: '700',
+                          lineHeight: 1,
+                          transition: 'all 0.15s ease',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (openActionMenuId !== r.id) {
+                            e.currentTarget.style.backgroundColor = '#f8fafc';
+                            e.currentTarget.style.borderColor = '#cbd5e1';
+                            e.currentTarget.style.color = '#0f172a';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (openActionMenuId !== r.id) {
+                            e.currentTarget.style.backgroundColor = '#ffffff';
+                            e.currentTarget.style.borderColor = '#e2e8f0';
+                            e.currentTarget.style.color = '#475569';
+                          }
+                        }}
+                        title="Thao tác"
                       >
-                        Xem &amp; In
+                        ⋮
                       </button>
 
-                      {r.status === 'SENT' && (
-                        <>
+                      {openActionMenuId === r.id && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: 0,
+                            top: 'calc(100% + 4px)',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                            padding: '6px',
+                            minWidth: '210px',
+                            zIndex: 100,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px',
+                            textAlign: 'left',
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button
-                            onClick={() => setConfirmingRec(r)}
-                            style={{
-                              padding: '4px 7px',
-                              backgroundColor: '#16a34a',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '11.5px',
-                              fontWeight: '600',
-                              whiteSpace: 'nowrap',
-                              flexShrink: 0,
-                              lineHeight: '1.2',
-                            }}
-                          >
-                            Xác nhận đúng
-                          </button>
-                          <button
+                            type="button"
                             onClick={() => {
-                              setDisputingRec(r);
-                              setReportedBalance(String(r.closing_balance));
+                              setSelectedRec(r);
+                              setOpenActionMenuId(null);
                             }}
                             style={{
-                              padding: '4px 7px',
-                              backgroundColor: '#f97316',
-                              color: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              width: '100%',
+                              padding: '8px 12px',
                               border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '11.5px',
+                              backgroundColor: 'transparent',
+                              color: '#1e293b',
+                              fontSize: '12.5px',
                               fontWeight: '600',
-                              whiteSpace: 'nowrap',
-                              flexShrink: 0,
-                              lineHeight: '1.2',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s',
+                              textAlign: 'left',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#eff6ff';
+                              e.currentTarget.style.color = '#1d4ed8';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                              e.currentTarget.style.color = '#1e293b';
                             }}
                           >
-                            Báo lệch
+                            <span style={{ fontSize: '14px' }}>📄</span>
+                            <span>Xem &amp; In biên bản</span>
                           </button>
-                        </>
+
+                          {r.status === 'SENT' && (
+                            <>
+                              <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '2px 0' }} />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConfirmingRec(r);
+                                  setOpenActionMenuId(null);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  width: '100%',
+                                  padding: '8px 12px',
+                                  border: 'none',
+                                  backgroundColor: 'transparent',
+                                  color: '#15803d',
+                                  fontSize: '12.5px',
+                                  fontWeight: '600',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s',
+                                  textAlign: 'left',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#f0fdf4';
+                                  e.currentTarget.style.color = '#166534';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                  e.currentTarget.style.color = '#15803d';
+                                }}
+                              >
+                                <span style={{ fontSize: '14px' }}>✅</span>
+                                <span>Xác nhận số liệu đúng</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDisputingRec(r);
+                                  setReportedBalance(String(r.closing_balance));
+                                  setOpenActionMenuId(null);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  width: '100%',
+                                  padding: '8px 12px',
+                                  border: 'none',
+                                  backgroundColor: 'transparent',
+                                  color: '#c2410c',
+                                  fontSize: '12.5px',
+                                  fontWeight: '600',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s',
+                                  textAlign: 'left',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#fff7ed';
+                                  e.currentTarget.style.color = '#9a3412';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                  e.currentTarget.style.color = '#c2410c';
+                                }}
+                              >
+                                <span style={{ fontSize: '14px' }}>⚠️</span>
+                                <span>Báo lệch / Khiếu nại</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   </td>

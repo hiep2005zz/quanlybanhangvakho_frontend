@@ -447,13 +447,21 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
                   }}
                   style={{
                     padding: '6px 16px',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     border: 'none',
-                    backgroundColor: '#2563eb',
+                    background: 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)',
                     color: '#ffffff',
                     fontSize: '13px',
                     fontWeight: '700',
                     cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(15, 138, 95, 0.25)',
+                    transition: 'all 0.18s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #0c734f 0%, #065f46 100%)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)';
                   }}
                 >
                   + Lập Phiếu Trả Hàng
@@ -510,7 +518,7 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
                     >
                       {/* Mã phiếu */}
                       <td style={{ padding: '10px 14px' }}>
-                        <span style={{ fontWeight: '700', color: '#2563eb' }}>{ro.code}</span>
+                        <span style={{ fontWeight: '700', color: '#0F8A5F' }}>{ro.code}</span>
                       </td>
 
                       {/* Đơn hàng gốc */}
@@ -578,9 +586,9 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
                               width: '32px',
                               height: '32px',
                               borderRadius: '8px',
-                              border: openActionMenuId === ro.id ? '1px solid #2563eb' : '1px solid #e2e8f0',
-                              background: openActionMenuId === ro.id ? '#eff6ff' : '#ffffff',
-                              color: openActionMenuId === ro.id ? '#1d4ed8' : '#64748b',
+                              border: openActionMenuId === ro.id ? '1px solid #0fad89' : '1px solid #e2e8f0',
+                              background: openActionMenuId === ro.id ? '#f0fdf4' : '#ffffff',
+                              color: openActionMenuId === ro.id ? '#0F8A5F' : '#64748b',
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',

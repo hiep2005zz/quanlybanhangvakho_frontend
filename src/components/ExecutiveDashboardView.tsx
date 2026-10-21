@@ -666,7 +666,7 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab?.('debt-ledger')}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors self-start sm:self-auto border border-blue-200"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors self-start sm:self-auto border border-emerald-300 shadow-2xs cursor-pointer"
           >
             <span>Mở Sổ công nợ & Tuổi nợ chi tiết</span>
             <span>&rarr;</span>
@@ -714,7 +714,7 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
                           className="text-left group/dealer"
                           title={`Xem phân tích sổ nợ đại lý ${dealer.dealer_name}`}
                         >
-                          <div className="font-bold text-gray-900 group-hover/dealer:text-blue-600 transition-colors">
+                          <div className="font-bold text-gray-900 group-hover/dealer:text-emerald-700 transition-colors">
                             {dealer.dealer_name}
                           </div>
                           <div className="text-xs text-gray-400 font-mono group-hover/dealer:underline">
@@ -747,7 +747,7 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
                               } catch {}
                               onNavigateTab?.('debt-ledger');
                             }}
-                            className="px-2.5 py-1 text-xs font-semibold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+                            className="px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-300"
                             title={`Xem phân tích sổ nợ đại lý ${dealer.dealer_name}`}
                           >
                             Tuổi nợ

@@ -616,15 +616,22 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
                 type="button"
                 onClick={() => setViewMode('CREATE')}
                 style={{
-                  padding: '7px 16px',
-                  backgroundColor: '#0f172a',
+                  padding: '7px 18px',
+                  background: 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: '8px',
                   fontSize: '13px',
                   fontWeight: '700',
                   cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                  boxShadow: '0 2px 6px rgba(15, 138, 95, 0.3)',
+                  transition: 'all 0.18s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #0c734f 0%, #065f46 100%)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)';
                 }}
               >
                 + Lập phiếu điều chỉnh

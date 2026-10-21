@@ -375,18 +375,35 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                 }
               }}
               style={{
-                padding: '8px 16px',
-                backgroundColor: '#0f172a',
+                padding: '8px 18px',
+                height: '36px',
+                background: 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)',
                 color: '#ffffff',
                 border: 'none',
-                borderRadius: '6px',
+                borderRadius: '8px',
                 fontSize: '13px',
                 fontWeight: '700',
                 cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                boxShadow: '0 2px 6px rgba(15, 138, 95, 0.3)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                transition: 'all 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #0c734f 0%, #065f46 100%)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)';
               }}
             >
-              Điều chỉnh tồn kho
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+                <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+                <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+              </svg>
+              <span>Điều chỉnh tồn kho</span>
             </button>
           </div>
         )}
@@ -697,7 +714,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
               style={{
                 padding: '0 16px',
                 height: '35px',
-                backgroundColor: '#2563eb',
+                background: 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '8px',
@@ -705,15 +722,38 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                 fontWeight: '600',
                 cursor: isRefreshing ? 'not-allowed' : 'pointer',
                 opacity: isRefreshing ? 0.7 : 1,
-                boxShadow: '0 2px 4px rgba(37,99,235,0.2)',
-                transition: 'background-color 0.15s ease',
+                boxShadow: '0 2px 4px rgba(15, 138, 95, 0.25)',
+                transition: 'all 0.18s ease',
                 whiteSpace: 'nowrap',
                 display: 'inline-flex',
                 alignItems: 'center',
+                gap: '6px',
                 justifyContent: 'center',
               }}
+              onMouseEnter={(e) => {
+                if (!isRefreshing) e.currentTarget.style.background = 'linear-gradient(135deg, #0c734f 0%, #065f46 100%)';
+              }}
+              onMouseLeave={(e) => {
+                if (!isRefreshing) e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)';
+              }}
             >
-              {isRefreshing ? 'Đang cập nhật...' : 'Làm mới'}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  transition: 'transform 0.5s ease',
+                  animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+                }}
+              >
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+              </svg>
+              <span>{isRefreshing ? 'Đang cập nhật...' : 'Làm mới'}</span>
             </button>
 
             {canExportExcel && (
@@ -726,7 +766,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                 style={{
                   padding: '0 16px',
                   height: '35px',
-                  backgroundColor: '#16a34a',
+                  background: 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '8px',
@@ -734,13 +774,19 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                   fontWeight: '600',
                   cursor: isExporting ? 'not-allowed' : 'pointer',
                   opacity: isExporting ? 0.7 : 1,
-                  boxShadow: '0 2px 4px rgba(22,163,74,0.2)',
-                  transition: 'background-color 0.15s ease',
+                  boxShadow: '0 2px 4px rgba(15, 138, 95, 0.25)',
+                  transition: 'all 0.18s ease',
                   whiteSpace: 'nowrap',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
                   justifyContent: 'center',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isExporting) e.currentTarget.style.background = 'linear-gradient(135deg, #0c734f 0%, #065f46 100%)';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isExporting) e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0F8A5F 100%)';
                 }}
               >
                 <svg
@@ -757,7 +803,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                {isExporting ? 'Đang xuất Excel...' : 'Xuất Excel'}
+                <span>{isExporting ? 'Đang xuất Excel...' : 'Xuất Excel'}</span>
               </button>
             )}
           </div>

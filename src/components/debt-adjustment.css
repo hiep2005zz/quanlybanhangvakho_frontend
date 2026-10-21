@@ -404,16 +404,24 @@
   color: #ffffff;
 }
 
-.debt-modal-header h2 {
+.debt-modal-header h2,
+.debt-modal-header h3 {
   font-size: 1.25rem;
   font-weight: 700;
   margin: 0;
+  color: #ffffff;
 }
 
-.debt-modal-header p {
+.debt-modal-header p,
+.debt-modal-header span,
+.debt-modal-header div {
   font-size: 0.8125rem;
   margin: 0.25rem 0 0 0;
-  opacity: 0.9;
+  color: #e2e8f0;
+}
+
+.debt-modal-header strong {
+  color: #ffffff;
 }
 
 .debt-modal-close-btn {
