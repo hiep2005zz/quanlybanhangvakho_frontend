@@ -1,0 +1,31 @@
+h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+              </svg>
+              <span>Chính sách chiết khấu</span>
+            </button>
+          )}
+
+
+                {/* Nút Xuất file Excel danh mục */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const excelTemplate = `
+                      <html xmlns:o="urn:sche
+
+---
+
+ 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Xuất file</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Vùng cuộn riêng cho bảng hàng hóa (Ẩn thanh cuộn, cố định thead) */}
+            <div
+              className
+
+---
+

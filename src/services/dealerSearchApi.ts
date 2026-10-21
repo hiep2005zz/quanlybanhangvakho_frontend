@@ -1,9 +1,23 @@
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = typeof window !== 'undefined' && window.location.origin ? '' : 'http://127.0.0.1:8000';
+
+export interface AppliedPriceBookInfo {
+    id: number;
+    code: string;
+    name: string;
+    customer_group: string;
+    valid_from?: string | null;
+    valid_to?: string | null;
+    status: string;
+    is_active_now?: boolean;
+    items_count?: number;
+    note?: string | null;
+}
 
 export interface DealerSearchItem {
     id: number;
     code: string;
     name: string;
+    tax_code?: string | null;
     phone?: string | null;
     email?: string | null;
     address?: string | null;
@@ -16,11 +30,57 @@ export interface DealerSearchItem {
     max_debt_days?: number;
     current_debt?: number;
     debt_status?: string;
+    is_over_credit_limit?: boolean;
+    is_overdue?: boolean;
+    credit_warning_flag?: boolean;
+    credit_flag_reason?: string | null;
+    last_credit_evaluated_at?: string | null;
+    lock_reason?: string | null;
+    locked_at?: string | null;
+    locked_by?: string | null;
+    transaction_count?: number;
+    has_transactions?: boolean;
+    applied_price_book?: AppliedPriceBookInfo | null;
+    warehouse_id?: string | null;
+    warehouse_name?: string | null;
+}
+
+export interface DealerStats {
+    total: number;
+    active: number;
+    stopped: number;
+    paused: number;
+    pending_activation: number;
+    with_transactions: number;
+    without_transactions?: number;
+}
+
+export interface DealerTransactionItem {
+    id: number;
+    order_code: string;
+    created_at?: string | null;
+    total_amount: number;
+    status: string;
+    created_by?: string;
+    items_count?: number;
+    assigned_sale_name?: string;
+}
+
+export interface DealerTransactionsResponse {
+    dealer_id: number;
+    dealer_code: string;
+    dealer_name: string;
+    total: number;
+    items: DealerTransactionItem[];
 }
 
 export interface DealerSearchResponse {
     items: DealerSearchItem[];
     total: number;
+    page?: number;
+    page_size?: number;
+    total_pages?: number;
+    stats?: DealerStats;
 }
 
 export interface DealerFiltersResponse {
@@ -39,114 +99,11 @@ export interface DealerSearchParams {
     assigned_sale_id?: number;
     customer_group?: string;
     status?: string;
+    has_transactions?: boolean;
+    credit_status?: string;
+    page?: number;
+    page_size?: number;
 }
-
-const MOCK_DEALERS: DealerSearchItem[] = [
-    {
-        id: 1,
-        code: 'DL-HN01',
-        name: 'Đại lý Tuấn Phát',
-        phone: '0987654321',
-        email: 'tuanphat.dealer@gmail.com',
-        address: 'Số 123 Cầu Giấy, Phường Dịch Vọng, Cầu Giấy, Hà Nội',
-        region: 'Hà Nội',
-        assigned_sale_id: 1,
-        assigned_sale_name: 'Nguyễn Văn An',
-        customer_group: 'dai_ly_cap_1',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 2,
-        code: 'DL-HN02',
-        name: 'Đại lý Minh Khang',
-        phone: '0912345678',
-        email: 'minhkhang.store@gmail.com',
-        address: '45 Hoàng Hoa Thám, Phường Thụy Khuê, Tây Hồ, Hà Nội',
-        region: 'Hà Nội',
-        assigned_sale_id: 2,
-        assigned_sale_name: 'Trần Thị Bình',
-        customer_group: 'dai_ly_cap_2',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 3,
-        code: 'DL-HCM01',
-        name: 'Tổng kho Phân phối Thăng Long',
-        phone: '0903123456',
-        email: 'thanglong.dist@yahoo.com',
-        address: '88 Nguyễn Văn Cừ, Phường 2, Quận 5, TP. Hồ Chí Minh',
-        region: 'TP.HCM',
-        assigned_sale_id: 1,
-        assigned_sale_name: 'Nguyễn Văn An',
-        customer_group: 'dai_ly_cap_1',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 4,
-        code: 'DL-HCM02',
-        name: 'Cửa hàng Bách Hóa Miền Nam',
-        phone: '0938456789',
-        email: 'miennam.bachhoa@gmail.com',
-        address: '210 Lê Văn Sỹ, Phường 14, Quận 3, TP. Hồ Chí Minh',
-        region: 'TP.HCM',
-        assigned_sale_id: 3,
-        assigned_sale_name: 'Lê Hoàng Nam',
-        customer_group: 'dai_ly_cap_2',
-        status: 'Tạm ngừng',
-    },
-    {
-        id: 5,
-        code: 'DL-DN01',
-        name: 'Đại lý Điện máy Hải Châu',
-        phone: '0977889900',
-        email: 'dienmay.haichau@gmail.com',
-        address: '76 Nguyễn Văn Linh, Phường Nam Dương, Hải Châu, Đà Nẵng',
-        region: 'Đà Nẵng',
-        assigned_sale_id: 2,
-        assigned_sale_name: 'Trần Thị Bình',
-        customer_group: 'dai_ly_cap_1',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 6,
-        code: 'DL-HP01',
-        name: 'Đại lý Bách Hóa Cảng',
-        phone: '0966554433',
-        email: 'bachhoa.hp@gmail.com',
-        address: '15 Lạch Tray, Quận Ngô Quyền, Hải Phòng',
-        region: 'Hải Phòng',
-        assigned_sale_id: 3,
-        assigned_sale_name: 'Lê Hoàng Nam',
-        customer_group: 'khach_le',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 7,
-        code: 'DL-CT01',
-        name: 'Tạp hóa Hương Sen Miền Tây',
-        phone: '0944112233',
-        email: 'huongsen.cantho@gmail.com',
-        address: '54 Đường 30 Tháng 4, Phường An Phú, Ninh Kiều, Cần Thơ',
-        region: 'Cần Thơ',
-        assigned_sale_id: 1,
-        assigned_sale_name: 'Nguyễn Văn An',
-        customer_group: 'dai_ly_cap_2',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 8,
-        code: 'DL-HN03',
-        name: 'Đại lý Hoàng Gia Tràng Tiền',
-        phone: '0988776655',
-        email: 'hoanggia.dealer@gmail.com',
-        address: '12 Tràng Thi, Phường Hàng Trống, Hoàn Kiếm, Hà Nội',
-        region: 'Hà Nội',
-        assigned_sale_id: 2,
-        assigned_sale_name: 'Trần Thị Bình',
-        customer_group: 'dai_ly_cap_2',
-        status: 'Tạm ngừng',
-    },
-];
 
 function getAuthToken(token?: string): string {
     if (token) return token;
@@ -159,47 +116,6 @@ function getAuthToken(token?: string): string {
     } catch {
         return '';
     }
-}
-
-function filterMockDealers(params?: DealerSearchParams): DealerSearchResponse {
-    let list = [...MOCK_DEALERS];
-
-    if (params?.keyword?.trim()) {
-        const q = params.keyword.trim().toLowerCase();
-        const qDigits = q.replace(/\D/g, '');
-        list = list.filter((item) => {
-            const codeMatch = item.code.toLowerCase().includes(q);
-            const nameMatch = item.name.toLowerCase().includes(q);
-            const phoneMatch = item.phone
-                ? item.phone.toLowerCase().includes(q) || (qDigits.length >= 3 && item.phone.replace(/\D/g, '').includes(qDigits))
-                : false;
-            return codeMatch || nameMatch || phoneMatch;
-        });
-    }
-
-    if (params?.region?.trim()) {
-        const r = params.region.trim().toLowerCase();
-        list = list.filter((item) => item.region.toLowerCase() === r);
-    }
-
-    if (params?.assigned_sale_id) {
-        list = list.filter((item) => item.assigned_sale_id === params.assigned_sale_id);
-    }
-
-    if (params?.customer_group?.trim()) {
-        const g = params.customer_group.trim().toLowerCase();
-        list = list.filter((item) => item.customer_group?.toLowerCase() === g);
-    }
-
-    if (params?.status?.trim()) {
-        const s = params.status.trim().toLowerCase();
-        list = list.filter((item) => item.status?.toLowerCase() === s);
-    }
-
-    return {
-        items: list,
-        total: list.length,
-    };
 }
 
 export async function searchDealers(
@@ -252,6 +168,22 @@ export async function searchDealers(
         query.set('status', params.status.trim());
     }
 
+    if (params?.has_transactions !== undefined) {
+        query.set('has_transactions', String(params.has_transactions));
+    }
+
+    if (params?.credit_status?.trim()) {
+        query.set('credit_status', params.credit_status.trim());
+    }
+
+    if (params?.page) {
+        query.set('page', String(params.page));
+    }
+
+    if (params?.page_size) {
+        query.set('page_size', String(params.page_size));
+    }
+
     const headers: Record<string, string> = {
         Accept: 'application/json',
     };
@@ -268,15 +200,102 @@ export async function searchDealers(
             }
         );
 
-        if (response.ok) {
-            return await response.json();
+        if (!response.ok) {
+            let errorDetail = `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`;
+            try {
+                const errData = await response.json();
+                if (errData && errData.detail) {
+                    errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+                }
+            } catch {
+                // ignore
+            }
+            throw new Error(errorDetail);
         }
-    } catch {
-        // Backend không khả dụng hoặc trả về lỗi, chuyển sang fallback dữ liệu mẫu
+
+        return await response.json();
+    } catch (err) {
+        if (err instanceof Error) {
+            throw err;
+        }
+        throw new Error('Lỗi kết nối máy chủ. Vui lòng kiểm tra đường truyền và thử lại.');
+    }
+}
+
+export async function getDealerStats(
+    token?: string
+): Promise<DealerStats> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
     }
 
-    // Dự phòng fallback dữ liệu mẫu khi backend chưa sẵn sàng
-    return filterMockDealers(params);
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/api/v1/dealers/stats`,
+            {
+                method: 'GET',
+                headers,
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`Lỗi tải số liệu thống kê (Mã lỗi ${response.status})`);
+        }
+
+        return await response.json();
+    } catch (err) {
+        if (err instanceof Error) {
+            throw err;
+        }
+        throw new Error('Không thể kết nối đến máy chủ để lấy số liệu thống kê.');
+    }
+}
+
+export async function getDealerTransactions(
+    dealerId: number,
+    token?: string
+): Promise<DealerTransactionsResponse> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/api/v1/dealers/${dealerId}/transactions`,
+            {
+                method: 'GET',
+                headers,
+            }
+        );
+
+        if (!response.ok) {
+            let errorDetail = `Lỗi tải lịch sử giao dịch (Mã lỗi ${response.status})`;
+            try {
+                const errData = await response.json();
+                if (errData && errData.detail) {
+                    errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+                }
+            } catch {
+                // ignore
+            }
+            throw new Error(errorDetail);
+        }
+
+        return await response.json();
+    } catch (err) {
+        if (err instanceof Error) {
+            throw err;
+        }
+        throw new Error('Không thể kết nối đến máy chủ để tải lịch sử giao dịch.');
+    }
 }
 
 export async function getDealerFilters(
@@ -300,34 +319,23 @@ export async function getDealerFilters(
             }
         );
 
-        if (response.ok) {
-            return await response.json();
+        if (!response.ok) {
+            throw new Error(`Lỗi tải danh mục bộ lọc (Mã lỗi ${response.status})`);
         }
-    } catch {
-        // Backend không khả dụng
+
+        return await response.json();
+    } catch (err) {
+        if (err instanceof Error) {
+            throw err;
+        }
+        throw new Error('Không thể kết nối máy chủ để tải danh mục bộ lọc.');
     }
-
-    // Fallback dữ liệu bộ lọc từ danh sách mẫu
-    const uniqueRegions = Array.from(new Set(MOCK_DEALERS.map((d) => d.region))).filter(Boolean);
-    const uniqueSalesMap = new Map<number, string>();
-    MOCK_DEALERS.forEach((d) => {
-        if (d.assigned_sale_id && d.assigned_sale_name) {
-            uniqueSalesMap.set(d.assigned_sale_id, d.assigned_sale_name);
-        }
-    });
-    const uniqueSales = Array.from(uniqueSalesMap.entries()).map(([id, name]) => ({ id, name }));
-
-    return {
-        regions: uniqueRegions,
-        sales: uniqueSales,
-        customer_groups: ['dai_ly_cap_1', 'dai_ly_cap_2', 'khach_le'],
-        statuses: ['Đang hoạt động', 'Tạm ngừng'],
-    };
 }
 
 export interface CreateDealerPayload {
     code?: string;
     name: string;
+    tax_code?: string | null;
     phone?: string;
     email?: string;
     address?: string;
@@ -336,6 +344,88 @@ export interface CreateDealerPayload {
     assigned_sale_name?: string | null;
     customer_group?: string;
     status?: string;
+    transaction_count?: number | null;
+    warehouse_id?: string | null;
+    warehouse_name?: string | null;
+}
+
+export interface UpdateDealerPayload {
+    code?: string;
+    name?: string;
+    tax_code?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    address?: string | null;
+    region?: string;
+    assigned_sale_id?: number | null;
+    customer_group?: string;
+    status?: string;
+    credit_limit?: number;
+    max_debt_days?: number;
+    transaction_count?: number | null;
+    warehouse_id?: string | null;
+    warehouse_name?: string | null;
+}
+
+export async function updateDealerProfile(
+    dealerId: number,
+    payload: UpdateDealerPayload,
+    token?: string
+): Promise<DealerSearchItem> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi cập nhật hồ sơ đại lý (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+export async function getAppliedPriceBookPreview(
+    customerGroup: string,
+    token?: string
+): Promise<{ customer_group: string; applied_price_book: AppliedPriceBookInfo | null }> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/api/v1/dealers/price-book-preview?customer_group=${encodeURIComponent(customerGroup)}`,
+            {
+                method: 'GET',
+                headers,
+            }
+        );
+
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch {
+        // ignore
+    }
+    return { customer_group: customerGroup, applied_price_book: null };
 }
 
 export async function createDealer(
@@ -351,55 +441,49 @@ export async function createDealer(
         headers.Authorization = `Bearer ${authToken}`;
     }
 
-        const response = await fetch(`${API_BASE_URL}/api/v1/dealers`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload),
-        });
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+    });
 
-        if (!response.ok) {
-            let errorDetail = `Lỗi tạo đại lý (HTTP ${response.status})`;
-            try {
-                const errData = await response.json();
-                if (errData && errData.detail) {
-                    errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
-                }
-            } catch {
-                // ignore
+    if (!response.ok) {
+        let errorDetail = `Lỗi tạo đại lý (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) {
+                errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
             }
-            throw new Error(errorDetail);
+        } catch {
+            // ignore
         }
+        throw new Error(errorDetail);
+    }
 
-        const result = await response.json();
-        if (result && result.id) {
-            MOCK_DEALERS.unshift(result);
-            return result;
-        }
-
-    const newItem: DealerSearchItem = {
-        id: Date.now(),
-        code: payload.code?.trim() || `DL-${Math.floor(1000 + Math.random() * 9000)}`,
-        name: payload.name.trim(),
-        phone: payload.phone?.trim() || null,
-        email: payload.email?.trim() || null,
-        address: payload.address?.trim() || null,
-        region: payload.region.trim(),
-        assigned_sale_id: payload.assigned_sale_id || null,
-        assigned_sale_name: payload.assigned_sale_name || null,
-        customer_group: payload.customer_group || 'dai_ly_cap_1',
-        status: payload.status || 'Đang hoạt động',
-    };
-
-    MOCK_DEALERS.unshift(newItem);
-    return newItem;
+    return await response.json();
 }
 
 export async function updateDealerStatus(
     dealerId: number,
     status: string,
+    reasonOrToken?: string,
     token?: string
 ): Promise<DealerSearchItem> {
-    const authToken = getAuthToken(token);
+    let actualReason: string | undefined = undefined;
+    let actualToken: string | undefined = token;
+
+    if (token === undefined && reasonOrToken) {
+        if (reasonOrToken.includes('.') || reasonOrToken.length > 30) {
+            actualToken = reasonOrToken;
+            actualReason = undefined;
+        } else {
+            actualReason = reasonOrToken;
+        }
+    } else {
+        actualReason = reasonOrToken;
+    }
+
+    const authToken = getAuthToken(actualToken);
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -408,10 +492,15 @@ export async function updateDealerStatus(
         headers['Authorization'] = `Bearer ${authToken}`;
     }
 
+    const payload: { status: string; reason?: string } = { status };
+    if (actualReason && actualReason.trim()) {
+        payload.reason = actualReason.trim();
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/status`, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -598,4 +687,236 @@ export async function deleteDealer(dealerId: number, token?: string): Promise<an
     }
     return response.json();
 }
-
+
+export interface ReceiptVoucherData {
+    id?: number;
+    receipt_code: string;
+    dealer_id: number;
+    dealer_code: string;
+    dealer_name: string;
+    dealer_address?: string | null;
+    dealer_phone?: string | null;
+    dealer_tax_code?: string | null;
+    order_code?: string | null;
+    amount: number;
+    amount_in_words: string;
+    payment_method: string;
+    reason: string;
+    payer_name: string;
+    collector_name: string;
+    collector_role: string;
+    created_at: string;
+    note?: string | null;
+}
+
+export interface CreateReceiptVoucherPayload {
+    amount: number;
+    payment_method?: string;
+    reason?: string;
+    order_code?: string;
+    payer_name?: string;
+    note?: string;
+}
+
+export async function createReceiptVoucherApi(
+    dealerId: number,
+    payload: CreateReceiptVoucherPayload,
+    token?: string
+): Promise<ReceiptVoucherData> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/receipt-vouchers`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi lập phiếu thu (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+export async function getDealerReceiptVouchersApi(
+    dealerId: number,
+    token?: string
+): Promise<ReceiptVoucherData[]> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/receipt-vouchers`, {
+        method: 'GET',
+        headers,
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi lấy danh sách phiếu thu (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+export interface DebtStatementItem {
+    id: string | number;
+    stt: number;
+    date: string;
+    doc_code: string;
+    doc_type: 'ORDER' | 'RECEIPT_VOUCHER' | string;
+    doc_type_label: string;
+    description: string;
+    increase_amount: number;
+    decrease_amount: number;
+    running_balance: number;
+    payment_method?: string | null;
+    status?: string | null;
+    created_by?: string | null;
+    note?: string | null;
+}
+
+export interface DebtStatementSummary {
+    opening_balance: number;
+    total_increase: number;
+    total_decrease: number;
+    closing_balance: number;
+    closing_balance_words: string;
+    transactions_count: number;
+}
+
+export interface DebtStatementData {
+    dealer: DealerSearchItem;
+    period: {
+        from_date?: string | null;
+        to_date?: string | null;
+    };
+    summary: DebtStatementSummary;
+    transactions: DebtStatementItem[];
+}
+
+export async function getDealerDebtStatementApi(
+    dealerId: number,
+    fromDate?: string,
+    toDate?: string,
+    token?: string
+): Promise<DebtStatementData> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const params = new URLSearchParams();
+    if (fromDate) params.append('from_date', fromDate);
+    if (toDate) params.append('to_date', toDate);
+
+    const queryStr = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/debt-statement${queryStr}`, {
+        method: 'GET',
+        headers,
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi tải sổ chi tiết công nợ (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+export async function exportDealerDebtStatementExcelApi(
+    dealerId: number,
+    fromDate?: string,
+    toDate?: string,
+    token?: string
+): Promise<Blob> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {};
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const params = new URLSearchParams();
+    if (fromDate) params.append('from_date', fromDate);
+    if (toDate) params.append('to_date', toDate);
+
+    const queryStr = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/debt-statement/export-excel${queryStr}`, {
+        method: 'GET',
+        headers,
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi xuất file Excel (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+
+    return response.blob();
+}
+
+/**
+ * Yêu cầu máy chủ chạy logic / stored procedure đồng bộ lại dữ liệu công nợ SQL Server
+ */
+export async function resyncAllDealerDebts(dealerId?: number, token?: string): Promise<any> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const url = dealerId
+        ? `${API_BASE_URL}/api/v1/dealers/${dealerId}/sync-debt`
+        : `${API_BASE_URL}/api/v1/dealers/sync-debt`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers,
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi đồng bộ công nợ (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) {
+                errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+            }
+        } catch {}
+        throw new Error(errorDetail);
+    }
+
+    return response.json();
+}
+
+
+

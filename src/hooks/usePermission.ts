@@ -29,9 +29,15 @@ export function hasPermission(user: User | null | undefined, permission: string)
     if (user.permissions.includes('*')) return true;
     if (user.permissions.includes(permission)) return true;
   }
-  // Fallback quyền Đơn hàng cho các vai trò kinh doanh & kế toán
-  if (permission === Permissions.ORDER_READ || permission === Permissions.ORDER_WRITE) {
+  // Quyền đọc đơn hàng (ORDER_READ): sales, sales_manager, admin, accountant
+  if (permission === Permissions.ORDER_READ) {
     if (userRoles.some((r) => ['sales', 'sales_manager', 'admin', 'accountant'].includes(r))) {
+      return true;
+    }
+  }
+  // Quyền ghi/tạo đơn hàng (ORDER_WRITE): sales, sales_manager, admin (TUYỆT ĐỐI CHẶN accountant)
+  if (permission === Permissions.ORDER_WRITE) {
+    if (userRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r))) {
       return true;
     }
   }

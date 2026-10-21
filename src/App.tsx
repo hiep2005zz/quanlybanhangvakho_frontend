@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import LoginPage from './features/auth/LoginPage';
 import DashboardPage from './components/DashboardPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { User, logoutApi, subscribeSessionExpired, getClientSession, saveClientSession, clearClientSession, AUTH_STORAGE, getMeApi } from './services/api';
 import { sessionManager } from './services/sessionManager';
 import { requestPasswordReset, resetPassword } from './services/auth';
@@ -68,17 +69,18 @@ function App() {
     return null;
   });
 
-  // Tự động đồng bộ vai trò và thông tin mới nhất từ máy chủ khi load trang (F5)
+  // Tự động đồng bộ vai trò và thông tin mới nhất từ máy chủ khi load trang (F5) - chỉ chạy 1 lần khi khởi tạo
   useEffect(() => {
-    if (authToken) {
-      getMeApi(authToken).then((freshUser) => {
+    const token = getClientSession().token;
+    if (token) {
+      getMeApi(token).then((freshUser) => {
         if (freshUser) {
           setCurrentUser(freshUser);
           sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(freshUser));
         }
       });
     }
-  }, [authToken]);
+  }, []);
 
   // Xử lý sự kiện hết hạn phiên
   const handleSessionExpired = useCallback((message: string) => {
@@ -237,7 +239,7 @@ function App() {
   // Nếu đã đăng nhập thành công
   if (currentUser && authToken) {
     return (
-      <>
+      <ErrorBoundary>
         {videoBackground}
         <DashboardPage
           user={currentUser}
@@ -256,7 +258,7 @@ function App() {
             saveClientSession(updatedUser, authToken);
           }}
         />
-      </>
+      </ErrorBoundary>
     );
   }
 

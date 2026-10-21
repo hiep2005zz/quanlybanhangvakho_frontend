@@ -19,13 +19,14 @@ export const ApproveOrderModal: React.FC<ApproveOrderModalProps> = ({
   onSuccess,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const isSubmittingRef = React.useRef(false);
 
   if (!isOpen || !order) return null;
 
   const handleConfirm = async () => {
+    if (isSubmitting || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
-    setErrorMsg(null);
 
     try {
       const updated = await approveOrderApi(token, order.order_code);
@@ -36,9 +37,25 @@ export const ApproveOrderModal: React.FC<ApproveOrderModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi phê duyệt đơn hàng.');
+      const msg = err.message || '';
+      // Nếu đơn hàng đã ở trạng thái CONFIRMED hoặc APPROVED (do đã duyệt thành công hoặc do thao tác kép)
+      if (msg.includes('CONFIRMED') || msg.includes('APPROVED') || msg.includes('Đã xác nhận')) {
+        emitStatusToast({
+          title: 'Đơn hàng đã được duyệt',
+          message: `Đơn hàng ${order.order_code} đã ở trạng thái Đã xác nhận.`,
+        });
+        onSuccess();
+        onClose();
+        return;
+      }
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg || 'Lỗi khi phê duyệt đơn hàng.',
+        type: 'error',
+      });
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -108,6 +125,12 @@ export const ApproveOrderModal: React.FC<ApproveOrderModalProps> = ({
             <span style={{ fontWeight: '700', color: '#0f172a' }}>{order.dealer_name}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <span style={{ color: '#64748b' }}>Người lên đơn:</span>
+            <span style={{ fontWeight: '700', color: '#0f172a' }}>
+              {order.created_by || order.assigned_sale_name || '—'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
             <span style={{ color: '#64748b' }}>Tổng giá trị:</span>
             <span style={{ fontWeight: '800', color: '#2563eb' }}>{order.total_amount.toLocaleString('vi-VN')} đồng</span>
           </div>
@@ -118,23 +141,6 @@ export const ApproveOrderModal: React.FC<ApproveOrderModalProps> = ({
             </div>
           )}
         </div>
-
-        {errorMsg && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: '8px',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              color: '#dc2626',
-              fontSize: '13px',
-              fontWeight: '600',
-              marginBottom: '16px',
-            }}
-          >
-            {errorMsg}
-          </div>
-        )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
           <button

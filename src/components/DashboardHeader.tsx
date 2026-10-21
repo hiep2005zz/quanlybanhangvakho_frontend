@@ -18,6 +18,7 @@ export interface DashboardHeaderProps {
   roleBadgeColorMap: Record<string, string>;
   primaryRole: string;
   currentBadgeColor: string;
+  onToggleMobileSidebar?: () => void;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -36,6 +37,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   roleBadgeColorMap,
   primaryRole,
   currentBadgeColor,
+  onToggleMobileSidebar,
 }) => {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -55,39 +57,37 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
   return (
     <header
+      className="px-2.5 sm:px-5 flex items-center justify-between relative z-40 shrink-0 w-full select-none"
       style={{
         height: '52px',
         background: 'linear-gradient(90deg, #0fba90 0%, #0fa786 100%)',
         backgroundColor: '#0fad89',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 20px',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-        position: 'relative',
-        zIndex: 40,
-        flexShrink: 0,
-        width: '100%',
       }}
     >
-      {/* Khối bên trái: Logo & Tên hệ thống (giống phong cách ảnh 2 CodeGym) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      {/* Khối bên trái: Logo & Tên hệ thống */}
+      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+        {onToggleMobileSidebar && (
+          <button
+            type="button"
+            id="btn-toggle-mobile-sidebar"
+            onClick={onToggleMobileSidebar}
+            className="md:hidden flex items-center justify-center w-8 h-8 rounded-lg text-white hover:bg-white/20 active:bg-white/30 cursor-pointer border-0 bg-transparent transition-colors p-0 mr-0.5 shrink-0"
+            title="Mở menu chức năng"
+            aria-label="Mở menu chức năng"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        )}
         <div
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
-            background: 'rgba(255, 255, 255, 0.15)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ffffff',
-            flexShrink: 0,
-          }}
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 flex items-center justify-center text-white shrink-0"
         >
           <svg
-            width="18"
-            height="18"
+            className="w-4 h-4 sm:w-[18px] sm:h-[18px]"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -100,103 +100,59 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             <line x1="12" y1="22.08" x2="12" y2="12" />
           </svg>
         </div>
-        <span
-          style={{
-            fontSize: '15px',
-            fontWeight: '700',
-            color: '#ffffff',
-            letterSpacing: '-0.01em',
-            userSelect: 'none',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Hệ Thống Quản Lý Kho & Bán Hàng
+        <span className="text-sm sm:text-[15px] font-bold text-white tracking-tight truncate select-none">
+          <span className="hidden sm:inline">Hệ Thống Quản Lý Kho & Bán Hàng</span>
+          <span className="inline sm:hidden">QL Kho & Bán Hàng</span>
         </span>
       </div>
 
-      {/* Khối bên phải: Avatar Người dùng + Tên + Nút mở Menu */}
-      <div ref={userMenuRef} style={{ position: 'relative', zIndex: 501 }}>
-        <button
-          onClick={() => setIsUserMenuOpen((prev) => !prev)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '4px 10px 4px 6px',
-            borderRadius: '999px',
-            background: isUserMenuOpen ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.25)',
-            cursor: 'pointer',
-            transition: 'all 0.18s ease',
-          }}
+      {/* Khối bên phải: Nút Giỏ Hàng + Avatar Người dùng */}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+
+        <div ref={userMenuRef} className="relative z-50 shrink-0">
+          <button
+            onClick={() => setIsUserMenuOpen((prev) => !prev)}
+            className={`flex items-center gap-1.5 sm:gap-2 p-0.5 sm:py-1 sm:px-2.5 rounded-full border border-white/25 cursor-pointer transition-all ${
+              isUserMenuOpen ? 'bg-white/25' : 'bg-white/10 hover:bg-white/15'
+            }`}
           title={`${user.full_name || user.username} (${roleLabelMap[primaryRole] || primaryRole}) - Nhấp để mở menu`}
           aria-label="Tài khoản người dùng"
         >
-          <div style={{ position: 'relative', width: '32px', height: '32px', flexShrink: 0 }}>
+          <div className="relative w-7 h-7 sm:w-8 sm:h-8 shrink-0">
             <div
+              className="w-full h-full rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm overflow-hidden border border-white/80 relative"
               style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: '50%',
-                background: user.avatar_url ? '#f1f5f9' : `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                fontWeight: '700',
-                fontSize: '14px',
-                overflow: 'hidden',
-                border: '1.5px solid rgba(255, 255, 255, 0.8)',
+                background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
               }}
             >
-              {user.avatar_url ? (
+              {(user.full_name || user.username).charAt(0).toUpperCase()}
+              {user.avatar_url && (
                 <img
                   src={getAvatarUrl(user.avatar_url)}
-                  alt={user.full_name || user.username}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  alt=""
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
-              ) : (
-                (user.full_name || user.username).charAt(0).toUpperCase()
               )}
             </div>
             <span
-              style={{
-                position: 'absolute',
-                bottom: '0px',
-                right: '0px',
-                width: '9px',
-                height: '9px',
-                borderRadius: '50%',
-                background: '#16a34a',
-                border: '1.5px solid #0fad89',
-              }}
+              className="absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 border border-[#0fad89]"
               title="Đang hoạt động"
             />
           </div>
-          <span
-            style={{
-              fontSize: '13.5px',
-              fontWeight: '600',
-              color: '#ffffff',
-              maxWidth: '160px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              userSelect: 'none',
-            }}
-          >
+          <span className="hidden md:inline text-xs sm:text-[13.5px] font-semibold text-white max-w-[130px] truncate select-none">
             {user.full_name || user.username}
           </span>
           <svg
-            width="14"
-            height="14"
+            className="hidden sm:block w-3.5 h-3.5 text-white/85 shrink-0"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ color: 'rgba(255, 255, 255, 0.85)' }}
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
@@ -210,7 +166,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               position: 'absolute',
               top: 'calc(100% + 10px)',
               right: 0,
-              width: '330px',
+              width: 'min(330px, calc(100vw - 20px))',
+              maxWidth: 'calc(100vw - 20px)',
               background: '#ffffff',
               color: '#0f172a',
               borderRadius: '16px',
@@ -403,7 +360,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                       <circle cx="12" cy="10" r="3" />
                     </svg>
                   </div>
-                  <span>Tra cứu đại lý</span>
+                  <span>Danh bạ đại lý & Khách hàng</span>
                 </button>
               )}
 
@@ -631,6 +588,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             </div>
           </div>
         )}
+        </div>
       </div>
     </header>
   );

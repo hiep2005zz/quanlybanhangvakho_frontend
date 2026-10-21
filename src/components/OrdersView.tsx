@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { cancelOrderApi, createOrderApi, getOrderDealersApi, getOrdersApi, OrderDealer, OrderItem, ProductItem } from '../services/api';
+import { cancelOrderApi, createOrderApi, getOrderDealersApi, getOrdersApi, OrderDealer, OrderItem, ProductItem, User } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import OrderDetailsModal from './OrderDetailsModal';
 import OrderCancelConfirmModal from './OrderCancelConfirmModal';
+import { isOrderPastExported, isOrderCancelable } from '../utils/orderPermissions';
+import OrderPrintModal from './OrderPrintModal';
 import './orders-view.css';
 
 interface OrdersViewProps {
   token: string;
   username: string;
+  currentUser?: User;
   products: ProductItem[];
   canCreateOrders: boolean;
   canManageOrders: boolean;
@@ -53,11 +56,28 @@ const formatDate = (value: string) => {
 const getStatusLabel = (status: string) => {
   switch (status.toUpperCase()) {
     case 'CONFIRMED':
+    case 'APPROVED':
       return 'Đã xác nhận';
     case 'PENDING':
+    case 'PENDING_APPROVAL':
       return 'Chờ xử lý';
+    case 'EXPORTED':
+    case 'SHIPPED':
+    case 'DISPATCHED':
+      return 'Đã xuất kho';
+    case 'PICKING':
+    case 'PREPARING':
+    case 'PACKING':
+      return 'Đang soạn hàng';
+    case 'DELIVERED':
+      return 'Đã giao hàng';
+    case 'CLOSED':
+    case 'COMPLETED':
+      return 'Đóng đơn';
     case 'CANCELLED':
       return 'Đã hủy';
+    case 'REJECTED':
+      return 'Bị từ chối';
     case 'EDITED':
       return 'Đã chỉnh sửa';
     default:
@@ -65,7 +85,7 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-export default function OrdersView({ token, username, products, canCreateOrders, canManageOrders, onCreateOrderEntry, onBackToHome: _onBackToHome }: OrdersViewProps) {
+export default function OrdersView({ token, username, currentUser, products, canCreateOrders, canManageOrders, onCreateOrderEntry, onBackToHome: _onBackToHome }: OrdersViewProps) {
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -90,6 +110,7 @@ export default function OrdersView({ token, username, products, canCreateOrders,
   const [cancellingOrderCode, setCancellingOrderCode] = useState<string | null>(null);
   const [orderToCancel, setOrderToCancel] = useState<OrderItem | null>(null);
   const [selectedOrderCode, setSelectedOrderCode] = useState<string | null>(null);
+  const [printingOrderCode, setPrintingOrderCode] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -210,7 +231,7 @@ export default function OrdersView({ token, username, products, canCreateOrders,
     setCreateError(null);
   };
 
-  const saveDraft = () => {
+    const saveDraft = () => {
     try {
       const id = activeDraftId || `${Date.now()}`;
       const draft: SavedOrderDraft = {
@@ -267,6 +288,21 @@ export default function OrdersView({ token, username, products, canCreateOrders,
 
   const submitOrder = async () => {
     if (!selectedDealer) return setCreateError('Vui lòng chọn đại lý.');
+    const isLockedDealer = Boolean(
+      selectedDealer?.status &&
+      (selectedDealer.status.toLowerCase().includes('khóa') ||
+       selectedDealer.status.toLowerCase().includes('lock') ||
+       selectedDealer.status.toLowerCase().includes('ngừng'))
+    );
+    if (isLockedDealer) {
+      setCreateError(`Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Không thể tạo đơn hàng.`);
+      emitStatusToast({
+        title: 'Đại lý bị khóa giao dịch',
+        message: `Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Vui lòng liên hệ quản trị viên.`,
+        type: 'error',
+      });
+      return;
+    }
     if (!deliveryPoint.trim()) return setCreateError('Vui lòng nhập điểm giao hàng.');
     if (!deliveryDate) return setCreateError('Vui lòng chọn ngày giao mong muốn.');
     if (!lines.length) return setCreateError('Vui lòng thêm ít nhất một dòng hàng.');
@@ -318,12 +354,12 @@ export default function OrdersView({ token, username, products, canCreateOrders,
     }
   };
 
-  const handleCancelOrder = async () => {
+  const handleCancelOrder = async (reason: string) => {
     if (!orderToCancel) return;
     const order = orderToCancel;
     setCancellingOrderCode(order.order_code);
     try {
-      const result = await cancelOrderApi(token, order.order_code, 'Người dùng yêu cầu hủy đơn hàng.');
+      const result = await cancelOrderApi(token, order.order_code, reason);
       setOrderToCancel(null);
       emitStatusToast({ title: 'Đã hủy đơn hàng', message: result.message });
       setReloadVersion((value) => value + 1);
@@ -414,7 +450,19 @@ export default function OrdersView({ token, username, products, canCreateOrders,
                 setDeliveryPoint(dealers.find((dealer) => String(dealer.id) === nextDealerId)?.address || '');
               }}>
                 <option value="">{isLoadingDealers ? 'Đang tải đại lý...' : 'Chọn đại lý'}</option>
-                {dealers.map((dealer) => <option key={dealer.id} value={dealer.id}>{dealer.code} — {dealer.name}</option>)}
+                {dealers.map((dealer) => {
+                  const isLocked = Boolean(
+                    dealer.status &&
+                    (dealer.status.toLowerCase().includes('khóa') ||
+                     dealer.status.toLowerCase().includes('lock') ||
+                     dealer.status.toLowerCase().includes('ngừng'))
+                  );
+                  return (
+                    <option key={dealer.id} value={dealer.id} disabled={isLocked}>
+                      {dealer.code} — {dealer.name}{isLocked ? ' [Đã khóa]' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </label>
             <label>Điểm giao hàng
@@ -574,8 +622,10 @@ export default function OrdersView({ token, username, products, canCreateOrders,
                           <button
                             type="button"
                             className="orders-delete-button"
-                            onClick={() => setOrderToCancel(order)}
-                            disabled={cancellingOrderCode === order.order_code}
+                            onClick={() => !isOrderPastExported(order.status) && isOrderCancelable(order.status) && setOrderToCancel(order)}
+                            disabled={cancellingOrderCode === order.order_code || isOrderPastExported(order.status) || !isOrderCancelable(order.status)}
+                            title={isOrderPastExported(order.status) ? 'Đơn hàng đã xuất kho, không thể hủy. Vui lòng đi đường trả hàng.' : !isOrderCancelable(order.status) ? 'Đơn hàng không ở trạng thái được phép hủy' : 'Hủy đơn hàng'}
+                            style={(isOrderPastExported(order.status) || !isOrderCancelable(order.status)) ? { opacity: 0.5, cursor: 'not-allowed', background: '#94a3b8' } : undefined}
                           >
                             {cancellingOrderCode === order.order_code ? 'Đang hủy...' : 'Hủy đơn'}
                           </button>
@@ -634,6 +684,12 @@ export default function OrdersView({ token, username, products, canCreateOrders,
           token={token}
           orderCode={selectedOrderCode}
           onClose={() => setSelectedOrderCode(null)}
+          currentUser={currentUser}
+          onOrderCancelled={() => setReloadVersion((v) => v + 1)}
+          onOpenPrint={(code) => {
+            setSelectedOrderCode(null);
+            setPrintingOrderCode(code);
+          }}
         />
       )}
       {orderToCancel && (
@@ -643,9 +699,17 @@ export default function OrdersView({ token, username, products, canCreateOrders,
           onCancel={() => {
             if (!cancellingOrderCode) setOrderToCancel(null);
           }}
-          onConfirm={() => void handleCancelOrder()}
+          onConfirm={(reason) => void handleCancelOrder(reason)}
+        />
+      )}
+      {printingOrderCode && (
+        <OrderPrintModal
+          token={token}
+          orderCode={printingOrderCode}
+          onClose={() => setPrintingOrderCode(null)}
         />
       )}
     </main>
   );
 }
+

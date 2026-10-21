@@ -1,19 +1,39 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
   createOrderApi,
   getOrderDealersApi,
+  getDiscountPoliciesApi,
+  DiscountPolicy,
   listDeliveryPointsApi,
   OrderDealer,
   ProductItem,
+  getDealerPurchaseHistoryApi,
+  DealerPurchaseHistory,
+  PurchaseHistoryItem,
+  getDealerStockSummaryApi,
+  DealerStockSummaryResponse,
+  ProductStockSummaryItem,
+  User,
+  DealerCreditInfo,
+  getDealerCreditInfoApi,
+  calculateLineItemPricingApi,
 } from '../services/api';
 import type { DeliveryPoint } from '../types/deliveryPoint';
+import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discountEngine';
 import { emitStatusToast } from './StatusToast';
+import { AccessDeniedView } from './AccessDeniedView';
+import { DealerCreditBadge } from './DealerCreditBadge';
+import OrderPrintModal from './OrderPrintModal';
+import { OrderDealerInfiniteSelect } from './OrderDealerInfiniteSelect';
+import { ProductInfiniteSelect } from './ProductInfiniteSelect';
 import './sales-order-entry.css';
 
 interface SalesOrderEntryProps {
+  cloneOrderData?: any;
   token: string;
   username: string;
   products: ProductItem[];
+  user?: User;
   onClose?: () => void;
   onCreated: () => void;
 }
@@ -23,9 +43,16 @@ interface OrderLine {
   code: string;
   name: string;
   price: number;
+  rawPrice?: string;
+  rawQuantity?: string;
   unit: string;
   conversionRate: number;
   quantity: number;
+  floorPrice?: number;
+  isBelowFloor?: boolean;
+  discountRate?: number;
+  discountAmount?: number;
+  lineTotal?: number;
 }
 
 interface OrderDraft {
@@ -56,7 +83,7 @@ const isOrderLine = (value: unknown): value is OrderLine => {
     line.conversionRate > 0 &&
     typeof line.quantity === 'number' &&
     Number.isInteger(line.quantity) &&
-    line.quantity > 0;
+    line.quantity >= 0;
 };
 
 const isOrderDraft = (value: unknown): value is OrderDraft => {
@@ -95,33 +122,218 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount);
 const draftStorageKey = (username: string) => `sales-order-drafts:${encodeURIComponent(username.toLowerCase())}`;
 
-export default function SalesOrderEntry({ token, username, products, onClose: _onClose, onCreated }: SalesOrderEntryProps) {
+export default function SalesOrderEntry({
+  token,
+  username,
+  products,
+  user,
+  onClose: _onClose,
+  onCreated,
+  cloneOrderData,
+}: SalesOrderEntryProps) {
+  // AC 5 & User Story 46: Phân quyền - Cho phép Nhân viên kinh doanh và Đại lý (Customer/Agent) tự đặt hàng
+  const userRoles = user ? (user.roles && user.roles.length > 0 ? user.roles : [user.role]) : [];
+  const isSalesRole = !user || userRoles.some((r) => ['sales', 'sales_manager', 'admin', 'customer', 'agent'].includes(r));
+  const isCustomer = Boolean(user && (user.role === 'customer' || user.role === 'agent' || userRoles.includes('customer') || userRoles.includes('agent')));
+  const isAdmin = Boolean(user && (user.role === 'admin' || userRoles.includes('admin')));
+
+  // RBAC Guard: Chỉ Sales (sales, sales_manager) và Admin (admin) mới được sửa giá & xem cảnh báo giá sàn
+  const canEditPrice = Boolean(
+    user && ['admin', 'sales_manager', 'sales'].some((r) => user.role === r || (user.roles && user.roles.includes(r)))
+  );
+
+  const pricingDebounceTimer = useRef<{ [key: number]: any }>({});
+
   const [dealers, setDealers] = useState<OrderDealer[]>([]);
   const [isLoadingDealers, setIsLoadingDealers] = useState(true);
   const [dealerLoadError, setDealerLoadError] = useState<string | null>(null);
   const [dealerId, setDealerId] = useState('');
+  const [stockSummary, setStockSummary] = useState<DealerStockSummaryResponse | null>(null);
+  const [isLoadingStock, setIsLoadingStock] = useState(false);
   const [deliveryPoint, setDeliveryPoint] = useState('');
   const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
   const [isLoadingDeliveryPoints, setIsLoadingDeliveryPoints] = useState(false);
   const [deliveryPointId, setDeliveryPointId] = useState<number | null>(null);
+  const [isDeliveryPointsDropdownOpen, setIsDeliveryPointsDropdownOpen] = useState(false);
+  const deliveryPointsDropdownRef = useRef<HTMLDivElement>(null);
   const [desiredDeliveryDate, setDesiredDeliveryDate] = useState(getToday);
   const [discountPercent, setDiscountPercent] = useState('0');
+  const [policies, setPolicies] = useState<DiscountPolicy[]>([]);
+  const [isManualOverride, setIsManualOverride] = useState(false);
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<OrderLine[]>([]);
-  const [productQuery, setProductQuery] = useState('');
+  /* Init clone order data */
+  useEffect(() => {
+    if (!cloneOrderData) return;
+    if (cloneOrderData.dealer_id) {
+      setDealerId(String(cloneOrderData.dealer_id));
+    }
+    if (cloneOrderData.delivery_point) {
+      setDeliveryPoint(cloneOrderData.delivery_point);
+    }
+    if (cloneOrderData.delivery_point_id) {
+      setDeliveryPointId(Number(cloneOrderData.delivery_point_id));
+    }
+    if (cloneOrderData.note || cloneOrderData.notes) {
+      setNote(cloneOrderData.note || cloneOrderData.notes || '');
+    }
+    if (Array.isArray(cloneOrderData.items) && cloneOrderData.items.length > 0) {
+      const clonedLines: OrderLine[] = cloneOrderData.items.map((it: any) => {
+        const prod = products.find(
+          (p) =>
+            p.id === it.product_id ||
+            (it.product_code && p.code.toLowerCase() === String(it.product_code).toLowerCase()) ||
+            (it.code && p.code.toLowerCase() === String(it.code).toLowerCase())
+        );
+        // Bắt buộc đối chiếu mã sản phẩm (SKU/ID) với danh sách sản phẩm hiện hành.
+        // Gán lại đơn giá theo currentProduct.sell_price, tuyệt đối KHÔNG lấy price cũ từ đơn gốc nếu sản phẩm có giá niêm yết hiện hành.
+        const currentPrice =
+          prod && typeof prod.sell_price === 'number' && prod.sell_price >= 0
+            ? prod.sell_price
+            : (it.unit_price ?? it.price ?? 0);
+        return {
+          productId: prod ? prod.id : it.product_id,
+          code: it.product_code || (prod ? prod.code : ''),
+          name: it.product_name || (prod ? prod.name : ''),
+          price: currentPrice,
+          unit: it.unit || (prod ? prod.base_unit : 'Cái'),
+          conversionRate: 1,
+          quantity: it.quantity || 1,
+        };
+      });
+      setLines(clonedLines);
+      setIsManualOverride(false);
+    }
+  }, [cloneOrderData, products]);
+
   const [drafts, setDrafts] = useState<OrderDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [purchaseHistory, setPurchaseHistory] = useState<DealerPurchaseHistory | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyForbidden, setHistoryForbidden] = useState(false);
+  const [successCreatedOrder, setSuccessCreatedOrder] = useState<{
+    order_code: string;
+    dealer_name: string;
+    total_amount: number;
+    status?: string;
+    requires_approval?: boolean;
+    approval_reason?: string | null;
+  } | null>(null);
+  const [createdOrderCodeToPrint, setCreatedOrderCodeToPrint] = useState<string | null>(null);
+
+  // AC 1: Tải thông tin công nợ, hạn mức và nợ quá hạn của đại lý
+  const [creditInfo, setCreditInfo] = useState<DealerCreditInfo | null>(null);
+  const [isLoadingCredit, setIsLoadingCredit] = useState(false);
+
+  useEffect(() => {
+    if (!dealerId) {
+      setCreditInfo(null);
+      return;
+    }
+    let isMounted = true;
+    setIsLoadingCredit(true);
+    getDealerCreditInfoApi(token, Number(dealerId))
+      .then((info) => {
+        if (isMounted) {
+          setCreditInfo(info);
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi tải thông tin công nợ:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingCredit(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [dealerId, token]);
+
+  // Tự động tải tồn kho khả dụng của kho phục vụ riêng cho đại lý được chọn
+  useEffect(() => {
+    if (!dealerId) {
+      setStockSummary(null);
+      return;
+    }
+    let isMounted = true;
+    setIsLoadingStock(true);
+    getDealerStockSummaryApi(token, Number(dealerId))
+      .then((res) => {
+        if (isMounted) {
+          setStockSummary(res);
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi tải tồn khả dụng:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingStock(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [dealerId, token]);
+
+  const stockMap = useMemo(() => {
+    const map = new Map<number, ProductStockSummaryItem>();
+    stockSummary?.items?.forEach((item) => {
+      map.set(item.product_id, item);
+    });
+    return map;
+  }, [stockSummary]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const localPolicies = parseStoredPolicies();
+    if (localPolicies.length > 0) {
+      setPolicies(localPolicies);
+    }
+    getDiscountPoliciesApi(token, { is_active: true })
+      .then((result) => {
+        if (isMounted && result.items) {
+          const merged = [...result.items];
+          localPolicies.forEach((lp) => {
+            if (!merged.some((p) => p.code === lp.code)) {
+              merged.push(lp);
+            }
+          });
+          setPolicies(merged);
+        }
+      })
+      .catch(() => {
+        if (isMounted && localPolicies.length > 0) {
+          setPolicies(localPolicies);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  const handleDealersLoaded = useCallback((newDealers: OrderDealer[]) => {
+    setDealers((prev) => {
+      const map = new Map(prev.map((d) => [d.id, d]));
+      newDealers.forEach((d) => map.set(d.id, d));
+      const merged = Array.from(map.values());
+      if (merged.length === 1 && !dealerId) {
+        setDealerId(String(merged[0].id));
+      }
+      return merged;
+    });
+  }, [dealerId]);
 
   useEffect(() => {
     let isMounted = true;
     setIsLoadingDealers(true);
-    getOrderDealersApi(token)
+    getOrderDealersApi(token, { page: 1, page_size: 10 })
       .then((result) => {
         if (isMounted) {
           setDealers(result);
           setDealerLoadError(null);
+          if (result.length === 1) {
+            setDealerId(String(result[0].id));
+          }
         }
       })
       .catch((loadError: unknown) => {
@@ -180,6 +392,61 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
     };
   }, [dealerId, token, dealers]);
 
+  // Đóng dropdown chọn địa chỉ khi click ra ngoài hoặc nhấn ESC
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        deliveryPointsDropdownRef.current &&
+        !deliveryPointsDropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsDeliveryPointsDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDeliveryPointsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+  useEffect(() => {
+    if (!dealerId) {
+      setPurchaseHistory(null);
+      setHistoryForbidden(false);
+      setIsLoadingHistory(false);
+      return;
+    }
+    let isMounted = true;
+    setIsLoadingHistory(true);
+    setHistoryForbidden(false);
+
+    getDealerPurchaseHistoryApi(token, Number(dealerId))
+      .then((history) => {
+        if (!isMounted) return;
+        setPurchaseHistory(history);
+        setHistoryForbidden(false);
+      })
+      .catch((err: unknown) => {
+        if (!isMounted) return;
+        setPurchaseHistory(null);
+        if (err instanceof Error && err.message.includes('phân công')) {
+          setHistoryForbidden(true);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingHistory(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [dealerId, token]);
+
   useEffect(() => {
     try {
       const storedDrafts = localStorage.getItem(draftStorageKey(username));
@@ -204,52 +471,95 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
       }
       setDrafts(compatibleDrafts);
     } catch (loadError) {
-      setError(loadError instanceof Error ? `Không thể đọc bản nháp: ${loadError.message}` : 'Không thể đọc bản nháp đã lưu.');
+      emitStatusToast({
+        title: 'Lỗi bản nháp',
+        message: loadError instanceof Error ? `Không thể đọc bản nháp: ${loadError.message}` : 'Không thể đọc bản nháp đã lưu.',
+        type: 'error',
+      });
     }
   }, [username]);
 
   const selectedDealer = dealers.find((dealer) => String(dealer.id) === dealerId);
-  const deliveryPointSelectValue = useMemo(() => {
-    if (deliveryPointId && deliveryPoints.some((p) => p.id === deliveryPointId)) {
-      return `point_${deliveryPointId}`;
-    }
-    if (selectedDealer?.address && deliveryPoint === selectedDealer.address) {
-      return 'dealer_address';
-    }
-    if (deliveryPoint) {
-      return 'custom';
-    }
-    return '';
-  }, [deliveryPointId, deliveryPoints, selectedDealer, deliveryPoint]);
-  const searchResults = useMemo(() => {
-    const query = productQuery.trim().toLocaleLowerCase('vi');
-    if (query.length < 1) return [];
-    return products
-      .filter((product) =>
-        product.code.toLocaleLowerCase('vi').includes(query) ||
-        product.name.toLocaleLowerCase('vi').includes(query)
-      )
-      .slice(0, 6);
-  }, [productQuery, products]);
+  const isLockedDealer = Boolean(
+    selectedDealer?.status &&
+    (selectedDealer.status.toLowerCase().includes('khóa') ||
+      selectedDealer.status.toLowerCase().includes('lock'))
+  );
 
-  const subtotal = lines.reduce((total, line) => total + line.quantity * line.price, 0);
+  const subtotal = lines.reduce((total, line) => total + (line.lineTotal ?? (line.quantity * line.price)), 0);
+  const totalQuantity = lines.reduce((total, line) => total + line.quantity, 0);
+
+  const hasBelowFloorLine = useMemo(() => {
+    return lines.some((line) => line.isBelowFloor || (line.floorPrice && line.floorPrice > 0 && line.price < line.floorPrice));
+  }, [lines]);
+
+  // Tự động kiểm tra danh sách chính sách chiết khấu đang áp dụng theo Best Price Rule
+  const discountEvaluation = useMemo(() => {
+    return evaluateBestDiscountPolicy(
+      policies,
+      lines.map((line) => ({
+        productId: line.productId,
+        quantity: line.quantity,
+        price: line.price,
+        name: line.name,
+        code: line.code,
+      })),
+      selectedDealer
+        ? {
+          id: selectedDealer.id,
+          customer_group: (selectedDealer as any).customer_group || '',
+          name: selectedDealer.name,
+        }
+        : null,
+      totalQuantity,
+      subtotal
+    );
+  }, [policies, lines, selectedDealer, totalQuantity, subtotal]);
+
+  // Tự động điền giá trị % vào ô "Chiết khấu (%)" khi số lượng thỏa mãn các bậc
+  useEffect(() => {
+    if (!isManualOverride) {
+      if (discountEvaluation.isQualified) {
+        setDiscountPercent(String(discountEvaluation.discountPercent));
+      } else {
+        setDiscountPercent('0');
+      }
+    }
+  }, [discountEvaluation, isManualOverride]);
+
   const parsedDiscount = Number(discountPercent);
   const safeDiscount = Number.isFinite(parsedDiscount) ? Math.min(100, Math.max(0, parsedDiscount)) : 0;
   const discountAmount = Math.round(subtotal * safeDiscount / 100);
   const totalDue = subtotal - discountAmount;
 
+  // AC 2 & AC 3: Kiểm tra nợ quá hạn và Vượt hạn mức
+  // Cấu hình chặn nợ quá hạn CHỈ áp dụng khi mua hàng ở trang đại lý (isCustomer). Ở trang admin tạo đơn không bị chặn bởi cấu hình.
+  const isOverdueBlocked = Boolean(
+    isCustomer &&
+    (creditInfo?.is_overdue ||
+      (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30)))
+  );
+  const isOverLimit = Boolean(
+    creditInfo &&
+    creditInfo.credit_limit > 0 &&
+    (creditInfo.current_debt + totalDue > creditInfo.credit_limit)
+  );
+
   const resetForm = () => {
     setDealerId('');
+    setCreditInfo(null);
     setDeliveryPoint('');
     setDeliveryPointId(null);
     setDeliveryPoints([]);
+    setIsDeliveryPointsDropdownOpen(false);
     setDesiredDeliveryDate(getToday());
     setDiscountPercent('0');
+    setIsManualOverride(false);
     setNote('');
     setLines([]);
-    setProductQuery('');
     setActiveDraftId(null);
-    setError(null);
+    setPurchaseHistory(null);
+    setHistoryForbidden(false);
   };
 
   const storeDrafts = (updatedDrafts: OrderDraft[]) => {
@@ -258,7 +568,6 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   };
 
   const handleSaveDraft = () => {
-    setError(null);
     try {
       const id = activeDraftId || `${Date.now()}`;
       const draft: OrderDraft = {
@@ -280,7 +589,11 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
         message: 'Đã lưu bản nháp trên thiết bị này. Bạn có thể mở lại để tiếp tục nhập.',
       });
     } catch (saveError) {
-      setError(saveError instanceof Error ? `Không thể lưu bản nháp: ${saveError.message}` : 'Không thể lưu bản nháp.');
+      emitStatusToast({
+        title: 'Lỗi',
+        message: saveError instanceof Error ? `Không thể lưu bản nháp: ${saveError.message}` : 'Không thể lưu bản nháp.',
+        type: 'error',
+      });
     }
   };
 
@@ -290,14 +603,18 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
     setDeliveryPointId(draft.deliveryPointId ?? null);
     setDesiredDeliveryDate(draft.desiredDeliveryDate || getToday());
     setDiscountPercent(draft.discountPercent || '0');
+    setIsManualOverride(true);
     setNote(draft.note || '');
-    setLines(draft.lines || []);
+    setLines((draft.lines || []).map((l) => ({
+      ...l,
+      rawPrice: l.rawPrice !== undefined ? l.rawPrice : String(l.price),
+      rawQuantity: l.rawQuantity !== undefined ? l.rawQuantity : String(l.quantity),
+    })));
     setActiveDraftId(draft.id);
     emitStatusToast({
       title: 'Mở bản nháp thành công',
       message: `Đã mở bản nháp lưu ngày ${new Date(draft.updatedAt).toLocaleString('vi-VN')}.`,
     });
-    setError(null);
   };
 
   const handleDeleteDraft = (id: string) => {
@@ -305,32 +622,312 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
       storeDrafts(drafts.filter((draft) => draft.id !== id));
       if (activeDraftId === id) setActiveDraftId(null);
       emitStatusToast({ title: 'Xóa bản nháp thành công', message: 'Đã xóa bản nháp.' });
-      setError(null);
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? `Không thể xóa bản nháp: ${deleteError.message}` : 'Không thể xóa bản nháp.');
+      emitStatusToast({
+        title: 'Lỗi',
+        message: deleteError instanceof Error ? `Không thể xóa bản nháp: ${deleteError.message}` : 'Không thể xóa bản nháp.',
+        type: 'error',
+      });
     }
   };
 
-  const addProduct = (product: ProductItem) => {
+  const handleQuantityChange = (index: number, newQty: number) => {
+    const qty = Math.max(1, Math.floor(newQty || 1));
+    setLines((current) => current.map((line, idx) => {
+      if (idx !== index) return line;
+      const sub = qty * line.price;
+      const disc = line.discountRate ? Math.round(sub * (line.discountRate / 100)) : 0;
+      return {
+        ...line,
+        quantity: qty,
+        rawQuantity: String(qty),
+        discountAmount: disc,
+        lineTotal: sub - disc,
+      };
+    }));
+
+    if (pricingDebounceTimer.current[index]) {
+      clearTimeout(pricingDebounceTimer.current[index]);
+    }
+    pricingDebounceTimer.current[index] = setTimeout(async () => {
+      const currentLine = lines[index];
+      if (!currentLine || !dealerId) return;
+      try {
+        const res = await calculateLineItemPricingApi(token, {
+          dealer_id: Number(dealerId),
+          product_id: currentLine.productId,
+          quantity: qty,
+          unit_price_override: canEditPrice ? currentLine.price : undefined,
+        });
+        setLines((current) => current.map((l, idx) =>
+          idx === index ? {
+            ...l,
+            price: res.unit_price,
+            rawPrice: String(res.unit_price),
+            floorPrice: res.floor_price,
+            isBelowFloor: res.is_below_floor,
+            discountRate: res.discount_rate,
+            discountAmount: res.discount_amount,
+            lineTotal: res.line_total,
+          } : l
+        ));
+      } catch (e) {
+        console.warn('Lỗi tính chiết khấu bậc:', e);
+      }
+    }, 250);
+  };
+
+  const handleQuantityInputChange = (index: number, val: string) => {
+    const parsed = parseInt(val, 10);
+    const qty = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    setLines((current) => current.map((line, idx) => {
+      if (idx !== index) return line;
+      const sub = qty * line.price;
+      const disc = line.discountRate ? Math.round(sub * (line.discountRate / 100)) : 0;
+      return {
+        ...line,
+        quantity: qty,
+        rawQuantity: val,
+        discountAmount: disc,
+        lineTotal: sub - disc,
+      };
+    }));
+
+    if (qty > 0) {
+      if (pricingDebounceTimer.current[index]) {
+        clearTimeout(pricingDebounceTimer.current[index]);
+      }
+      pricingDebounceTimer.current[index] = setTimeout(async () => {
+        const currentLine = lines[index];
+        if (!currentLine || !dealerId) return;
+        try {
+          const res = await calculateLineItemPricingApi(token, {
+            dealer_id: Number(dealerId),
+            product_id: currentLine.productId,
+            quantity: qty,
+            unit_price_override: canEditPrice ? currentLine.price : undefined,
+          });
+          setLines((current) => current.map((l, idx) =>
+            idx === index ? {
+              ...l,
+              price: res.unit_price,
+              rawPrice: String(res.unit_price),
+              discountRate: res.discount_rate,
+              discountAmount: res.discount_amount,
+              lineTotal: res.line_total,
+            } : l
+          ));
+        } catch (e) {
+          console.warn('Lỗi tính chiết khấu bậc:', e);
+        }
+      }, 250);
+    }
+  };
+
+  const handleQuantityBlur = (index: number) => {
+    setLines((current) => current.map((line, idx) => {
+      if (idx !== index) return line;
+      const validQty = Math.max(1, line.quantity || 1);
+      const sub = validQty * line.price;
+      const disc = line.discountRate ? Math.round(sub * (line.discountRate / 100)) : 0;
+      return {
+        ...line,
+        quantity: validQty,
+        rawQuantity: String(validQty),
+        discountAmount: disc,
+        lineTotal: sub - disc,
+      };
+    }));
+  };
+
+  const handlePriceInputChange = (index: number, val: string) => {
+    if (!canEditPrice) return;
+    const numericVal = val === '' ? 0 : parseFloat(val);
+    const priceNum = isNaN(numericVal) ? 0 : Math.max(0, numericVal);
+    setLines((current) => current.map((line, idx) => {
+      if (idx !== index) return line;
+      const floor = line.floorPrice || 0;
+      const isBelow = floor > 0 && priceNum < floor;
+      const sub = line.quantity * priceNum;
+      const disc = line.discountRate ? Math.round(sub * (line.discountRate / 100)) : 0;
+      return {
+        ...line,
+        price: priceNum,
+        rawPrice: val,
+        isBelowFloor: isBelow,
+        discountAmount: disc,
+        lineTotal: sub - disc,
+      };
+    }));
+  };
+
+  const handlePriceBlur = (index: number) => {
+    setLines((current) => current.map((line, idx) => {
+      if (idx !== index) return line;
+      return {
+        ...line,
+        rawPrice: String(line.price),
+      };
+    }));
+  };
+
+  const addProduct = async (product: ProductItem) => {
+    if (!dealerId) {
+      emitStatusToast({
+        title: 'Chưa chọn đại lý',
+        message: 'Vui lòng chọn đại lý trước khi thêm sản phẩm.',
+        type: 'error',
+      });
+      return;
+    }
+    const stockItem = stockMap.get(product.id);
+    const availableStock = stockItem ? stockItem.available_stock : (product.stock ?? 0);
+    const isOutOfStock = availableStock <= 0 || product.status === 'out_of_stock' || product.status === 'inactive';
+    if (isOutOfStock) {
+      emitStatusToast({
+        title: 'Hết hàng',
+        message: `Sản phẩm "${product.name}" hiện đã hết hàng tại kho, không thể chọn đặt hàng!`,
+        type: 'warning',
+      });
+      return;
+    }
+
     const baseUnit = product.base_unit || 'Cái';
+
+    // AC1: Tra cứu đơn giá & giá sàn theo Bảng giá hiệu lực (Price Book Lookup)
+    try {
+      const priceRes = await calculateLineItemPricingApi(token, {
+        dealer_id: Number(dealerId),
+        product_id: product.id,
+        quantity: 1,
+      });
+
+      setLines((current) => {
+        const existingIndex = current.findIndex((line) => line.productId === product.id && line.unit === baseUnit);
+        if (existingIndex >= 0) {
+          const newQty = current[existingIndex].quantity + 1;
+          const updated = current.map((line, index) =>
+            index === existingIndex ? {
+              ...line,
+              quantity: newQty,
+            } : line
+          );
+          setTimeout(() => handleQuantityChange(existingIndex, newQty), 50);
+          return updated;
+        }
+        return [...current, {
+          productId: product.id,
+          code: product.code,
+          name: product.name,
+          price: priceRes.unit_price,
+          rawPrice: String(priceRes.unit_price),
+          rawQuantity: '1',
+          unit: baseUnit,
+          conversionRate: 1,
+          quantity: 1,
+          floorPrice: priceRes.floor_price,
+          isBelowFloor: priceRes.is_below_floor,
+          discountRate: priceRes.discount_rate,
+          discountAmount: priceRes.discount_amount,
+          lineTotal: priceRes.line_total,
+        }];
+      });
+    } catch (err: any) {
+      // Hard Validation AC1: Nếu SKU chưa có bảng giá hiệu lực: Chặn thêm dòng hàng
+      const errMsg = err?.message || `Sản phẩm [${product.code}] chưa có bảng giá đang hiệu lực cho nhóm khách hàng này. Vui lòng kiểm tra lại cấu hình giá.`;
+      emitStatusToast({
+        title: 'Chặn thêm sản phẩm',
+        message: errMsg,
+        type: 'error',
+      });
+    }
+  };
+
+  const handleAddAllPreviousItems = () => {
+    if (!purchaseHistory) return;
+    const itemsToAdd = (purchaseHistory.last_order_items && purchaseHistory.last_order_items.length > 0)
+      ? purchaseHistory.last_order_items
+      : purchaseHistory.items.map((it) => ({
+          product_id: it.product_id,
+          product_code: it.product_code,
+          product_name: it.product_name,
+          quantity: it.last_order_quantity || it.avg_quantity || 1,
+          price: it.price,
+          unit: it.unit,
+          conversion_rate: it.conversion_rate || 1,
+        }));
+
+    if (itemsToAdd.length === 0) {
+      emitStatusToast({
+        title: 'Thông báo',
+        message: 'Không tìm thấy nhóm hàng từ lần mua trước để thêm.',
+      });
+      return;
+    }
+
     setLines((current) => {
-      const existingIndex = current.findIndex((line) => line.productId === product.id && line.unit === baseUnit);
+      const updated = [...current];
+      itemsToAdd.forEach((item) => {
+        const itemUnit = item.unit || 'Cái';
+        const existingIndex = updated.findIndex((line) => line.productId === item.product_id && line.unit === itemUnit);
+        const qtyToAdd = Math.max(1, Math.round(item.quantity || 1));
+        if (existingIndex >= 0) {
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            quantity: updated[existingIndex].quantity + qtyToAdd,
+          };
+        } else {
+          updated.push({
+            productId: item.product_id,
+            code: item.product_code,
+            name: item.product_name,
+            price: item.price,
+            rawPrice: String(item.price),
+            rawQuantity: String(qtyToAdd),
+            unit: itemUnit,
+            conversionRate: item.conversion_rate || 1,
+            quantity: qtyToAdd,
+          });
+        }
+      });
+      return updated;
+    });
+
+    emitStatusToast({
+      title: 'Đã thêm nhóm hàng',
+      message: `Đã thêm nhanh cả nhóm ${itemsToAdd.length} mặt hàng đã mua lần trước vào đơn mới!`,
+    });
+  };
+
+  const handleAddHistoryItem = (item: PurchaseHistoryItem) => {
+    const itemUnit = item.unit || 'Cái';
+    const qtyToAdd = Math.max(1, Math.round(item.last_order_quantity || item.avg_quantity || 1));
+    setLines((current) => {
+      const existingIndex = current.findIndex((line) => line.productId === item.product_id && line.unit === itemUnit);
       if (existingIndex >= 0) {
-        return current.map((line, index) =>
-          index === existingIndex ? { ...line, quantity: line.quantity + 1 } : line
+        return current.map((line, idx) =>
+          idx === existingIndex ? { ...line, quantity: line.quantity + qtyToAdd } : line
         );
       }
-      return [...current, {
-        productId: product.id,
-        code: product.code,
-        name: product.name,
-        price: product.sell_price,
-        unit: baseUnit,
-        conversionRate: 1,
-        quantity: 1,
-      }];
+      return [
+        ...current,
+        {
+          productId: item.product_id,
+          code: item.product_code,
+          name: item.product_name,
+          price: item.price,
+          rawPrice: String(item.price),
+          rawQuantity: String(qtyToAdd),
+          unit: itemUnit,
+          conversionRate: item.conversion_rate || 1,
+          quantity: qtyToAdd,
+        },
+      ];
     });
-    setProductQuery('');
+    emitStatusToast({
+      title: 'Đã thêm sản phẩm',
+      message: `Đã thêm ${item.product_name} (${qtyToAdd} ${itemUnit}) vào đơn hàng.`,
+    });
   };
 
   const updateLine = (index: number, changes: Partial<OrderLine>) => {
@@ -341,32 +938,99 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
 
   const handleCreateOrder = async () => {
     if (!selectedDealer) {
-      setError('Vui lòng chọn đại lý.');
+      emitStatusToast({
+        title: 'Chưa chọn đại lý',
+        message: 'Vui lòng chọn đại lý trước khi tạo đơn hàng.',
+        type: 'error',
+      });
       return;
     }
-    if (!deliveryPoint.trim()) {
-      setError('Vui lòng nhập hoặc chọn điểm giao hàng.');
-      return;
-    }
-    if (!desiredDeliveryDate) {
-      setError('Vui lòng chọn ngày giao mong muốn.');
-      return;
-    }
-    if (desiredDeliveryDate < getToday()) {
-      setError('Ngày giao mong muốn không được ở quá khứ.');
-      return;
-    }
-    if (!lines.length) {
-      setError('Vui lòng thêm ít nhất một dòng hàng.');
-      return;
-    }
-    if (!discountPercent.trim() || !Number.isFinite(parsedDiscount) || parsedDiscount < 0 || parsedDiscount > 100) {
-      setError('Chiết khấu phải từ 0% đến 100%.');
+    const isLocked = Boolean(
+      selectedDealer?.status &&
+      (selectedDealer.status.toLowerCase().includes('khóa') ||
+        selectedDealer.status.toLowerCase().includes('lock'))
+    );
+    if (isLocked) {
+      emitStatusToast({
+        title: 'Đại lý bị khóa giao dịch',
+        message: `Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Vui lòng liên hệ quản trị viên.`,
+        type: 'error',
+      });
       return;
     }
 
+    // AC 3: Chặn tạo đơn hoàn toàn khi đại lý có nợ quá hạn (chỉ khi đại lý tự đặt)
+    if (isCustomer && isOverdueBlocked) {
+      const overdueDays = creditInfo?.max_debt_age || 0;
+      const maxAllowed = creditInfo?.overdue_days_allowed || 30;
+      const overdueMsg = `Đại lý "${selectedDealer.name}" có khoản nợ quá hạn (${overdueDays} ngày, vượt mức cho phép ${maxAllowed} ngày). Hệ thống chặn tạo đơn hàng hoàn toàn!`;
+      emitStatusToast({
+        title: 'Chặn tạo đơn do nợ quá hạn',
+        message: overdueMsg,
+        type: 'error',
+      });
+      return;
+    }
+    if (!deliveryPoint.trim()) {
+      emitStatusToast({
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng nhập hoặc chọn điểm giao hàng.',
+        type: 'error',
+      });
+      return;
+    }
+    if (!desiredDeliveryDate) {
+      emitStatusToast({
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng chọn ngày giao mong muốn.',
+        type: 'error',
+      });
+      return;
+    }
+    if (desiredDeliveryDate < getToday()) {
+      emitStatusToast({
+        title: 'Ngày giao không hợp lệ',
+        message: 'Ngày giao mong muốn không được ở quá khứ.',
+        type: 'error',
+      });
+      return;
+    }
+    if (!lines.length) {
+      emitStatusToast({
+        title: 'Chưa có sản phẩm',
+        message: 'Vui lòng thêm ít nhất một dòng hàng.',
+        type: 'error',
+      });
+      return;
+    }
+    if (!discountPercent.trim() || !Number.isFinite(parsedDiscount) || parsedDiscount < 0 || parsedDiscount > 100) {
+      emitStatusToast({
+        title: 'Chiết khấu không hợp lệ',
+        message: 'Chiết khấu phải từ 0% đến 100%.',
+        type: 'error',
+      });
+      return;
+    }
+
+    // AC 3: Chặn đặt hàng khi vượt tồn khả dụng tại kho phục vụ
+    for (const line of lines) {
+      const stockItem = stockMap.get(line.productId);
+      if (stockItem) {
+        const rate = line.conversionRate || 1;
+        const maxOrderable = Math.max(0, Math.floor(stockItem.available_stock / rate));
+        if (line.quantity > maxOrderable) {
+          const warehouseName = stockSummary?.warehouse_name || 'kho';
+          emitStatusToast({
+            title: 'Vượt tồn khả dụng',
+            message: `Sản phẩm "${line.name}" (${line.code}) vượt quá tồn khả dụng tại ${warehouseName}. Số lượng tối đa có thể đặt là: ${maxOrderable} ${line.unit}.`,
+            type: 'error',
+          });
+          return;
+        }
+      }
+    }
+
     setIsSaving(true);
-    setError(null);
     try {
       const created = await createOrderApi(token, {
         dealer_id: selectedDealer.id,
@@ -378,6 +1042,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
           product_id: line.productId,
           quantity: line.quantity,
           price: line.price,
+          unit_price_override: line.price,
           unit: line.unit,
           conversion_rate: line.conversionRate,
         })),
@@ -399,38 +1064,109 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
         title: 'Tạo đơn hàng thành công',
         message: `Đã tạo đơn ${created.order_code} thành công. Tổng phải thu: ${formatCurrency(created.total_amount)}.${draftCleanupWarning || ''}`,
       });
-      onCreated();
+      setSuccessCreatedOrder({
+        order_code: created.order_code,
+        dealer_name: selectedDealer.name,
+        total_amount: created.total_amount,
+        status: created.status,
+        requires_approval: created.requires_approval,
+        approval_reason: created.approval_reason,
+      });
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Không thể tạo đơn hàng.');
+      const errMsg = createError instanceof Error ? createError.message : 'Không thể tạo đơn hàng.';
+      emitStatusToast({
+        title: errMsg.includes('quá hạn') ? 'Chặn tạo đơn do nợ quá hạn' : (errMsg.includes('vượt quá tồn') ? 'Vượt tồn khả dụng' : 'Lỗi tạo đơn hàng'),
+        message: errMsg,
+        type: 'error',
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
+  const hasStockErrors = useMemo(() => {
+    if (!dealerId) return false;
+    return lines.some((line) => {
+      const stockItem = stockMap.get(line.productId);
+      if (!stockItem) return false;
+      const rate = line.conversionRate || 1;
+      const maxOrderable = Math.max(0, Math.floor(stockItem.available_stock / rate));
+      return line.quantity > maxOrderable;
+    });
+  }, [dealerId, lines, stockMap]);
+
+  // AC 5: Chặn và hiển thị AccessDeniedView nếu người dùng không phải vai trò Sales
+  if (!isSalesRole && user) {
+    return (
+      <AccessDeniedView
+        currentUser={user}
+        requiredPermission="Quyền Nhân viên kinh doanh (Sales / Sale Executive)"
+        onBackToWorkflow={_onClose || (() => { })}
+      />
+    );
+  }
+
   return (
     <div className="sales-order-page">
-      {error && <div className="sales-order-alert error" role="alert">{error}</div>}
+      {/* Bỏ thông báo lỗi tràn ở trên; các cảnh báo và lỗi vượt tồn kho hiển thị qua Toast đỏ ở góc dưới bên phải */}
+
+      {isLockedDealer && (
+        <div
+          className="sales-order-alert error"
+          role="alert"
+          style={{
+            background: '#fef2f2',
+            color: '#991b1b',
+            border: '1px solid #f87171',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            marginBottom: '16px',
+            fontWeight: 600,
+          }}
+        >
+          Tài khoản đại lý &quot;{selectedDealer?.name}&quot; hiện đang bị KHÓA giao dịch. Bạn không thể tạo đơn hàng mới. Vui lòng liên hệ quản trị viên.
+        </div>
+      )}
 
       <div className="sales-order-layout">
         <section className="sales-order-main">
           <section className="sales-order-card">
             <h2>Thông tin giao hàng</h2>
+            {stockSummary && (
+              <div className="serving-warehouse-badge" id="serving-warehouse-badge">
+                <span>Kho phục vụ đại lý: <strong>{stockSummary.warehouse_name} ({stockSummary.warehouse_id})</strong></span>
+              </div>
+            )}
+            {isLoadingStock && (
+              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
+                Đang nạp tồn kho khả dụng...
+              </div>
+            )}
             <div className="sales-order-fields">
-              <label className="sales-order-field">
+              <div className="sales-order-field">
                 <span>Đại lý <b aria-hidden="true">*</b></span>
-                <select
-                  value={dealerId}
-                  onChange={(event) => {
-                    const nextId = event.target.value;
-                    setDealerId(nextId);
+                <OrderDealerInfiniteSelect
+                  token={token}
+                  selectedId={dealerId}
+                  selectedDealer={selectedDealer}
+                  onSelect={(dealer) => {
+                    setDealerId(String(dealer.id));
+                    setDealers((prev) => (prev.some((d) => d.id === dealer.id) ? prev : [dealer, ...prev]));
                   }}
-                  disabled={isLoadingDealers || !!dealerLoadError}
-                >
-                  <option value="">{isLoadingDealers ? 'Đang tải đại lý...' : 'Chọn đại lý'}</option>
-                  {dealers.map((dealer) => (
-                    <option key={dealer.id} value={dealer.id}>{dealer.code} — {dealer.name}</option>
-                  ))}
-                </select>
+                  onDealersLoaded={handleDealersLoaded}
+                  disabled={isLoadingDealers || (dealers.length === 1 && !isCustomer) || isCustomer}
+                  isCustomer={isCustomer}
+                />
+                {isCustomer && (
+                  <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#047857', fontWeight: 600 }}>
+                    ✓ Cổng Đại lý: Hệ thống tự động ghi nhận cho tài khoản đại lý của bạn
+                  </p>
+                )}
+                {isLockedDealer && (
+                  <span className="sales-order-field-error" style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: '6px', display: 'block', marginTop: '6px' }}>
+                    <strong>Đại lý bị khóa giao dịch:</strong> Đại lý này hiện đang bị <strong>KHÓA giao dịch</strong>. Không thể tạo đơn hàng mới.
+                  </span>
+                )}
                 {!isLoadingDealers && !dealerLoadError && dealers.length === 0 && (
                   <span className="sales-order-field-error">
                     Tài khoản chưa được phân công đại lý. Vui lòng liên hệ quản lý để được hỗ trợ.
@@ -444,7 +1180,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                       onClick={() => {
                         setDealerLoadError(null);
                         setIsLoadingDealers(true);
-                        getOrderDealersApi(token)
+                        getOrderDealersApi(token, { page: 1, page_size: 10 })
                           .then(setDealers)
                           .catch((loadError: unknown) => setDealerLoadError(loadError instanceof Error ? loadError.message : 'Không thể tải danh sách đại lý.'))
                           .finally(() => setIsLoadingDealers(false));
@@ -454,70 +1190,229 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                     </button>
                   </span>
                 )}
-              </label>
-              <label className="sales-order-field">
-                <span>Điểm giao hàng <b aria-hidden="true">*</b></span>
-                <select
-                  value={deliveryPointSelectValue}
-                  disabled={!selectedDealer || isLoadingDeliveryPoints}
-                  onChange={(event) => {
-                    const val = event.target.value;
-                    if (val.startsWith('point_')) {
-                      const pId = Number(val.replace('point_', ''));
-                      const pt = deliveryPoints.find((p) => p.id === pId);
-                      setDeliveryPointId(pId);
-                      setDeliveryPoint(pt ? `${pt.label} — ${pt.address}` : '');
-                    } else if (val === 'dealer_address') {
-                      setDeliveryPointId(null);
-                      setDeliveryPoint(selectedDealer?.address || '');
-                    } else if (val === 'custom') {
-                      setDeliveryPointId(null);
-                      setDeliveryPoint('');
-                    }
-                  }}
-                >
-                  <option value="" disabled>
-                    {!selectedDealer
-                      ? 'Chọn đại lý trước'
-                      : isLoadingDeliveryPoints
-                      ? 'Đang tải điểm giao hàng...'
-                      : 'Chọn điểm giao hàng'}
-                  </option>
-                  {deliveryPoints
-                    .filter((p) => p.is_active)
-                    .map((p) => (
-                      <option key={p.id} value={`point_${p.id}`}>
-                        {p.label} — {p.address}
-                        {p.receiver_name ? ` (${p.receiver_name}${p.receiver_phone ? ' - ' + p.receiver_phone : ''})` : ''}
-                        {p.is_default ? ' [Mặc định]' : ''}
-                      </option>
-                    ))}
-                  {selectedDealer?.address && !deliveryPoints.some((p) => p.address === selectedDealer.address) && (
-                    <option value="dealer_address">Địa chỉ đại lý — {selectedDealer.address}</option>
-                  )}
-                  <option value="custom">Điểm giao khác</option>
-                </select>
-                {deliveryPointSelectValue === 'custom' && (
-                  <input
-                    aria-label="Địa chỉ giao hàng khác"
-                    value={deliveryPoint}
-                    onChange={(event) => setDeliveryPoint(event.target.value)}
-                    placeholder="Nhập địa chỉ giao hàng cụ thể"
-                    maxLength={500}
+              </div>
+
+              {/* AC 1, 2, 3: Hiển thị 3 chỉ số công nợ của đại lý (ở trang admin không hiển thị cảnh báo cấu hình) */}
+              {selectedDealer && (
+                <div style={{ gridColumn: '1 / -1', marginBottom: '8px' }}>
+                  <DealerCreditBadge
+                    creditInfo={creditInfo}
+                    currentOrderAmount={totalDue}
+                    isLoading={isLoadingCredit}
+                    hidePolicyAlerts={!isCustomer}
                   />
-                )}
-                {deliveryPointId && (() => {
-                  const pt = deliveryPoints.find((p) => p.id === deliveryPointId);
-                  if (!pt) return null;
-                  return (
-                    <div style={{ fontSize: '11px', color: '#047857', marginTop: '4px', background: '#ecfdf5', padding: '3px 8px', borderRadius: '6px', border: '1px solid #a7f3d0', lineHeight: 1.35 }}>
-                      <strong>Người nhận:</strong> {pt.receiver_name || selectedDealer?.name || 'Đại lý'}
-                      {pt.receiver_phone ? ` • SĐT: ${pt.receiver_phone}` : ''}
-                      {pt.route_note ? ` • Tuyến: ${pt.route_note}` : ''}
+                </div>
+              )}
+
+              {/* Địa chỉ giao hàng: Tự động điền theo đại lý, cho phép chọn điểm khác hoặc tự nhập địa chỉ mới */}
+              <div
+                ref={deliveryPointsDropdownRef}
+                className="sales-order-field"
+                style={{ position: 'relative' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Địa chỉ giao hàng <b aria-hidden="true">*</b></span>
+                  {selectedDealer && deliveryPoints.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsDeliveryPointsDropdownOpen((prev) => !prev)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#2563eb',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: '0 4px',
+                      }}
+                    >
+                      {isDeliveryPointsDropdownOpen ? 'Đóng danh sách' : `Đổi địa chỉ (${deliveryPoints.length} điểm đã lưu)`}
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    value={deliveryPoint}
+                    onChange={(event) => {
+                      setDeliveryPoint(event.target.value);
+                      const matched = deliveryPoints.find(
+                        (p) => `${p.label} — ${p.address}` === event.target.value || p.address === event.target.value
+                      );
+                      setDeliveryPointId(matched ? matched.id : null);
+                    }}
+                    onFocus={() => {
+                      if (deliveryPoints.length > 1) {
+                        setIsDeliveryPointsDropdownOpen(true);
+                      }
+                    }}
+                    placeholder={
+                      isLoadingDeliveryPoints
+                        ? 'Đang nạp địa chỉ giao hàng của đại lý...'
+                        : selectedDealer
+                          ? 'Nhập địa chỉ cụ thể hoặc chọn từ danh sách...'
+                          : 'Chọn đại lý để tự động điền địa chỉ'
+                    }
+                    disabled={!selectedDealer}
+                    maxLength={500}
+                    style={{
+                      paddingRight: selectedDealer && deliveryPoints.length > 0 ? '36px' : '11px',
+                    }}
+                  />
+
+                  {selectedDealer && deliveryPoints.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsDeliveryPointsDropdownOpen((prev) => !prev)}
+                      title="Xem danh sách địa chỉ giao hàng của đại lý"
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#64748b',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{
+                          transition: 'transform 0.2s',
+                          transform: isDeliveryPointsDropdownOpen ? 'rotate(180deg)' : 'none',
+                        }}
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                  )}
+
+                  {/* Menu thả xuống chọn địa chỉ khác đã lưu */}
+                  {isDeliveryPointsDropdownOpen && selectedDealer && deliveryPoints.length > 0 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        left: 0,
+                        right: 0,
+                        zIndex: 50,
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '10px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        maxHeight: '260px',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: '8px 12px',
+                          background: '#f8fafc',
+                          borderBottom: '1px solid #e2e8f0',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: '#475569',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <span>Danh sách địa chỉ đã lưu ({deliveryPoints.length} điểm):</span>
+                        <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 'normal' }}>Bấm để chọn</span>
+                      </div>
+
+                      {deliveryPoints.map((pt) => {
+                        const isSelected = pt.id === deliveryPointId || deliveryPoint.includes(pt.address);
+                        return (
+                          <div
+                            key={pt.id}
+                            onClick={() => {
+                              setDeliveryPointId(pt.id);
+                              setDeliveryPoint(`${pt.label} — ${pt.address}`);
+                              setIsDeliveryPointsDropdownOpen(false);
+                            }}
+                            style={{
+                              padding: '10px 12px',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f1f5f9',
+                              background: isSelected ? '#eff6ff' : '#ffffff',
+                              transition: 'background-color 0.15s',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) e.currentTarget.style.backgroundColor = '#ffffff';
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <strong style={{ fontSize: '12px', color: '#0f172a' }}>{pt.label}</strong>
+                                {pt.is_default && (
+                                  <span style={{ fontSize: '10px', background: '#dbeafe', color: '#1d4ed8', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                    Mặc định
+                                  </span>
+                                )}
+                              </div>
+                              {isSelected && <span style={{ color: '#2563eb', fontWeight: 'bold', fontSize: '13px' }}>✓</span>}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#475569', marginTop: '3px' }}>
+                              {pt.address}
+                            </div>
+                            {(pt.receiver_name || pt.receiver_phone) && (
+                              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                Người nhận: {pt.receiver_name || '—'} {pt.receiver_phone ? `(SĐT: ${pt.receiver_phone})` : ''}
+                                {pt.route_note ? ` • Tuyến: ${pt.route_note}` : ''}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      <div
+                        onClick={() => setIsDeliveryPointsDropdownOpen(false)}
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '11px',
+                          color: '#64748b',
+                          background: '#f8fafc',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          borderTop: '1px solid #f1f5f9',
+                        }}
+                      >
+                        (Hoặc gõ trực tiếp vào ô để sửa/nhập địa chỉ mới bất kỳ)
+                      </div>
                     </div>
-                  );
+                  )}
+                </div>
+
+                {selectedDealer && (() => {
+                  const pt = deliveryPoints.find((p) => p.id === deliveryPointId) || deliveryPoints.find((p) => deliveryPoint.includes(p.address));
+                  if (pt && (pt.receiver_name || pt.receiver_phone)) {
+                    return (
+                      <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>
+                        Người nhận: <strong>{pt.receiver_name || selectedDealer.name}</strong>
+                        {pt.receiver_phone ? ` • SĐT: ${pt.receiver_phone}` : ''}
+                        {pt.route_note ? ` • Tuyến: ${pt.route_note}` : ''}
+                      </div>
+                    );
+                  }
+                  return null;
                 })()}
-              </label>
+              </div>
               <label className="sales-order-field">
                 <span>Ngày giao mong muốn <b aria-hidden="true">*</b></span>
                 <input
@@ -537,94 +1432,313 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                 />
               </label>
             </div>
-          </section>
 
-          <section className="sales-order-card">
-            <h2>Sản phẩm</h2>
-            <label className="sales-order-field">
-              <span>Tìm theo mã hoặc tên sản phẩm</span>
-              <input
-                type="search"
-                value={productQuery}
-                onChange={(event) => setProductQuery(event.target.value)}
-                placeholder="Ví dụ: SP001 hoặc Áo thun Polo"
-                autoComplete="off"
-              />
-            </label>
-            {productQuery.trim() && (
-              <div className="sales-order-search-results">
-                {searchResults.length ? searchResults.map((product) => (
-                  <button type="button" key={product.id} onClick={() => addProduct(product)}>
-                    <span><b>{product.code}</b> — {product.name}</span>
-                    <strong>{formatCurrency(product.sell_price)}</strong>
-                  </button>
-                )) : <p>Không tìm thấy sản phẩm phù hợp.</p>}
+            {/* SCRUM-52 / SCRUM-57: Lịch sử mua hàng của đại lý & Gợi ý mặt hàng */}
+            {selectedDealer && !historyForbidden && (
+              <div className="sales-order-history-card" style={{ marginTop: '20px' }}>
+                <div className="sales-order-history-header">
+                  <div className="sales-order-history-title-group">
+                    <div className="sales-order-history-badge">
+                      <span>Gợi ý theo lịch sử mua hàng</span>
+                    </div>
+                    <h2 className="sales-order-history-title">
+                      Mặt hàng đại lý thường lấy (3 tháng gần nhất)
+                    </h2>
+                    <p className="sales-order-history-subtitle">
+                      {isLoadingHistory ? (
+                        'Đang tra cứu lịch sử mua hàng của đại lý...'
+                      ) : purchaseHistory && purchaseHistory.has_history ? (
+                        <>
+                          Đại lý <strong>{selectedDealer.name}</strong> đã đặt <strong>{purchaseHistory.total_orders_3_months} đơn hàng</strong> trong 3 tháng qua.
+                          {purchaseHistory.last_order && (
+                            <span className="history-last-order-tag">
+                              {' '}• Lần mua gần nhất: <strong>{purchaseHistory.last_order.order_code}</strong> ({purchaseHistory.last_order.created_at})
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <>Đại lý <strong>{selectedDealer.name}</strong> chưa có lịch sử mua hàng trong 3 tháng gần nhất.</>
+                      )}
+                    </p>
+                  </div>
+
+                  {purchaseHistory && purchaseHistory.has_history && (
+                    <div className="sales-order-history-actions">
+                      <button
+                        type="button"
+                        className="sales-order-btn-add-batch"
+                        onClick={handleAddAllPreviousItems}
+                        title="Thêm toàn bộ nhóm hàng đã mua ở đơn gần nhất vào đơn mới"
+                      >
+                        <span>Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới</span>
+                        <span className="batch-count-badge">
+                          {purchaseHistory.last_order_items?.length || purchaseHistory.items.length} món
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {isLoadingHistory && (
+                  <div className="sales-order-history-loading">
+                    <div className="history-loading-spinner" />
+                    <span>Đang tải dữ liệu sản lượng bình quân...</span>
+                  </div>
+                )}
+
+                {!isLoadingHistory && purchaseHistory && purchaseHistory.has_history && (
+                  <div className="sales-order-history-table-wrapper">
+                    <table className="sales-order-history-table">
+                      <thead>
+                        <tr>
+                          <th>Mã SP</th>
+                          <th>Tên mặt hàng</th>
+                          <th>ĐVT</th>
+                          <th style={{ textAlign: 'center' }}>SL bình quân (3 tháng)</th>
+                          <th style={{ textAlign: 'center' }}>SL lần trước</th>
+                          <th style={{ textAlign: 'right' }}>Đơn giá</th>
+                          <th style={{ textAlign: 'center' }}>Hành động</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {purchaseHistory.items.map((item) => (
+                          <tr key={item.product_id} className="history-row">
+                            <td className="history-col-code">
+                              <span className="code-badge">{item.product_code}</span>
+                            </td>
+                            <td className="history-col-name">
+                              <div className="product-name-text">{item.product_name}</div>
+                              {item.last_purchased_date && (
+                                <span className="product-last-date">Mua gần nhất: {item.last_purchased_date}</span>
+                              )}
+                            </td>
+                            <td className="history-col-unit">{item.unit}</td>
+                            <td className="history-col-avg" style={{ textAlign: 'center' }}>
+                              <span className="avg-qty-badge" title={`Tổng ${item.total_quantity} ${item.unit} qua ${item.order_count} đơn hàng`}>
+                                <strong>{item.avg_quantity}</strong> {item.unit}/đơn
+                              </span>
+                            </td>
+                            <td className="history-col-last" style={{ textAlign: 'center' }}>
+                              {item.last_order_quantity > 0 ? (
+                                <span className="last-qty-text">{item.last_order_quantity} {item.unit}</span>
+                              ) : (
+                                <span className="text-muted">—</span>
+                              )}
+                            </td>
+                            <td className="history-col-price" style={{ textAlign: 'right' }}>
+                              {formatCurrency(item.price)}
+                            </td>
+                            <td className="history-col-action" style={{ textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                className="btn-add-single-history"
+                                onClick={() => handleAddHistoryItem(item)}
+                                title={`Thêm ${item.product_name} vào đơn`}
+                              >
+                                + Thêm
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
+
+            <div className="sales-order-card-divider" />
+
+            <h2>Sản phẩm</h2>
+            <div style={{ marginBottom: '16px' }}>
+              <ProductInfiniteSelect
+                token={token}
+                stockMap={stockMap}
+                orderItems={lines.map((l) => ({ productId: l.productId, quantity: l.quantity }))}
+                onSelectProduct={addProduct}
+                disabled={!dealerId}
+                placeholder={
+                  !dealerId
+                    ? 'Vui lòng chọn đại lý trước khi tìm và thêm sản phẩm...'
+                    : 'Bấm vào đây để tìm và chọn sản phẩm thêm vào đơn hàng...'
+                }
+              />
+            </div>
 
             {lines.length === 0 ? (
               <div className="sales-order-empty">Chưa có sản phẩm. Tìm theo mã hoặc tên để thêm hàng.</div>
             ) : (
               <div className="sales-order-lines">
-                {lines.map((line, index) => (
-                  <article className="sales-order-line" key={`${line.productId}-${index}`}>
-                    <div className="sales-order-line-heading">
-                      <div>
-                        <span className="sales-order-product-code">{line.code}</span>
-                        <h3>{line.name}</h3>
-                        <span className="sales-order-unit-price">{formatCurrency(line.price)} / đơn vị</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="sales-order-remove-button"
-                        aria-label={`Xóa ${line.name}`}
-                        onClick={() => setLines((current) => current.filter((_, lineIndex) => lineIndex !== index))}
-                      >
-                        Xóa
-                      </button>
-                    </div>
-                    <div className="sales-order-line-controls">
-                      <label className="sales-order-field">
-                        <span>Đơn vị tính</span>
-                        <select
-                          value={line.unit}
-                          onChange={(event) => {
-                            const product = products.find((item) => item.id === line.productId);
-                            const selectedUnit = getAvailableUnits(product, line.unit)
-                              .find((unit) => unit.unit_name === event.target.value);
-                            if (selectedUnit) {
-                              updateLine(index, {
-                                unit: selectedUnit.unit_name,
-                                conversionRate: selectedUnit.conversion_rate,
-                              });
-                            }
-                          }}
+                {lines.map((line, index) => {
+                  const stockItem = stockMap.get(line.productId);
+                  const convRate = line.conversionRate || 1;
+                  const maxOrderable = stockItem ? Math.max(0, Math.floor(stockItem.available_stock / convRate)) : undefined;
+                  const actualInUnit = stockItem ? Math.floor(stockItem.actual_stock / convRate) : undefined;
+                  const reservedInUnit = stockItem ? Math.floor(stockItem.reserved_stock / convRate) : undefined;
+                  const isExceeded = stockItem !== undefined && maxOrderable !== undefined && line.quantity > maxOrderable;
+
+                  return (
+                    <article className={`sales-order-line ${isExceeded ? 'has-stock-error' : ''}`} key={`${line.productId}-${index}`}>
+                      <div className="sales-order-line-heading">
+                        <div>
+                          <span className="sales-order-product-code">{line.code}</span>
+                          <h3>{line.name}</h3>
+                          <span className="sales-order-unit-price">{formatCurrency(line.price)} / đơn vị</span>
+
+                          {/* AC 1 & AC 2: Hiển thị Tồn khả dụng theo kho của đại lý và công thức Thực tế - Giữ chỗ */}
+                          {selectedDealer && (
+                            <div className="sales-order-stock-info">
+                              {isLoadingStock ? (
+                                <span className="sales-order-stock-badge stock-badge-loading">Đang tải tồn kho...</span>
+                              ) : stockItem ? (
+                                <>
+                                  <span
+                                    className={`sales-order-stock-badge ${isExceeded
+                                      ? 'stock-badge-danger'
+                                      : maxOrderable === 0
+                                        ? 'stock-badge-out'
+                                        : 'stock-badge-ok'
+                                      }`}
+                                    title={`Tồn thực tế: ${actualInUnit} ${line.unit} - Giữ chỗ: ${reservedInUnit} ${line.unit}`}
+                                  >
+                                    Tồn khả dụng: <strong>{maxOrderable}</strong> {line.unit}
+                                  </span>
+                                  <span className="sales-order-stock-detail">
+                                    (Thực tế: {actualInUnit} | Giữ chỗ: {reservedInUnit})
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="sales-order-stock-badge stock-badge-loading">Chưa có dữ liệu kho</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="sales-order-remove-button"
+                          aria-label={`Xóa ${line.name}`}
+                          onClick={() => setLines((current) => current.filter((_, lineIndex) => lineIndex !== index))}
                         >
-                          {getAvailableUnits(
-                            products.find((item) => item.id === line.productId),
-                            line.unit,
-                          ).map((unit) => (
-                            <option key={unit.unit_name} value={unit.unit_name}>{unit.unit_name}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="sales-order-field">
-                        <span>Số lượng</span>
-                        <input
-                          type="number"
-                          min={1}
-                          step={1}
-                          value={line.quantity}
-                          onChange={(event) => updateLine(index, { quantity: Math.max(1, Math.floor(Number(event.target.value) || 1)) })}
-                        />
-                      </label>
-                      <div className="sales-order-line-total">
-                        <span>Thành tiền</span>
-                        <strong>{formatCurrency(line.price * line.quantity)}</strong>
+                          Xóa
+                        </button>
                       </div>
-                    </div>
-                  </article>
-                ))}
+
+                      <div className="sales-order-line-controls">
+                        <label className="sales-order-field">
+                          <span>Đơn vị tính</span>
+                          <select
+                            value={line.unit}
+                            onChange={(event) => {
+                              const product = products.find((item) => item.id === line.productId);
+                              const selectedUnit = getAvailableUnits(product, line.unit)
+                                .find((unit) => unit.unit_name === event.target.value);
+                              if (selectedUnit) {
+                                updateLine(index, {
+                                  unit: selectedUnit.unit_name,
+                                  conversionRate: selectedUnit.conversion_rate,
+                                });
+                              }
+                            }}
+                          >
+                            {getAvailableUnits(
+                              products.find((item) => item.id === line.productId),
+                              line.unit,
+                            ).map((unit) => (
+                              <option key={unit.unit_name} value={unit.unit_name}>{unit.unit_name}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="sales-order-field">
+                          <span>Số lượng</span>
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            className={isExceeded ? 'input-stock-error' : ''}
+                            value={line.rawQuantity !== undefined ? line.rawQuantity : (line.quantity || '')}
+                            onFocus={(event) => event.target.select()}
+                            onChange={(event) => handleQuantityInputChange(index, event.target.value)}
+                            onBlur={() => handleQuantityBlur(index)}
+                            placeholder="1"
+                          />
+                        </label>
+                        <label className="sales-order-field">
+                          <div className="sales-order-field-header">
+                            <span>Đơn giá</span>
+                            {line.floorPrice !== undefined && line.floorPrice > 0 && (
+                              <span className="sales-order-floor-hint" title={`Giá sàn: ${formatCurrency(line.floorPrice)}`}>
+                                Sàn: {formatCurrency(line.floorPrice)}
+                              </span>
+                            )}
+                          </div>
+                          {canEditPrice ? (
+                            <input
+                              type="number"
+                              min={0}
+                              step="any"
+                              className={line.isBelowFloor ? 'input-price-floor-warning' : ''}
+                              value={line.rawPrice !== undefined ? line.rawPrice : line.price}
+                              onFocus={(event) => event.target.select()}
+                              onChange={(event) => handlePriceInputChange(index, event.target.value)}
+                              onBlur={() => handlePriceBlur(index)}
+                              placeholder="0"
+                              title="Nhân viên kinh doanh / Admin có thể sửa đơn giá"
+                            />
+                          ) : (
+                            <input
+                              type="number"
+                              value={line.price}
+                              disabled
+                              readOnly
+                              className="input-price-disabled"
+                              title="Chỉ Sales và Admin được sửa giá dòng hàng"
+                            />
+                          )}
+                        </label>
+                        <div className="sales-order-field sales-order-line-total">
+                          <span>Thành tiền</span>
+                          <div className="sales-order-total-box">
+                            <strong>{formatCurrency(line.lineTotal ?? (line.price * line.quantity))}</strong>
+                          </div>
+                          {line.discountRate !== undefined && line.discountRate > 0 && (
+                            <div className="sales-order-discount-badge" title={`Đã trừ chiết khấu sản lượng ${line.discountRate}%`}>
+                              Giảm {line.discountRate}% {line.discountAmount ? `(-${formatCurrency(line.discountAmount)})` : ''}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* AC3: Cảnh báo giá sàn */}
+                      {!isAdmin && canEditPrice && (line.isBelowFloor || (line.floorPrice && line.floorPrice > 0 && line.price < line.floorPrice)) && (
+                        <div className="sales-order-price-floor-warning">
+                          <span>⚠️</span>
+                          <span>
+                            Sản phẩm <strong>{line.name}</strong> ({line.code}) có đơn giá bán nhỏ hơn giá sàn quy định (<strong>{formatCurrency(line.floorPrice || 0)}</strong>).
+                            Đơn hàng sẽ chuyển sang trạng thái <strong>CHỜ QUẢN LÝ DUYỆT</strong> và phải chờ cấp trên duyệt trước khi được xuất kho!
+                          </span>
+                        </div>
+                      )}
+
+                      {/* AC 3: Cảnh báo vượt tồn khả dụng và nút gợi ý đặt tối đa */}
+                      {isExceeded && maxOrderable !== undefined && (
+                        <div className="sales-order-stock-error">
+                          <span>
+                            Vượt tồn khả dụng tại {stockSummary?.warehouse_name || 'kho'}! Kho chỉ còn tối đa{' '}
+                            <strong>{maxOrderable} {line.unit}</strong>.
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-fill-max"
+                            onClick={() => updateLine(index, { quantity: maxOrderable })}
+                            title="Điều chỉnh số lượng về mức tồn khả dụng tối đa"
+                          >
+                            Đặt tối đa ({maxOrderable} {line.unit})
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -633,20 +1747,74 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
         <aside className="sales-order-sidebar">
           <section className="sales-order-card sales-order-summary">
             <h2>Tổng kết đơn hàng</h2>
+
+            {!isAdmin && canEditPrice && hasBelowFloorLine && (
+              <div className="sales-order-approval-banner">
+                <span style={{ fontSize: '18px' }}>⚠️</span>
+                <div>
+                  <strong>Cảnh báo Giá sàn:</strong> Đơn hàng có dòng sản phẩm bán dưới giá sàn quy định. Khi tạo, đơn sẽ tự động chuyển sang trạng thái <strong>CHỜ QUẢN LÝ DUYỆT</strong> và chờ cấp trên phê duyệt.
+                </div>
+              </div>
+            )}
+
             <div className="sales-order-summary-row">
               <span>Tổng tiền hàng</span><strong>{formatCurrency(subtotal)}</strong>
             </div>
-            <label className="sales-order-discount">
-              <span>Chiết khấu (%)</span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step="0.1"
-                value={discountPercent}
-                onChange={(event) => setDiscountPercent(event.target.value)}
-              />
-            </label>
+            <div className="sales-order-discount-block">
+              <label className="sales-order-discount">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span>Chiết khấu (%)</span>
+                  {canEditPrice && isManualOverride && discountEvaluation.isQualified && (
+                    <button
+                      type="button"
+                      className="sales-order-discount-override-btn"
+                      onClick={() => {
+                        setIsManualOverride(false);
+                        setDiscountPercent(String(discountEvaluation.discountPercent));
+                      }}
+                      title="Khôi phục lại mức chiết khấu tự động từ chính sách"
+                    >
+                      ↺ Theo chính sách ({discountEvaluation.discountPercent}%)
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.1"
+                  disabled={!canEditPrice}
+                  readOnly={!canEditPrice}
+                  className={!canEditPrice ? 'input-price-disabled' : ''}
+                  value={discountPercent}
+                  onChange={(event) => {
+                    if (!canEditPrice) return;
+                    setIsManualOverride(true);
+                    setDiscountPercent(event.target.value);
+                  }}
+                  placeholder="0"
+                />
+              </label>
+
+              {canEditPrice && discountEvaluation.isQualified && (
+                <div
+                  className="sales-order-policy-badge"
+                  title={discountEvaluation.label || 'Chính sách chiết khấu tự động'}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                  <span>{discountEvaluation.label}</span>
+                </div>
+              )}
+
+              {canEditPrice && isManualOverride && safeDiscount > discountEvaluation.discountPercent && (
+                <div className="sales-order-discount-warning">
+                  ⚠️ Chiết khấu bạn nhập ({safeDiscount}%) cao hơn mức chính sách ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý phê duyệt.
+                </div>
+              )}
+            </div>
             <div className="sales-order-summary-row muted">
               <span>Tiền chiết khấu</span><strong>− {formatCurrency(discountAmount)}</strong>
             </div>
@@ -657,9 +1825,29 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
               type="button"
               className="sales-order-primary-button"
               onClick={handleCreateOrder}
-              disabled={isSaving || isLoadingDealers || !!dealerLoadError || dealers.length === 0}
+              disabled={isSaving || isLoadingDealers || !selectedDealer || !dealerId || !!dealerLoadError || dealers.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked}
+              style={isLockedDealer || hasStockErrors || isOverdueBlocked ? { background: '#94a3b8', cursor: 'not-allowed', borderColor: '#94a3b8' } : undefined}
+              title={
+                isOverdueBlocked
+                  ? `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${creditInfo?.max_debt_age} ngày), bị chặn tạo đơn hoàn toàn`
+                  : isLockedDealer
+                    ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng`
+                    : hasStockErrors
+                      ? 'Có sản phẩm vượt quá tồn khả dụng. Vui lòng điều chỉnh lại số lượng trước khi đặt hàng'
+                      : undefined
+              }
             >
-              {isSaving ? 'Đang tạo đơn...' : 'Tạo đơn hàng'}
+              {isOverdueBlocked
+                ? 'Bị chặn do nợ quá hạn'
+                : isLockedDealer
+                  ? 'Đại lý bị khóa (Không thể tạo đơn)'
+                  : hasStockErrors
+                    ? 'Vượt tồn khả dụng (Không thể tạo đơn)'
+                    : isSaving
+                      ? 'Đang tạo đơn...'
+                      : isOverLimit && !isAdmin
+                        ? 'Tạo đơn hàng (Cần duyệt)'
+                        : 'Tạo đơn hàng'}
             </button>
             <button type="button" className="sales-order-secondary-button full" onClick={handleSaveDraft}>
               Lưu nháp
@@ -698,6 +1886,191 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
           </section>
         </aside>
       </div>
+
+      {successCreatedOrder && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9998,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '14px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              maxWidth: '480px',
+              width: '100%',
+              padding: '28px 24px',
+              textAlign: 'center',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                background: '#dcfce7',
+                color: '#16a34a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px auto',
+              }}
+            >
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>
+              Tạo Đơn Hàng Thành Công!
+            </h3>
+            <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#475569', lineHeight: 1.5 }}>
+              Mã đơn: <strong style={{ color: '#0f172a', fontSize: '15px' }}>#{successCreatedOrder.order_code}</strong>
+              <br />
+              Đại lý: <strong>{successCreatedOrder.dealer_name}</strong>
+            </p>
+            <p style={{ margin: '0 0 14px 0', fontSize: '16px', fontWeight: '800', color: '#16a34a' }}>
+              Tổng thanh toán: {formatCurrency(successCreatedOrder.total_amount)}
+            </p>
+
+            {successCreatedOrder.status === 'PENDING_APPROVAL' || successCreatedOrder.requires_approval ? (
+              <div style={{
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                margin: '0 0 20px 0',
+                textAlign: 'left',
+                fontSize: '13px',
+                color: '#92400e',
+                lineHeight: 1.5,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', marginBottom: '4px', color: '#b45309' }}>
+                  <span>⏳ Trạng thái:</span>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    background: '#fef3c7',
+                    border: '1px solid #fcd34d',
+                    color: '#b45309',
+                    fontSize: '12px',
+                  }}>
+                    CHỜ QUẢN LÝ DUYỆT
+                  </span>
+                </div>
+                <div style={{ fontSize: '12.5px', color: '#78350f' }}>
+                  {successCreatedOrder.approval_reason || 'Đơn hàng có sản phẩm bán dưới giá sàn quy định, cần Quản lý kinh doanh phê duyệt trước khi được xuất kho.'}
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '10px',
+                padding: '8px 14px',
+                margin: '0 0 20px 0',
+                textAlign: 'center',
+                fontSize: '13px',
+                color: '#15803d',
+                fontWeight: '600',
+              }}>
+                ✅ Trạng thái: ĐÃ XÁC NHẬN
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setCreatedOrderCodeToPrint(successCreatedOrder.order_code)}
+                style={{
+                  padding: '12px 20px',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9" />
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                  <rect x="6" y="14" width="12" height="8" />
+                </svg>
+                In / Xuất PDF cho Đại Lý Xác Nhận
+              </button>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSuccessCreatedOrder(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    backgroundColor: '#f1f5f9',
+                    color: '#334155',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Tạo đơn khác
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSuccessCreatedOrder(null);
+                    onCreated();
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    backgroundColor: '#0f172a',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Về danh sách đơn
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {createdOrderCodeToPrint && (
+        <OrderPrintModal
+          token={token}
+          orderCode={createdOrderCodeToPrint}
+          onClose={() => setCreatedOrderCodeToPrint(null)}
+        />
+      )}
     </div>
   );
 }
+

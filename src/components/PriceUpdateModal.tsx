@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ProductItem } from '../services/api';
 import { updateProductPriceApi } from '../services/productApi';
 import { ModalPortal } from './ModalPortal';
+import { emitStatusToast } from './StatusToast';
 
 interface PriceUpdateModalProps {
   product: ProductItem | null;
@@ -32,7 +33,15 @@ export const PriceUpdateModal: React.FC<PriceUpdateModalProps> = ({
     'Điều chỉnh giá theo chính sách bán hàng cho đại lý'
   );
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const setError = (msg: string | null) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  };
 
   React.useEffect(() => {
     if (product) {
@@ -89,7 +98,11 @@ export const PriceUpdateModal: React.FC<PriceUpdateModalProps> = ({
       onClose();
     } catch (err: any) {
       setLoading(false);
-      setError(err.message || 'Lỗi cập nhật giá sản phẩm');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: err.message || 'Lỗi cập nhật giá sản phẩm',
+        type: 'error',
+      });
     }
   };
 
@@ -169,20 +182,6 @@ export const PriceUpdateModal: React.FC<PriceUpdateModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
-          {error && (
-            <div style={{
-              background: '#fef2f2',
-              color: '#dc2626',
-              border: '1px solid #fecaca',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              marginBottom: '16px',
-            }}>
-              {error}
-            </div>
-          )}
-
           {/* Giá bán niêm yết */}
           <div style={{ marginBottom: '18px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
@@ -251,7 +250,7 @@ export const PriceUpdateModal: React.FC<PriceUpdateModalProps> = ({
           {isCostVisible && (
             <div style={{ marginBottom: '18px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                Giá vốn nhập kho (VNĐ) <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'normal' }}>(Chỉ Quản lý)</span>
+                Giá vốn nhập kho (VNĐ)
               </label>
               <input
                 type="number"

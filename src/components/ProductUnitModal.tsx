@@ -29,7 +29,15 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
   const [newUnitName, setNewUnitName] = useState('');
   const [newUnitRate, setNewUnitRate] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const setErrorMsg = (msg: string | null) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  };
 
   React.useEffect(() => {
     if (product) {
@@ -123,7 +131,11 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi lưu đơn vị quy đổi');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: err.message || 'Lỗi khi lưu đơn vị quy đổi',
+        type: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -183,22 +195,6 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
             ✕
           </button>
         </div>
-
-        {errorMsg && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: '8px',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              color: '#dc2626',
-              fontSize: '13px',
-              marginBottom: '16px',
-            }}
-          >
-            ⚠️ {errorMsg}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit}>
           {/* Tiêu chí 1.1: Đơn vị tính cơ sở (Base unit) */}

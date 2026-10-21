@@ -1,12 +1,13 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { OrderItem } from '../services/api';
+import { emitStatusToast } from './StatusToast';
 import './orders-view.css';
 
 interface OrderCancelConfirmModalProps {
   order: OrderItem;
   isSubmitting: boolean;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (reason: string) => void;
 }
 
 export default function OrderCancelConfirmModal({
@@ -15,6 +16,8 @@ export default function OrderCancelConfirmModal({
   onCancel,
   onConfirm,
 }: OrderCancelConfirmModalProps) {
+  const [reason, setReason] = useState('');
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !isSubmitting) onCancel();
@@ -22,6 +25,20 @@ export default function OrderCancelConfirmModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSubmitting, onCancel]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = reason.trim();
+    if (!clean) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Vui lòng nhập lý do hủy đơn hàng (* bắt buộc).',
+        type: 'warning',
+      });
+      return;
+    }
+    onConfirm(clean);
+  };
 
   return (
     <div
@@ -36,33 +53,66 @@ export default function OrderCancelConfirmModal({
         aria-modal="true"
         aria-labelledby="order-cancel-title"
         aria-describedby="order-cancel-description"
+        style={{ maxWidth: '500px' }}
       >
-        <div className="orders-confirm-icon" aria-hidden="true">!</div>
-        <h2 id="order-cancel-title">Xác nhận hủy đơn hàng</h2>
+        <h2 id="order-cancel-title" style={{ marginTop: 0 }}>Xác nhận hủy đơn hàng</h2>
         <p id="order-cancel-description">
-          Bạn có chắc chắn muốn hủy đơn <strong>{order.order_code}</strong> không?
+          Bạn có chắc chắn muốn hủy đơn <strong>{order.order_code}</strong> ({order.dealer_name}) không?
         </p>
-        <div className="orders-confirm-note">
-          Đơn hàng sẽ chuyển sang trạng thái “Đã hủy” và vẫn được lưu trong lịch sử hệ thống.
+
+        <div className="orders-confirm-note" style={{ marginBottom: '14px' }}>
+          Đơn hàng sẽ chuyển sang trạng thái &ldquo;Đã hủy&rdquo; và tự động nhả số lượng hàng giữ chỗ về tồn kho khả dụng.
         </div>
-        <div className="orders-confirm-actions">
-          <button
-            type="button"
-            className="orders-back-button"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            Giữ lại đơn
-          </button>
-          <button
-            type="button"
-            className="orders-confirm-delete"
-            onClick={onConfirm}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Đang hủy...' : 'Xác nhận hủy'}
-          </button>
-        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ textAlign: 'left', marginBottom: '16px' }}>
+            <label
+              htmlFor="cancel-reason-input"
+              style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}
+            >
+              Lý do hủy đơn hàng <span style={{ color: '#dc2626' }}>* (Bắt buộc)</span>
+            </label>
+            <textarea
+              id="cancel-reason-input"
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Nhập lý do hủy đơn hàng..."
+              disabled={isSubmitting}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div className="orders-confirm-actions">
+            <button
+              type="button"
+              className="orders-back-button"
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
+              Giữ lại đơn
+            </button>
+            <button
+              type="submit"
+              className="orders-confirm-delete"
+              disabled={isSubmitting || !reason.trim()}
+              style={{
+                opacity: isSubmitting || !reason.trim() ? 0.6 : 1,
+                cursor: isSubmitting || !reason.trim() ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isSubmitting ? 'Đang hủy...' : 'Xác nhận hủy'}
+            </button>
+          </div>
+        </form>
       </section>
     </div>
   );

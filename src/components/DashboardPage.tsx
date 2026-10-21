@@ -1,8 +1,24 @@
-import { useState, useEffect } from 'react';
-import { getProductsApi, ProductItem, User } from '../services/api';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import {
+  getProductsApi,
+  getDiscountPoliciesApi,
+  getLowStockAlertsApi,
+  LowStockAlertSummary,
+  ProductItem,
+  User,
+  ProductFinancialSummary,
+  getCategoryTreeApi,
+  getProductImageUrl,
+} from '../services/api';
+import { StockThresholdModal } from './StockThresholdModal';
+import { StockThresholdManagementView } from './StockThresholdManagementView';
+import { LowStockAlertModal } from './LowStockAlertModal';
+import { LowStockAlertManagementView } from './LowStockAlertManagementView';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
+import { UserBulkImportView } from './UserBulkImportView';
+import { ProductBulkImportView } from './ProductBulkImportView';
 import { CategoryManagementView } from './CategoryManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
 import MoveCategoryModal from './MoveCategoryModal';
@@ -14,21 +30,59 @@ import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
 import { PriceUpdateModal } from './PriceUpdateModal';
 import { ProfileView } from './ProfileView';
+import DiscountPolicyView from './DiscountPolicyView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
 import DealerSearchView from './DealerSearchView';
+import DealerProfileManagementView from './DealerProfileManagementView';
 import DeliveryPointsView from './DeliveryPointsView';
+import DeliveryTrackingView from './DeliveryTrackingView';
+import DeliveryTripDetailView from './DeliveryTripDetailView';
+import CreateDeliveryTripView from './CreateDeliveryTripView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
+import { GoodsReceiptView } from './GoodsReceiptView';
 import { OrderManagementView } from './OrderManagementView';
+import { OrderDetailPage } from './OrderDetailPage';
 import SalesOrderEntry from './SalesOrderEntry';
+import { CreateOrderPage } from './CreateOrderPage';
+import { CreatePriceListPage } from './CreatePriceListPage';
+import { PriceBookDetailPage } from './PriceBookDetailPage';
+import { useLocation } from '../hooks/useLocation';
 import { ProductHistoryView } from './ProductHistoryView';
+import { ProductFormView } from './ProductFormView';
+import WarehouseManagementView from './WarehouseManagementView';
+import { WarehouseStockBookView } from './WarehouseStockBookView';
+import { InventoryTurnoverReportView } from './InventoryTurnoverReportView';
+import { StockAuditManagementView } from './StockAuditManagementView';
+import { StockTransferManagementView } from './StockTransferManagementView';
+import { StockCardView } from './StockCardView';
 import { ModalPortal } from './ModalPortal';
+import { DashboardHeader } from './DashboardHeader';
+import { CustomerDebtView } from './CustomerDebtView';
+import { CustomerPortalView } from './CustomerPortalView';
+import { AgencyDebtInvoiceView } from './AgencyDebtInvoiceView';
+import { DebtAgeingLedgerView } from './DebtAgeingLedgerView';
+import { BatchManagementView } from './BatchManagementView';
+import { DebtAgingReportView } from './DebtAgingReportView';
+import { ExecutiveDashboardView } from './ExecutiveDashboardView';
+import { MultidimensionalSalesReportView } from './MultidimensionalSalesReportView';
+import { SalesTargetManagementView } from './SalesTargetManagementView';
+import WarehousePickingView from './WarehousePickingView';
+import { StockAdjustmentPageView } from './StockAdjustmentPageView';
+import { PaymentCollectionView } from './PaymentCollectionView';
+import { WarehouseDispatchView } from './WarehouseDispatchView';
+import { DeliveryTripsView } from './DeliveryTripsView';
+import { ReturnOrdersManagementView } from './ReturnOrdersManagementView';
+import SalesInvoiceFromDeliveriesView from './SalesInvoiceFromDeliveriesView';
+import { DebtPaymentReconciliationView } from './DebtPaymentReconciliationView';
+import { DebtReconciliationView } from './DebtReconciliationView';
+import { DealerDebtStatementView } from './DealerDebtStatementView';
+import { DebtAdjustmentManagementView } from './DebtAdjustmentManagementView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
-import { DashboardHeader } from './DashboardHeader';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { hasPermission, Permissions } from '../hooks/usePermission';
+import { getOrderPermissionTier, canUserReadOrders } from '../utils/orderPermissions';
 
 interface DashboardProps {
   user: User;
@@ -46,31 +100,55 @@ export default function DashboardPage({
   onTokenUpdated,
   onUserUpdated,
 }: DashboardProps) {
+  void CustomerDebtView;
   // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
   const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
-  const officialRoles = rawRoles.filter((r) => r && r !== 'customer');
+  const officialRoles: string[] = rawRoles.filter(Boolean) as string[];
+  const isCustomer = user.role === 'customer' || Boolean(user.roles && user.roles.includes('customer')) || user.role === 'agent' || Boolean(user.roles && user.roles.includes('agent'));
 
-  // Tài khoản bị khóa màn hình chờ chỉ khi chưa được phân công kho/địa bàn VÀ chưa có vai trò hợp lệ
+  // Tài khoản chưa được phân vai trò hoặc đại lý chưa được kích hoạt/phân công địa bàn
   const isPendingCustomer =
-    officialRoles.length === 0 &&
-    (!user.branch || user.branch === 'Chưa phân công');
+    (!isCustomer && officialRoles.length === 0) ||
+    (isCustomer && (!user.branch || user.branch === 'Chưa phân công'));
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
-  const canReadOrders = hasPermission(user, Permissions.ORDER_READ) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
-  const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
-
+  const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
+  const orderPermTier = getOrderPermissionTier(user);
+  const canReadOrders = canUserReadOrders(user);
+  const canCreateOrders = !isCustomer && orderPermTier === 'FULL_ACCESS' && !isAccountant;
+  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
+  // Chỉ Admin và Quản lý kinh doanh mới thấy và thao tác chức năng chiết khấu
+  const canAccessDiscounts = isAdmin || isSalesManager;
 
   // Quyền quản lý nhà cung cấp
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
   const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
 
-  // Quyền quản lý ngành hàng
-  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
-  const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
+  // Quyền quản lý ngành hàng & sản phẩm
   const canManageCategories = isAdmin || isSalesManager;
+  const canManageProducts = isAdmin || isSalesManager;
   const canAccessPriceBooks = isAdmin || isSalesManager || isAccountant;
-  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
+  const canManagePriceBooks = isAdmin || isSalesManager;
+  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant), Đại lý (customer)
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
-  const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
+  const canViewDealers = isCustomer || officialRoles.some((r) => DEALER_ROLES.includes(r));
+  // Quyền quản lý hồ sơ đại lý: Kế toán công nợ (accountant), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Nhân viên kinh doanh (sales)
+  const canManageDealerProfiles = !isCustomer && Boolean(
+    isAdmin ||
+    isSalesManager ||
+    isAccountant ||
+    user.role === 'sales' ||
+    officialRoles.some((r) => DEALER_ROLES.includes(r))
+  );
+  // Quyền xem Sổ chi tiết công nợ (Kế toán công nợ, Quản trị viên, Quản lý kinh doanh, hoặc Đại lý xem chính mình)
+  const canViewDebtStatement = Boolean(canManageDealerProfiles || isCustomer || isAdmin || isAccountant);
+  // Quyền lập & quản lý chứng từ điều chỉnh giảm trừ công nợ khi trả hàng (Kế toán công nợ, Admin)
+  const canAccessDebtAdjustments = Boolean(isAdmin || isAccountant);
+  // Quyền xem Báo cáo tuổi nợ: Quản trị viên (admin), Quản lý kinh doanh (sales_manager), Kế toán công nợ (accountant)
+  const canAccessDebtAging = !isCustomer && Boolean(isAdmin || isSalesManager || isAccountant);
+  const canAccessExecutiveDashboard = !isCustomer && Boolean(isAdmin || isSalesManager);
+  const canAccessSalesReport = !isCustomer && Boolean(isAdmin || isSalesManager || user.role === 'sales' || officialRoles.includes('sales'));
+  const canAccessSalesTargets = !isCustomer && Boolean(isAdmin || isSalesManager || user.role === 'sales' || officialRoles.includes('sales'));
+  const canAccessDebtReconciliation = !isCustomer && Boolean(isAdmin || isSalesManager || isAccountant);
 
   // Quyền quản lý điểm giao hàng: Chỉ hiển thị với 3 vai trò admin, sales, sales_manager
   const DELIVERY_ROLES = ['admin', 'sales_manager', 'sales'];
@@ -81,44 +159,373 @@ export default function DashboardPage({
     officialRoles.some((r) => DELIVERY_ROLES.includes(r))
   );
 
+  // Quyền theo dõi hàng đang giao (SCRUM-84): Quản lý kho, Admin, Thủ kho, Quản lý kinh doanh
+  const canAccessDeliveryTracking = Boolean(
+    isAdmin ||
+    user.role === 'warehouse_manager' ||
+    user.role === 'warehouse_mgr' ||
+    officialRoles.includes('warehouse_manager') ||
+    officialRoles.includes('warehouse_mgr') ||
+    user.role === 'warehouse' ||
+    officialRoles.includes('warehouse') ||
+    isSalesManager
+  );
+
+  // Quyền thu tiền theo tuyến & đối chiếu quỹ: admin, accountant, sales_manager, sales
+  const canAccessPaymentCollections = !isCustomer && Boolean(
+    isAdmin ||
+    isAccountant ||
+    isSalesManager ||
+    user.role === 'sales' ||
+    officialRoles.includes('sales')
+  );
+
+  // Quyền thu tiền & đối trừ công nợ đại lý (S7-02): admin, accountant, sales_manager
+  const canAccessDebtPayments = !isCustomer && Boolean(
+    isAdmin ||
+    isAccountant ||
+    isSalesManager
+  );
+
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
 
-  // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
-  const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
+  // Quyền Cấu hình ĐVT quy đổi (Quản trị hệ thống, Quản lý kho và Thủ kho)
+  const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager', 'warehouse', 'warehouse_mgr'].includes(r));
 
+  // Quyền Cấu hình Định mức tồn tối thiểu (Chỉ Quản trị hệ thống và Quản lý kho, Thủ kho không có quyền)
+  const canManageThreshold = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
   // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho, Lịch sử)
   const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
 
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers, /orders, /delivery-points, /price-books, /product-history)
+  // Quyền truy cập kiểm kê kho (Quản trị hệ thống, Quản lý kho, Thủ kho)
+  const canAccessStockAudit = Boolean(
+    isAdmin ||
+    officialRoles.includes('warehouse_manager') ||
+    user.role === 'warehouse_manager' ||
+    officialRoles.includes('warehouse') ||
+    user.role === 'warehouse'
+  );
+
+  // Quyền truy cập chuyển kho nội bộ (Quản trị hệ thống, Quản lý kho, Thủ kho)
+  const canAccessStockTransfer = Boolean(
+    isAdmin ||
+    officialRoles.includes('warehouse_manager') ||
+    user.role === 'warehouse_manager' ||
+    officialRoles.includes('warehouse') ||
+    user.role === 'warehouse'
+  );
+
+  // Quyền truy cập Danh sách kho & Vị trí: Nhân viên kinh doanh không được xem chức năng này
+  const isSalesPerson = Boolean(
+    user.role === 'sales' ||
+    user.role === 'sales_manager' ||
+    officialRoles.includes('sales') ||
+    officialRoles.includes('sales_manager')
+  );
+  const canAccessWarehouses = !isCustomer && !isSalesPerson && Boolean(
+    isAdmin ||
+    canWriteInventory ||
+    user.role === 'warehouse_manager' ||
+    user.role === 'warehouse' ||
+    officialRoles.includes('warehouse_manager') ||
+    officialRoles.includes('warehouse') ||
+    user.role === 'accountant' ||
+    officialRoles.includes('accountant')
+  );
+
+  // Quyền truy cập Thẻ kho (S5-04: Thủ kho, Quản lý kho, Quản trị hệ thống, Kế toán)
+  const canAccessStockCard = Boolean(
+    isAdmin ||
+    (!isCustomer && !isSalesPerson && (
+      isAccountant ||
+      user.role === 'warehouse' ||
+      user.role === 'warehouse_manager' ||
+      officialRoles.includes('warehouse') ||
+      officialRoles.includes('warehouse_manager')
+    )) ||
+    (!isCustomer && isAccountant)
+  );
+
+  // Quyền truy cập các phân hệ kho vận (Chỉ Admin, Quản lý kho, Thủ kho): Soạn hàng & Theo dõi Lô
+  const isWarehouseOrAdmin = Boolean(
+    isAdmin ||
+    user.role === 'warehouse' ||
+    user.role === 'warehouse_manager' ||
+    officialRoles.includes('warehouse') ||
+    officialRoles.includes('warehouse_manager')
+  );
+
+  // Quyền truy cập phân hệ Điều chỉnh tồn kho: Admin, Quản lý kho và Thủ kho. Ẩn hoàn toàn với các vai trò khác (sales, sales_manager, accountant, etc.)
+  const canAccessStockAdjustments = Boolean(
+    isAdmin ||
+    user.role === 'warehouse' ||
+    user.role === 'warehouse_manager' ||
+    user.role === 'warehouse_mgr' ||
+    officialRoles.includes('warehouse') ||
+    officialRoles.includes('warehouse_manager') ||
+    officialRoles.includes('warehouse_mgr')
+  );
+
+  // Quyền truy cập Báo cáo Tồn kho & Vòng quay hàng hóa: CHỈ Quản lý kho và Quản trị hệ thống (admin). Ẩn hoàn toàn với các vai trò khác.
+  const canAccessInventoryTurnover = Boolean(
+    isAdmin ||
+    user.role === 'warehouse_manager' ||
+    user.role === 'warehouse_mgr' ||
+    officialRoles.includes('warehouse_manager') ||
+    officialRoles.includes('warehouse_mgr')
+  );
+
+  // Quyền xuất hóa đơn bán hàng từ phiếu giao hàng: Quản trị viên, Kế toán, Quản lý kinh doanh
+  const canAccessSalesInvoices = !isCustomer && Boolean(isAdmin || isAccountant || isSalesManager);
+
+  // 2. Khởi tạo State với Clean URL
+  const location = useLocation();
+  const currentPath = location.pathname.toLowerCase();
+  const isOrdersCreateSubpage = currentPath === '/orders/create' || currentPath.startsWith('/orders/create');
+  const isStockTransferCreateSubpage = currentPath === '/stock-transfers/create' || currentPath.startsWith('/stock-transfers/create');
+  const isBatchesCreateSubpage = currentPath === '/batches/create' || currentPath.startsWith('/batches/create');
+  const isPaymentCollectionsSubpage = currentPath.startsWith('/payment-collections/') && currentPath !== '/payment-collections';
+  const isOrderDetailSubpage =
+    currentPath.startsWith('/orders/') &&
+    !isOrdersCreateSubpage &&
+    currentPath !== '/orders';
+  const isPriceListsCreateSubpage =
+    currentPath === '/price-lists/create' ||
+    currentPath.startsWith('/price-lists/create') ||
+    currentPath === '/price-books/create' ||
+    currentPath.startsWith('/price-books/create');
+  const isPriceBookEditSubpage =
+    (currentPath.startsWith('/price-books/') || currentPath.startsWith('/price-lists/')) &&
+    currentPath.endsWith('/edit');
+  const isPriceBookDetailSubpage =
+    (currentPath.startsWith('/price-books/') || currentPath.startsWith('/price-lists/')) &&
+    !isPriceListsCreateSubpage &&
+    !isPriceBookEditSubpage &&
+    currentPath !== '/price-books' &&
+    currentPath !== '/price-lists';
+  const isDeliveryTrackingCreateSubpage =
+    currentPath === '/delivery-tracking/create' ||
+    currentPath.startsWith('/delivery-tracking/create');
+  const isDeliveryTrackingDetailSubpage =
+    currentPath.startsWith('/delivery-tracking/') &&
+    !isDeliveryTrackingCreateSubpage &&
+    currentPath !== '/delivery-tracking';
+
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
-    const isPriceBooksPath = pathname === '/price-books';
-    const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
+    const isOrdersCreatePath = pathname === '/orders/create' || pathname.startsWith('/orders/create');
+    const isOrdersDetailPath = pathname.startsWith('/orders/') && !isOrdersCreatePath && pathname !== '/orders';
+    const isPriceListsCreatePath =
+      pathname === '/price-lists/create' ||
+      pathname.startsWith('/price-lists/create') ||
+      pathname === '/price-books/create' ||
+      pathname.startsWith('/price-books/create');
+    const isProductsImportPath = pathname === '/products/import' || pathname.startsWith('/products/import') || pathname === '/inventory/import' || pathname.startsWith('/inventory/import');
+    const isPriceBooksPath =
+      isPriceListsCreatePath ||
+      pathname === '/price-books' ||
+      pathname.startsWith('/price-books') ||
+      pathname === '/price-lists' ||
+      pathname.startsWith('/price-lists');
+    const isUsersImportPath = pathname === '/users/import' || pathname.startsWith('/users/import');
+    const isUsersPath = !isUsersImportPath && (pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/'));
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
     const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+    const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
+    const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
+    const isAgencyDebtsPath = pathname === '/agency-debts' || pathname.startsWith('/agency-debts/');
+    const isDebtLedgerPath = pathname === '/debt-ledger' || pathname.startsWith('/debt-ledger/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
+    const isDeliveryTrackingPath = pathname === '/delivery-tracking' || pathname.startsWith('/delivery-tracking');
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
+    const isWarehousesPath = pathname === '/warehouses' || pathname.startsWith('/warehouses/');
+    const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
+    const isStockCardPath = pathname === '/stock-card' || pathname.startsWith('/stock-card/');
+    const isInventoryTurnoverPath = pathname === '/inventory-turnover' || pathname.startsWith('/inventory-turnover/');
+    const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
+    const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
+    const isBatchesPath = pathname === '/batches' || pathname.startsWith('/batches/');
+    const isPickingPath = pathname === '/picking' || pathname.startsWith('/picking/') || pathname === '/warehouse-picking' || pathname.startsWith('/warehouse-picking/');
+    const isWarehouseDispatchPath = pathname === '/warehouse/dispatch' || pathname.startsWith('/warehouse/dispatch') || pathname === '/warehouse/supplementary-deliveries' || pathname === '/warehouse/dispatch-history' || pathname === '/warehouse-dispatch';
+    const isDeliveryTripsPath = pathname === '/delivery-trips' || pathname.startsWith('/delivery-trips/') || pathname === '/warehouse/delivery-trips' || pathname.startsWith('/warehouse/delivery-trips');
+    const isStockThresholdsPath = pathname === '/stock-thresholds' || pathname.startsWith('/stock-thresholds/');
+    const isLowStockAlertsPath = pathname === '/low-stock-alerts' || pathname.startsWith('/low-stock-alerts/');
+    const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
+    const isDebtAgingPath = pathname === '/debt-aging' || pathname.startsWith('/debt-aging/');
+    const isExecutiveDashboardPath = pathname === '/executive-dashboard' || pathname.startsWith('/executive-dashboard');
+    const isSalesReportPath = pathname === '/sales-report' || pathname.startsWith('/sales-report');
+    const isSalesTargetsPath = pathname === '/sales-targets' || pathname.startsWith('/sales-targets');
+    const isStockAdjustmentsPath = pathname === '/stock-adjustments' || pathname.startsWith('/stock-adjustments/');
+    const isPaymentCollectionsPath = pathname === '/payment-collections' || pathname.startsWith('/payment-collections/');
+    const isDebtPaymentsPath = pathname === '/debt-payments' || pathname.startsWith('/debt-payments/');
+    const isDebtReconciliationPath = pathname === '/debt-reconciliation' || pathname.startsWith('/debt-reconciliation');
+    const isSalesInvoicesPath = pathname === '/sales-invoices' || pathname.startsWith('/sales-invoices/');
+    const isDebtAdjustmentsPath = pathname === '/debt-adjustments' || pathname.startsWith('/debt-adjustments/');
+    const isDebtStatementPath = pathname === '/debt-statement' || pathname.startsWith('/debt-statement/');
 
-    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers, ?tab=orders, ?tab=delivery-points)
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+    if (isDeliveryTripsPath || oldTabVal === 'delivery-trips' || oldTabVal === 'trips') {
+      if (hasOldTabParam || (pathname !== '/delivery-trips' && pathname !== '/warehouse/delivery-trips')) {
+        try { window.history.replaceState({}, '', '/delivery-trips'); } catch { }
+      }
+      return 'delivery-trips';
+    }
+    if (isWarehouseDispatchPath || oldTabVal === 'warehouse-dispatch' || oldTabVal === 'dispatch') {
+      if (hasOldTabParam || (pathname !== '/warehouse/dispatch' && pathname !== '/warehouse-dispatch')) {
+        try { window.history.replaceState({}, '', '/warehouse/dispatch'); } catch { }
+      }
+      return 'warehouse-dispatch';
+    }
+
+    if (isPickingPath || oldTabVal === 'picking' || oldTabVal === 'warehouse-picking') {
+      if (hasOldTabParam || (pathname !== '/picking' && pathname !== '/warehouse-picking')) {
+        try { window.history.replaceState({}, '', '/picking'); } catch { }
+      }
+      return 'picking';
+    }
+
+    if (isBatchesPath || oldTabVal === 'batches' || oldTabVal === 'batch') {
+      if (hasOldTabParam || (pathname !== '/batches' && !pathname.startsWith('/batches/create'))) {
+        try { window.history.replaceState({}, '', pathname.startsWith('/batches/create') ? '/batches/create' : '/batches'); } catch { }
+      }
+      return 'batches';
+    }
+
+    if (isLowStockAlertsPath || oldTabVal === 'low-stock-alerts' || oldTabVal === 'low-stock-alert') {
+      if (hasOldTabParam || pathname !== '/low-stock-alerts') {
+        try { window.history.replaceState({}, '', '/low-stock-alerts'); } catch { }
+      }
+      return 'low-stock-alerts';
+    }
+
+    if (isStockThresholdsPath || oldTabVal === 'stock-thresholds') {
+      if (hasOldTabParam || pathname !== '/stock-thresholds') {
+        try { window.history.replaceState({}, '', '/stock-thresholds'); } catch { }
+      }
+      return 'stock-thresholds';
+    }
+
+    if (isGoodsReceiptPath || oldTabVal === 'goods-receipt') {
+      if (hasOldTabParam || pathname !== '/goods-receipt') {
+        try { window.history.replaceState({}, '', '/goods-receipt'); } catch { }
+      }
+      return 'goods-receipt';
+    }
+
+    if (isProductsImportPath || oldTabVal === 'products-import') {
+      if (hasOldTabParam || pathname !== '/products/import') {
+        try { window.history.replaceState({}, '', '/products/import'); } catch { }
+      }
+      return 'products-import';
+    }
+
+    if (isWarehousesPath || oldTabVal === 'warehouses') {
+      if (pathname !== '/warehouses' || hasOldTabParam) {
+        try { window.history.replaceState({}, '', '/warehouses'); } catch { }
+      }
+      return 'warehouses';
+    }
+
+    if (isStockCardPath || oldTabVal === 'stock-card') {
+      return 'stock-card';
+    }
+
+    if (isStockBookPath || oldTabVal === 'stock-book') {
+      if (hasOldTabParam || pathname !== '/stock-book') {
+        try { window.history.replaceState({}, '', '/stock-book'); } catch { }
+      }
+      return 'stock-book';
+    }
+
+    if (isInventoryTurnoverPath || oldTabVal === 'inventory-turnover') {
+      if (hasOldTabParam || pathname !== '/inventory-turnover') {
+        try { window.history.replaceState({}, '', '/inventory-turnover'); } catch { }
+      }
+      return 'inventory-turnover';
+    }
+
+    if (isStockTransfersPath || oldTabVal === 'stock-transfers' || oldTabVal === 'stock-transfer') {
+      if (hasOldTabParam || (pathname !== '/stock-transfers' && !pathname.startsWith('/stock-transfers/create'))) {
+        try { window.history.replaceState({}, '', '/stock-transfers'); } catch { }
+      }
+      return 'stock-transfers';
+    }
+
+    if (isStockAuditsPath || oldTabVal === 'stock-audits' || oldTabVal === 'stock-audit') {
+      if (pathname !== '/stock-audits' || hasOldTabParam) {
+        try { window.history.replaceState({}, '', '/stock-audits'); } catch { }
+      }
+      return 'stock-audits';
+    }
+
+    if (isSalesInvoicesPath || oldTabVal === 'sales-invoices' || oldTabVal === 'sales-invoice') {
+      if (canAccessSalesInvoices) {
+        if (pathname !== '/sales-invoices' || hasOldTabParam) {
+          try { window.history.replaceState({}, '', '/sales-invoices'); } catch { }
+        }
+        return 'sales-invoices';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
+    }
+
+    if (isDebtAdjustmentsPath || oldTabVal === 'debt-adjustments') {
+      if (canAccessDebtAdjustments) {
+        if (hasOldTabParam || pathname !== '/debt-adjustments') {
+          try { window.history.replaceState({}, '', '/debt-adjustments'); } catch { }
+        }
+        return 'debt-adjustments';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
+    }
+
+    if (isDebtStatementPath || oldTabVal === 'debt-statement') {
+      if (hasOldTabParam || pathname !== '/debt-statement') {
+        try { window.history.replaceState({}, '', '/debt-statement'); } catch { }
+      }
+      return 'debt-statement';
+    }
+
+    if (isStockAdjustmentsPath || oldTabVal === 'stock-adjustments' || oldTabVal === 'stock-adjustment') {
+      if (pathname !== '/stock-adjustments' || hasOldTabParam) {
+        try { window.history.replaceState({}, '', '/stock-adjustments'); } catch { }
+      }
+      return 'stock-adjustments';
+    }
+
+    if (isPaymentCollectionsPath || oldTabVal === 'payment-collections') {
+      if (!pathname.startsWith('/payment-collections') || hasOldTabParam) {
+        try { window.history.replaceState({}, '', '/payment-collections'); } catch { }
+      }
+      return 'payment-collections';
+    }
+
+    if (isDiscountsPath || oldTabVal === 'discounts' || oldTabVal === 'discount') {
+      if (pathname !== '/discounts' || hasOldTabParam) {
+        try { window.history.replaceState({}, '', '/discounts'); } catch { }
+      }
+      return 'discounts';
+    }
 
     if (isProductHistoryPath || oldTabVal === 'product-history') {
       return 'product-history';
     }
 
     if (isCreateOrderPath || oldTabVal === 'create-order') {
+      if (hasOldTabParam || pathname !== '/create-order') {
+        try { window.history.replaceState({}, '', '/create-order'); } catch { }
+      }
       return 'create-order';
-    }
-    if (isOrdersPath || oldTabVal === 'orders') {
-      return 'orders';
     }
     if (isPriceBooksPath) {
       return 'price-books';
@@ -126,10 +533,14 @@ export default function DashboardPage({
     if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
       return 'suppliers';
     }
+    if (isOrdersCreatePath) {
+      return 'orders';
+    }
     if (isOrdersPath || oldTabVal === 'orders') {
-      if (canReadOrders) return 'orders';
-      window.history.replaceState({}, '', '/');
-      return 'inventory';
+      if (hasOldTabParam || (pathname !== '/orders' && !isOrdersCreatePath && !isOrdersDetailPath)) {
+        try { window.history.replaceState({}, '', '/orders'); } catch { }
+      }
+      return 'orders';
     }
     if (isDeliveryPointsPath || oldTabVal === 'delivery-points') {
       if (hasOldTabParam || pathname !== '/delivery-points') {
@@ -140,6 +551,68 @@ export default function DashboardPage({
         }
       }
       return 'delivery-points';
+    }
+    if (isDeliveryTrackingPath || oldTabVal === 'delivery-tracking' || oldTabVal === 'in-transit') {
+      if (hasOldTabParam || (!pathname.startsWith('/delivery-tracking') && pathname !== '/delivery-tracking')) {
+        try {
+          window.history.replaceState({}, '', pathname.startsWith('/delivery-tracking') ? pathname : '/delivery-tracking');
+        } catch {
+          // ignore
+        }
+      }
+      return 'delivery-tracking';
+    }
+    if (isDealerProfilesPath || oldTabVal === 'dealer-profiles') {
+      if (hasOldTabParam || pathname !== '/dealer-profiles') {
+        try { window.history.replaceState({}, '', '/dealer-profiles'); } catch { }
+      }
+      return 'dealer-profiles';
+    }
+    if (isDebtAgingPath || oldTabVal === 'debt-aging') {
+      try { window.history.replaceState({}, '', '/debt-ledger'); } catch {}
+      return 'debt-ledger';
+    }
+    if (isExecutiveDashboardPath || oldTabVal === 'executive-dashboard') {
+      if (hasOldTabParam || pathname !== '/executive-dashboard') {
+        try { window.history.replaceState({}, '', '/executive-dashboard'); } catch {}
+      }
+      return 'executive-dashboard';
+    }
+    if (isSalesReportPath || oldTabVal === 'sales-report') {
+      if (hasOldTabParam || pathname !== '/sales-report') {
+        try { window.history.replaceState({}, '', '/sales-report'); } catch {}
+      }
+      return 'sales-report';
+    }
+    if (isSalesTargetsPath || oldTabVal === 'sales-targets' || oldTabVal === 'sales_targets') {
+      if (hasOldTabParam || pathname !== '/sales-targets') {
+        try { window.history.replaceState({}, '', '/sales-targets'); } catch {}
+      }
+      return 'sales-targets';
+    }
+    if (isAgencyDebtsPath || oldTabVal === 'agency-debts') {
+      if (hasOldTabParam || pathname !== '/agency-debts') {
+        try { window.history.replaceState({}, '', '/agency-debts'); } catch { }
+      }
+      return 'agency-debts';
+    }
+    if (isDebtLedgerPath || oldTabVal === 'debt-ledger') {
+      if (hasOldTabParam || pathname !== '/debt-ledger') {
+        try { window.history.replaceState({}, '', '/debt-ledger'); } catch { }
+      }
+      return 'debt-ledger';
+    }
+    if (isDebtPaymentsPath || oldTabVal === 'debt-payments') {
+      if (hasOldTabParam || pathname !== '/debt-payments') {
+        try { window.history.replaceState({}, '', '/debt-payments'); } catch { }
+      }
+      return 'debt-payments';
+    }
+    if (isDebtReconciliationPath || oldTabVal === 'debt-reconciliation') {
+      if (hasOldTabParam || pathname !== '/debt-reconciliation') {
+        try { window.history.replaceState({}, '', '/debt-reconciliation'); } catch { }
+      }
+      return 'debt-reconciliation';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -169,6 +642,15 @@ export default function DashboardPage({
         }
       }
       return 'audit-logs';
+    } else if (isUsersImportPath || oldTabVal === 'users-import') {
+      if (hasOldTabParam || pathname !== '/users/import') {
+        try {
+          window.history.replaceState({}, '', '/users/import');
+        } catch {
+          // ignore
+        }
+      }
+      return 'users-import';
     } else if (isUsersPath || hasOldTabParam) {
       if (hasOldTabParam || pathname !== '/users') {
         try {
@@ -180,19 +662,21 @@ export default function DashboardPage({
       return 'users';
     }
     if (isCategoriesPath) {
-      if (canManageCategories) {
-        return 'categories';
-      }
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-      return 'users';
+      return 'categories';
     }
     return 'inventory';
   });
+  const [reminderInvoiceCode, setReminderInvoiceCode] = useState<string | null>(null);
+  const handleReminderInvoiceOpened = useCallback(() => {
+    setReminderInvoiceCode(null);
+  }, []);
+  // 3. Chuyển đổi Route Clean URL
   const setActiveTab = (tab: TabType) => {
+    // Luôn đóng màn hình Thêm/Sửa sản phẩm khi chuyển sang bất kỳ tab/nhánh nào
+    if (tab !== 'add-product') {
+      setProductDrawerState({ isOpen: false, product: null });
+    }
+
     if (tab === 'product-history') {
       setActiveTabState('product-history');
       try {
@@ -207,6 +691,96 @@ export default function DashboardPage({
       }
       return;
     }
+    if (tab === 'add-product') {
+      setActiveTabState('inventory');
+      setProductDrawerState({ isOpen: true, product: null });
+      try {
+        window.history.pushState({}, '', '/add-product');
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    if (tab === 'goods-receipt') {
+      setActiveTabState('goods-receipt');
+      try {
+        window.history.pushState({}, '', '/goods-receipt');
+      } catch { }
+      return;
+    }
+
+    if (tab === 'stock-transfers') {
+      setActiveTabState('stock-transfers');
+      try {
+        window.history.pushState({}, '', '/stock-transfers');
+      } catch { }
+      return;
+    }
+
+    if (tab === 'batches') {
+      setActiveTabState('batches');
+      try {
+        window.history.pushState({}, '', '/batches');
+      } catch { }
+      return;
+    }
+
+    if (tab === 'picking') {
+      setActiveTabState('picking');
+      try {
+        window.history.pushState({}, '', '/picking');
+      } catch { }
+      return;
+    }
+
+    if (tab === 'stock-audits') {
+      setActiveTabState('stock-audits');
+      try {
+        window.history.pushState({}, '', '/stock-audits');
+      } catch { }
+      return;
+    }
+
+    if (tab === 'stock-adjustments') {
+      setActiveTabState('stock-adjustments');
+      try {
+        window.history.pushState({}, '', '/stock-adjustments');
+      } catch { }
+      return;
+    }
+
+    if (tab === 'payment-collections') {
+      setActiveTabState('payment-collections');
+      try {
+        window.history.pushState({}, '', '/payment-collections');
+      } catch { }
+      return;
+    }
+
+    if (tab === 'debt-reconciliation') {
+      setActiveTabState('debt-reconciliation');
+      try {
+        window.history.pushState({}, '', '/debt-reconciliation');
+      } catch { }
+      return;
+    }
+
+    if (tab === 'stock-thresholds') {
+      setActiveTabState('stock-thresholds');
+      try {
+        window.history.pushState({}, '', '/stock-thresholds');
+      } catch { }
+      return;
+    }
+
+    if (tab === 'low-stock-alerts') {
+      setActiveTabState('low-stock-alerts');
+      try {
+        window.history.pushState({}, '', '/low-stock-alerts');
+      } catch { }
+      return;
+    }
 
     if (tab === 'create-order') {
       setActiveTabState('create-order');
@@ -218,16 +792,54 @@ export default function DashboardPage({
       return;
     }
 
-    if (tab === 'orders' && !canReadOrders) {
-      setActiveTabState('inventory');
-      window.history.replaceState({}, '', '/');
+    if (tab === 'warehouses') {
+      setActiveTabState('warehouses');
+      try {
+        window.history.pushState({}, '', '/warehouses');
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    if (tab === 'stock-card') {
+      setActiveTabState('stock-card');
+      return;
+    }
+
+    if (tab === 'stock-book') {
+      setActiveTabState('stock-book');
+      try {
+        window.history.pushState({}, '', '/stock-book');
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    if (tab === 'inventory-turnover') {
+      setActiveTabState('inventory-turnover');
+      try {
+        window.history.pushState({}, '', '/inventory-turnover');
+      } catch {
+        // ignore
+      }
       return;
     }
 
     if (tab === 'orders') {
+      setSelectedOrderCodeForDetail(null);
+      setOrderSearchCode('');
       setActiveTabState('orders');
       try {
         window.history.pushState({}, '', '/orders');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'return-orders') {
+      setActiveTabState('return-orders');
+      try {
+        window.history.pushState({}, '', '/return-orders');
       } catch {
         // ignore
       }
@@ -239,47 +851,84 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'delivery-points') {
-      if (!canManageDeliveryPoints) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('delivery-points');
       try {
         window.history.pushState({}, '', '/delivery-points');
       } catch {
         // ignore
       }
-    } else if (tab === 'dealers') {
-      if (!canViewDealers) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
+    } else if (tab === 'delivery-tracking') {
+      setActiveTabState('delivery-tracking');
+      try {
+        window.history.pushState({}, '', '/delivery-tracking');
+      } catch {
+        // ignore
       }
+    } else if (tab === 'dealer-profiles') {
+      setActiveTabState('dealer-profiles');
+      try {
+        window.history.pushState({}, '', '/dealer-profiles');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'debt-aging') {
+      setActiveTabState('debt-ledger');
+      try {
+        window.history.pushState({}, '', '/debt-ledger');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'executive-dashboard') {
+      setActiveTabState('executive-dashboard');
+      try {
+        window.history.pushState({}, '', '/executive-dashboard');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'sales-report') {
+      setActiveTabState('sales-report');
+      try {
+        window.history.pushState({}, '', '/sales-report');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'sales-targets') {
+      setActiveTabState('sales-targets');
+      try {
+        window.history.pushState({}, '', '/sales-targets');
+      } catch {
+        // ignore
+      }
+      return;
+    } else if (tab === 'debt-ledger') {
+      setActiveTabState('debt-ledger');
+      try {
+        window.history.pushState({}, '', '/debt-ledger');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'products-import') {
+      setActiveTabState('products-import');
+      try {
+        window.history.pushState({}, '', '/products/import');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'dealers') {
       setActiveTabState('dealers');
       try {
         window.history.pushState({}, '', '/dealers');
       } catch {
         // ignore
       }
-    } else if (tab === 'users') {
-      if (!isAdmin) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
+    } else if (tab === 'users-import') {
+      setActiveTabState('users-import');
+      try {
+        window.history.pushState({}, '', '/users/import');
+      } catch {
+        // ignore
       }
+    } else if (tab === 'users') {
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -287,15 +936,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'categories') {
-      if (!canManageCategories) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('categories');
       try {
         window.history.pushState({}, '', '/categories');
@@ -313,11 +953,78 @@ export default function DashboardPage({
       setActiveTabState('price-books');
       try {
         window.history.pushState({}, '', '/price-books');
-      } catch {}
+      } catch { }
     } else if (tab === 'suppliers') {
       setActiveTabState('suppliers');
       try {
         window.history.pushState({}, '', '/suppliers');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'discounts') {
+      setActiveTabState('discounts');
+      try {
+        window.history.pushState({}, '', '/discounts');
+      } catch {
+        // ignore
+      }
+
+    } else if (tab === 'warehouse-dispatch') {
+      setActiveTabState('warehouse-dispatch');
+      try {
+        window.history.pushState({}, '', '/warehouse/dispatch');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'delivery-trips') {
+      setActiveTabState('delivery-trips');
+      try {
+        window.history.pushState({}, '', '/delivery-trips');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'sales-invoices') {
+      if (!canAccessSalesInvoices) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch { }
+        return;
+      }
+      setActiveTabState('sales-invoices');
+      try {
+        window.history.pushState({}, '', '/sales-invoices');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'agency-debts') {
+      setActiveTabState('agency-debts');
+      try {
+        window.history.pushState({}, '', '/agency-debts');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'debt-payments') {
+      setActiveTabState('debt-payments');
+      try {
+        window.history.pushState({}, '', '/debt-payments');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'debt-adjustments') {
+      if (!canAccessDebtAdjustments) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch { }
+        return;
+      }
+      setActiveTabState('debt-adjustments');
+      try {
+        window.history.pushState({}, '', '/debt-adjustments');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'debt-statement') {
+      setActiveTabState('debt-statement');
+      try {
+        window.history.pushState({}, '', '/debt-statement');
       } catch {
         // ignore
       }
@@ -329,50 +1036,188 @@ export default function DashboardPage({
   };
 
   useEffect(() => {
-    const tabRequiresAdmin = activeTab === 'users' || activeTab === 'audit-logs';
-    const isAllowed =
-      tabRequiresAdmin ? isAdmin
-        : activeTab === 'categories' ? canManageCategories
-          : activeTab === 'orders' ? canReadOrders
-            : activeTab === 'create-order' ? canCreateOrders
-              : activeTab === 'suppliers' ? canManageSuppliers
-                : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
-                  : true;
-    if (!isAllowed) {
-      setActiveTabState('inventory');
-      window.history.replaceState({}, '', '/');
-    }
-    if (activeTab === 'dealers' && !canViewDealers) {
-      setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    }
-    if (activeTab === 'delivery-points' && !canManageDeliveryPoints) {
-      setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    }
-  }, [activeTab, canManageCategories, canViewDealers, canManageDeliveryPoints, user.username]);
-
-  useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
-      const isPriceBooksPath = pathname === '/price-books';
+      const isPriceListsCreatePath =
+        pathname === '/price-lists/create' ||
+        pathname.startsWith('/price-lists/create') ||
+        pathname === '/price-books/create' ||
+        pathname.startsWith('/price-books/create');
+      const isPriceBooksPath =
+        isPriceListsCreatePath ||
+        pathname === '/price-books' ||
+        pathname.startsWith('/price-books') ||
+        pathname === '/price-lists' ||
+        pathname.startsWith('/price-lists');
       const params = new URLSearchParams(window.location.search);
-
-      const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
-      const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
-      const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
-      const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
+      const isAddProduct = pathname === '/add-product' || pathname.startsWith('/add-product/') || tabParam === 'add-product';
+      if (isAddProduct) {
+        if (tabParam) {
+          try { window.history.replaceState({}, '', '/add-product'); } catch { }
+        }
+        setActiveTabState('inventory');
+        setProductDrawerState((prev) => ({ isOpen: true, product: prev.product ?? null }));
+        return;
+      }
+      setProductDrawerState({ isOpen: false, product: null });
+
+      const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
+      if (isGoodsReceiptPath || tabParam === 'goods-receipt') {
+        if (pathname !== '/goods-receipt' || tabParam) {
+          try { window.history.replaceState({}, '', '/goods-receipt'); } catch { }
+        }
+        setActiveTabState('goods-receipt');
+        return;
+      }
+
+      const isStockThresholdsPath = pathname === '/stock-thresholds' || pathname.startsWith('/stock-thresholds/');
+      const isLowStockAlertsPath = pathname === '/low-stock-alerts' || pathname.startsWith('/low-stock-alerts/');
+
+      if (isLowStockAlertsPath || tabParam === 'low-stock-alerts' || tabParam === 'low-stock-alert') {
+        if (pathname !== '/low-stock-alerts' || tabParam) {
+          try { window.history.replaceState({}, '', '/low-stock-alerts'); } catch { }
+        }
+        setActiveTabState('low-stock-alerts');
+        return;
+      }
+
+      if (isStockThresholdsPath || tabParam === 'stock-thresholds') {
+        if (pathname !== '/stock-thresholds' || tabParam) {
+          try { window.history.replaceState({}, '', '/stock-thresholds'); } catch { }
+        }
+        setActiveTabState('stock-thresholds');
+        return;
+      }
+
+      const isProductsImportPath = pathname === '/products/import' || pathname.startsWith('/products/import') || pathname === '/inventory/import' || pathname.startsWith('/inventory/import');
+      const isUsersImportPath = pathname === '/users/import' || pathname.startsWith('/users/import');
+      const isUsersPath = !isUsersImportPath && (pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/'));
+      const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+      const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
+      const isReturnOrdersPath = pathname === '/return-orders' || pathname.startsWith('/return-orders');
+      const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
+      const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
+      const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
+      const isBatchesPath = pathname === '/batches' || pathname.startsWith('/batches/');
+      const isPickingPath = pathname === '/picking' || pathname.startsWith('/picking/') || pathname === '/warehouse-picking' || pathname.startsWith('/warehouse-picking/');
+      const isWarehouseDispatchPath = pathname === '/warehouse/dispatch' || pathname.startsWith('/warehouse/dispatch') || pathname === '/warehouse/supplementary-deliveries' || pathname === '/warehouse/dispatch-history' || pathname === '/warehouse-dispatch';
+      const isDeliveryTripsPath = pathname === '/delivery-trips' || pathname.startsWith('/delivery-trips/') || pathname === '/warehouse/delivery-trips' || pathname.startsWith('/warehouse/delivery-trips');
+
+      if (isDeliveryTripsPath || tabParam === 'delivery-trips' || tabParam === 'trips') {
+        if (pathname !== '/delivery-trips' || tabParam) {
+          try { window.history.replaceState({}, '', '/delivery-trips'); } catch { }
+        }
+        setActiveTabState('delivery-trips');
+        return;
+      }
+      if (isWarehouseDispatchPath || tabParam === 'warehouse-dispatch' || tabParam === 'dispatch') {
+        if (pathname !== '/warehouse/dispatch' || tabParam) {
+          try { window.history.replaceState({}, '', '/warehouse/dispatch'); } catch { }
+        }
+        setActiveTabState('warehouse-dispatch');
+        return;
+      }
+
+      if (isProductsImportPath || tabParam === 'products-import') {
+        if (pathname !== '/products/import' || tabParam) {
+          try { window.history.replaceState({}, '', '/products/import'); } catch { }
+        }
+        setActiveTabState('products-import');
+        return;
+      }
+
+      const isStockCardPath = pathname === '/stock-card' || pathname.startsWith('/stock-card/');
+      if (isStockCardPath || tabParam === 'stock-card') {
+        setActiveTabState('stock-card');
+        return;
+      }
+
+      if (isStockBookPath || tabParam === 'stock-book') {
+        if (pathname !== '/stock-book' || tabParam) {
+          try { window.history.replaceState({}, '', '/stock-book'); } catch { }
+        }
+        setActiveTabState('stock-book');
+        return;
+      }
+
+      const isInventoryTurnoverPath = pathname === '/inventory-turnover' || pathname.startsWith('/inventory-turnover/');
+      if (isInventoryTurnoverPath || tabParam === 'inventory-turnover') {
+        if (pathname !== '/inventory-turnover' || tabParam) {
+          try { window.history.replaceState({}, '', '/inventory-turnover'); } catch { }
+        }
+        setActiveTabState('inventory-turnover');
+        return;
+      }
+
+      if (isStockTransfersPath || tabParam === 'stock-transfers' || tabParam === 'stock-transfer') {
+        if ((pathname !== '/stock-transfers' && !pathname.startsWith('/stock-transfers/create')) || tabParam) {
+          try { window.history.replaceState({}, '', pathname.startsWith('/stock-transfers/create') ? '/stock-transfers/create' : '/stock-transfers'); } catch { }
+        }
+        setActiveTabState('stock-transfers');
+        return;
+      }
+
+      if (isPickingPath || tabParam === 'picking' || tabParam === 'warehouse-picking') {
+        if (pathname !== '/picking' || tabParam) {
+          try { window.history.replaceState({}, '', '/picking'); } catch { }
+        }
+        setActiveTabState('picking');
+        return;
+      }
+
+      if (isBatchesPath || tabParam === 'batches' || tabParam === 'batch') {
+        if ((pathname !== '/batches' && !pathname.startsWith('/batches/create')) || tabParam) {
+          try { window.history.replaceState({}, '', pathname.startsWith('/batches/create') ? '/batches/create' : '/batches'); } catch { }
+        }
+        setActiveTabState('batches');
+        return;
+      }
+
+      const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
+      const isStockAdjustmentsPath = pathname === '/stock-adjustments' || pathname.startsWith('/stock-adjustments/');
+      const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
+
+      if (isCreateOrderPath || tabParam === 'create-order') {
+        if (pathname !== '/create-order' || tabParam) {
+          try { window.history.replaceState({}, '', '/create-order'); } catch { }
+        }
+        setActiveTabState('create-order');
+        return;
+      }
+
+      if (isStockAuditsPath || tabParam === 'stock-audits' || tabParam === 'stock-audit') {
+        if (pathname !== '/stock-audits' || tabParam) {
+          try { window.history.replaceState({}, '', '/stock-audits'); } catch { }
+        }
+        setActiveTabState('stock-audits');
+        return;
+      }
+
+      if (isStockAdjustmentsPath || tabParam === 'stock-adjustments' || tabParam === 'stock-adjustment') {
+        if (pathname !== '/stock-adjustments' || tabParam) {
+          try { window.history.replaceState({}, '', '/stock-adjustments'); } catch { }
+        }
+        setActiveTabState('stock-adjustments');
+        return;
+      }
+
+      const isSalesInvoicesPath = pathname === '/sales-invoices' || pathname.startsWith('/sales-invoices/');
+      if (isSalesInvoicesPath || tabParam === 'sales-invoices' || tabParam === 'sales-invoice') {
+        if (canAccessSalesInvoices) {
+          if (pathname !== '/sales-invoices' || tabParam) {
+            try { window.history.replaceState({}, '', '/sales-invoices'); } catch { }
+          }
+          setActiveTabState('sales-invoices');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch { }
+        }
+        return;
+      }
+
       if (isProductHistoryPath || tabParam === 'product-history') {
         const code = params.get('code') || params.get('productCode');
         if (code) {
@@ -389,24 +1234,41 @@ export default function DashboardPage({
         return;
       }
 
-      if (isOrdersPath || tabParam === 'orders') {
-        setActiveTabState('orders');
-        return;
-      }
       if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
         setActiveTabState('suppliers');
         return;
       }
       if (isPriceBooksPath) { setActiveTabState('price-books'); return; }
 
+      const isOrdersCreatePath = pathname === '/orders/create' || pathname.startsWith('/orders/create');
+      const isOrdersDetailPath = pathname.startsWith('/orders/') && !isOrdersCreatePath && pathname !== '/orders';
+      if (isOrdersCreatePath || isOrdersDetailPath) {
+        setActiveTabState('orders');
+        return;
+      }
+
       if (isOrdersPath || tabParam === 'orders') {
-        if (canReadOrders) {
-          if (pathname !== '/orders' || tabParam) window.history.replaceState({}, '', '/orders');
-          setActiveTabState('orders');
-        } else {
-          setActiveTabState('inventory');
-          window.history.replaceState({}, '', '/');
+        if (pathname !== '/orders' || tabParam) {
+          try { window.history.replaceState({}, '', '/orders'); } catch { }
         }
+        setActiveTabState('orders');
+        return;
+      }
+
+      if (isReturnOrdersPath || tabParam === 'return-orders' || tabParam === 'returns') {
+        if (!pathname.startsWith('/return-orders') || tabParam) {
+          try { window.history.replaceState({}, '', pathname.startsWith('/return-orders') ? pathname : '/return-orders'); } catch { }
+        }
+        setActiveTabState('return-orders');
+        return;
+      }
+
+      const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
+      if (isDiscountsPath || tabParam === 'discounts' || tabParam === 'discount') {
+        if (pathname !== '/discounts' || tabParam) {
+          try { window.history.replaceState({}, '', '/discounts'); } catch { }
+        }
+        setActiveTabState('discounts');
         return;
       }
 
@@ -423,6 +1285,139 @@ export default function DashboardPage({
         return;
       }
 
+      const isDeliveryTrackingPath = pathname === '/delivery-tracking' || pathname.startsWith('/delivery-tracking');
+      if (isDeliveryTrackingPath || tabParam === 'delivery-tracking' || tabParam === 'in-transit') {
+        if (tabParam || (!pathname.startsWith('/delivery-tracking') && pathname !== '/delivery-tracking')) {
+          try {
+            window.history.replaceState({}, '', pathname.startsWith('/delivery-tracking') ? pathname : '/delivery-tracking');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('delivery-tracking');
+        return;
+      }
+
+      const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
+      if (isDealerProfilesPath || tabParam === 'dealer-profiles') {
+        if (pathname !== '/dealer-profiles' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/dealer-profiles');
+          } catch { }
+        }
+        setActiveTabState('dealer-profiles');
+        return;
+      }
+      const isDebtAgingPath = pathname === '/debt-aging' || pathname.startsWith('/debt-aging/');
+      if (isDebtAgingPath || tabParam === 'debt-aging') {
+        try {
+          window.history.replaceState({}, '', '/debt-ledger');
+        } catch {
+          // ignore
+        }
+        setActiveTabState('debt-ledger');
+        return;
+      }
+      const isExecutiveDashboardPath = pathname === '/executive-dashboard' || pathname.startsWith('/executive-dashboard/');
+      if (isExecutiveDashboardPath || tabParam === 'executive-dashboard') {
+        if (pathname !== '/executive-dashboard' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/executive-dashboard');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('executive-dashboard');
+        return;
+      }
+      const isSalesReportPath = pathname === '/sales-report' || pathname.startsWith('/sales-report/');
+      if (isSalesReportPath || tabParam === 'sales-report') {
+        if (pathname !== '/sales-report' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/sales-report');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('sales-report');
+        return;
+      }
+      const isSalesTargetsPath = pathname === '/sales-targets' || pathname.startsWith('/sales-targets/');
+      if (isSalesTargetsPath || tabParam === 'sales-targets' || tabParam === 'sales_targets') {
+        if (pathname !== '/sales-targets' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/sales-targets');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('sales-targets');
+        return;
+      }
+      const isAgencyDebtsPath = pathname === '/agency-debts' || pathname.startsWith('/agency-debts/');
+      if (isAgencyDebtsPath || tabParam === 'agency-debts') {
+        if (pathname !== '/agency-debts' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/agency-debts');
+          } catch { }
+        }
+        setActiveTabState('agency-debts');
+        return;
+      }
+
+      const isDebtLedgerPath = pathname === '/debt-ledger' || pathname.startsWith('/debt-ledger/');
+      if (isDebtLedgerPath || tabParam === 'debt-ledger') {
+        if (pathname !== '/debt-ledger' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/debt-ledger');
+          } catch { }
+        }
+        setActiveTabState('debt-ledger');
+        return;
+      }
+      const isDebtPaymentsPath = pathname === '/debt-payments' || pathname.startsWith('/debt-payments/');
+      if (isDebtPaymentsPath || tabParam === 'debt-payments') {
+        if (pathname !== '/debt-payments' || tabParam) {
+          try { window.history.replaceState({}, '', '/debt-payments'); } catch { }
+        }
+        setActiveTabState('debt-payments');
+        return;
+      }
+
+      const isDebtReconciliationPath = pathname === '/debt-reconciliation' || pathname.startsWith('/debt-reconciliation/');
+      if (isDebtReconciliationPath || tabParam === 'debt-reconciliation') {
+        if (pathname !== '/debt-reconciliation' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/debt-reconciliation');
+          } catch { }
+        }
+        setActiveTabState('debt-reconciliation');
+        return;
+      }
+
+      const isDebtAdjustmentsPath = pathname === '/debt-adjustments' || pathname.startsWith('/debt-adjustments/');
+      if (isDebtAdjustmentsPath || tabParam === 'debt-adjustments') {
+        if (canAccessDebtAdjustments) {
+          if (pathname !== '/debt-adjustments' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/debt-adjustments');
+            } catch { }
+          }
+          setActiveTabState('debt-adjustments');
+          return;
+        }
+      }
+
+      const isDebtStatementPath = pathname === '/debt-statement' || pathname.startsWith('/debt-statement/');
+      if (isDebtStatementPath || tabParam === 'debt-statement') {
+        if (pathname !== '/debt-statement' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/debt-statement');
+          } catch { }
+        }
+        setActiveTabState('debt-statement');
+        return;
+      }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       if (isDealersPath || tabParam === 'dealers') {
         if (pathname !== '/dealers' || tabParam) {
@@ -454,6 +1449,15 @@ export default function DashboardPage({
           }
         }
         setActiveTabState('audit-logs');
+      } else if (isUsersImportPath || tabParam === 'users-import') {
+        if (pathname !== '/users/import' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/users/import');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('users-import');
       } else if (isUsersPath || tabParam === 'users') {
         if (pathname !== '/users' || tabParam) {
           try {
@@ -463,14 +1467,24 @@ export default function DashboardPage({
           }
         }
         setActiveTabState('users');
-      } else if (pathname === '/categories') {
-        if (canManageCategories) {
-          setActiveTabState('categories');
-        } else {
-          setActiveTabState('inventory');
-          window.history.replaceState({}, '', '/');
-          return;
+      } else if (pathname === '/warehouses' || pathname.startsWith('/warehouses/') || tabParam === 'warehouses') {
+        if (pathname !== '/warehouses' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/warehouses');
+          } catch {
+            // ignore
+          }
         }
+        setActiveTabState('warehouses');
+      } else if (pathname === '/payment-collections' || pathname.startsWith('/payment-collections/') || tabParam === 'payment-collections') {
+        if (!pathname.startsWith('/payment-collections') || tabParam) {
+          try {
+            window.history.replaceState({}, '', pathname.startsWith('/payment-collections') ? pathname : '/payment-collections');
+          } catch { }
+        }
+        setActiveTabState('payment-collections');
+      } else if (pathname === '/categories') {
+        setActiveTabState('categories');
       } else {
         setActiveTabState('inventory');
         if (pathname !== '/' || params.size) window.history.replaceState({}, '', '/');
@@ -479,11 +1493,48 @@ export default function DashboardPage({
 
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin]);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, canAccessSalesTargets, canAccessDebtReconciliation, canAccessDebtPayments, canAccessPaymentCollections, canAccessSalesInvoices, canAccessDebtAdjustments, canViewDebtStatement, isCustomer]);
+
+  // Đại lý được chọn để xem Sổ chi tiết công nợ (/debt-statement)
+  const [selectedDebtStatementDealerId, setSelectedDebtStatementDealerId] = useState<number | undefined>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const d = params.get('dealer_id') || params.get('dealer');
+    return d ? Number(d) : undefined;
+  });
+
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [appliedPriceBook, setAppliedPriceBook] = useState<string | null>(null);
+  const [serverTotalCount, setServerTotalCount] = useState<number>(0);
+  const [serverTotalPages, setServerTotalPages] = useState<number>(1);
+  const [financialSummary, setFinancialSummary] = useState<ProductFinancialSummary | null>(null);
+  const [categoryList, setCategoryList] = useState<string[]>([
+    'Thời trang',
+    'Giày dép',
+    'Phụ kiện',
+  ]);
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  // Nạp danh mục ngành hàng từ Backend để đầy đủ dropdown khi phân trang Server-side
+  useEffect(() => {
+    if (!token) return;
+    getCategoryTreeApi(token)
+      .then((tree) => {
+        const names: string[] = [];
+        const extract = (nodes: any[]) => {
+          for (const n of nodes) {
+            if (n.name) names.push(n.name);
+            if (n.sub_categories?.length) extract(n.sub_categories);
+          }
+        };
+        extract(tree);
+        if (names.length > 0) {
+          setCategoryList((prev) => Array.from(new Set([...prev, ...names])));
+        }
+      })
+      .catch(() => { });
+  }, [token]);
 
   // Debounce tìm kiếm sản phẩm: Chỉ lọc khi người dùng ngừng nhập 350ms
   useEffect(() => {
@@ -507,6 +1558,19 @@ export default function DashboardPage({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [stockAdjustmentInitialMode, setStockAdjustmentInitialMode] = useState<'LIST' | 'CREATE'>('CREATE');
+  const [isMobileScreen, setIsMobileScreen] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileScreen(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [productAuditDrawerState, setProductAuditDrawerState] = useState<{
     isOpen: boolean;
     productCode: string;
@@ -522,6 +1586,13 @@ export default function DashboardPage({
 
   // Bulk Import Product Modal State
   const [isProductBulkImportOpen, setIsProductBulkImportOpen] = useState(false);
+  const [productDrawerState, setProductDrawerState] = useState<{ isOpen: boolean; product: ProductItem | null }>(() => {
+    const pathname = window.location.pathname.toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+    const isAddProduct = pathname === '/add-product' || pathname.startsWith('/add-product/') || oldTabVal === 'add-product';
+    return { isOpen: isAddProduct, product: null };
+  });
 
   // Quản lý sản phẩm được chọn để xem lịch sử (/product-history)
   const [historyProductTarget, setHistoryProductTarget] = useState<{ code: string; name: string } | null>(() => {
@@ -531,38 +1602,121 @@ export default function DashboardPage({
     return c ? { code: c, name: n } : null;
   });
 
-  // SCRUM Unit Conversion Modals State
+  // Unit Conversion Modals State
   const [unitConfigProduct, setUnitConfigProduct] = useState<ProductItem | null>(null);
   const [stockActionState, setStockActionState] = useState<{
     isOpen: boolean;
     actionType: 'receipt' | 'issue' | 'adjust';
     product: ProductItem | null;
+    initialReason?: string;
   }>({ isOpen: false, actionType: 'receipt', product: null });
+  const [goodsReceiptInitialTab, setGoodsReceiptInitialTab] = useState<'form' | 'list'>('form');
+  const [selectedProductForStockCard, setSelectedProductForStockCard] = useState<{ id: number; name: string; code: string } | null>(null);
+  const [stockCardReturnTab, setStockCardReturnTab] = useState<TabType>('stock-book');
+  const [stockAuditSearchCode, setStockAuditSearchCode] = useState<string>('');
+  const [stockAuditSearchProduct, setStockAuditSearchProduct] = useState<string>('');
+  const [goodsReceiptInitialCode, setGoodsReceiptInitialCode] = useState<string>('');
+  const [stockTransferInitialCode, setStockTransferInitialCode] = useState<string>('');
+  const [selectedOrderCodeForDetail, setSelectedOrderCodeForDetail] = useState<string | null>(null);
+  const [orderSearchCode, setOrderSearchCode] = useState<string>('');
+  const isOrderDetailEffective = isOrderDetailSubpage || Boolean(selectedOrderCodeForDetail);
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
-
-  // Dropdown menu 3 chấm trên dòng sản phẩm kho hàng
-  const [openProductMenuId, setOpenProductMenuId] = useState<number | null>(null);
+  const [cloneOrderData, setCloneOrderData] = useState<any>(() => {
+    try {
+      const stored = sessionStorage.getItem('clone_order_draft');
+      if (stored) return JSON.parse(stored);
+    } catch { }
+    return null;
+  });
+  const [isDiscountExpanded, setIsDiscountExpanded] = useState(false);
+  const [discountPoliciesState, setDiscountPoliciesState] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('discountPolicies');
+      if (saved) return JSON.parse(saved);
+    } catch { }
+    return [];
+  });
 
   useEffect(() => {
-    const handleGlobalClick = () => setOpenProductMenuId(null);
+    if (token) {
+      getDiscountPoliciesApi(token)
+        .then((res) => {
+          if (res && Array.isArray(res.items)) {
+            const mapped = res.items.map((bePolicy: any) => ({
+              id: String(bePolicy.id),
+              title: bePolicy.name || bePolicy.title || bePolicy.code,
+              code: bePolicy.code,
+              category: bePolicy.category || 'ALL',
+              target_group: (bePolicy.target_dealer_type === 'agent_tier_1' || bePolicy.target_group === 'agent_tier_1')
+                ? 'agent_tier_1'
+                : (bePolicy.target_dealer_type === 'agent_tier_2' || bePolicy.target_group === 'agent_tier_2')
+                  ? 'agent_tier_2'
+                  : 'all',
+              start_date: bePolicy.start_date || '2026-01-01',
+              end_date: bePolicy.end_date || '',
+              status: bePolicy.is_active ? 'active' : 'expired',
+              note: bePolicy.description || '',
+              tiers: (bePolicy.tiers || []).map((t: any) => ({
+                id: String(t.id || Math.random()),
+                min_quantity: t.min_quantity,
+                max_quantity: t.max_quantity ?? null,
+                discount_percent: t.discount_percent,
+              })),
+            }));
+            setDiscountPoliciesState(mapped);
+            localStorage.setItem('discountPolicies', JSON.stringify(mapped));
+          }
+        })
+        .catch(() => { });
+    }
+  }, [token]);
+
+  const [isThresholdModalOpen, setIsThresholdModalOpen] = useState(false);
+  const [isLowStockAlertModalOpen, setIsLowStockAlertModalOpen] = useState(false);
+  const [lowStockSummary, setLowStockSummary] = useState<LowStockAlertSummary | null>(null);
+  const [onlyLowStockFilter, setOnlyLowStockFilter] = useState(false);
+  const availableCategories = useMemo(
+    () => Array.from(new Set(['Thời trang', 'Giày dép', 'Phụ kiện', ...products.map((p) => p.category).filter(Boolean)])),
+    [products]
+  );
+
+  // Dropdown menu 3 chấm trên dòng sản phẩm, menu Excel & menu Thêm mới
+  const [openProductMenuId, setOpenProductMenuId] = useState<number | null>(null);
+  const [isExcelMenuOpen, setIsExcelMenuOpen] = useState(false);
+  const excelMenuRef = useRef<HTMLDivElement>(null);
+  const [isAddActionMenuOpen, setIsAddActionMenuOpen] = useState(false);
+  const addActionMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      setOpenProductMenuId(null);
+      if (excelMenuRef.current && !excelMenuRef.current.contains(e.target as Node)) {
+        setIsExcelMenuOpen(false);
+      }
+      if (addActionMenuRef.current && !addActionMenuRef.current.contains(e.target as Node)) {
+        setIsAddActionMenuOpen(false);
+      }
+    };
     window.addEventListener('click', handleGlobalClick);
     return () => window.removeEventListener('click', handleGlobalClick);
   }, []);
 
-  // Tự động đóng popover user khi bấm phím Esc
+  // Tự động đóng popover user / Excel / Thêm mới khi bấm phím Esc
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsUserMenuOpen(false);
+        setIsExcelMenuOpen(false);
+        setIsAddActionMenuOpen(false);
       }
     };
-    if (isUserMenuOpen) {
+    if (isUserMenuOpen || isExcelMenuOpen || isAddActionMenuOpen) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isUserMenuOpen]);
+  }, [isUserMenuOpen, isExcelMenuOpen, isAddActionMenuOpen]);
 
   // Lắng nghe cập nhật trạng thái phiên
   useEffect(() => {
@@ -575,16 +1729,35 @@ export default function DashboardPage({
   const remainingSeconds = sessionInfo.remainingSeconds;
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
 
-  const fetchProducts = () => {
-    if (isPendingCustomer) {
+  const fetchProducts = (targetPage?: number) => {
+    // Đại lý (Customer) sử dụng cơ chế Server-side Pagination riêng (20 sp/trang) tại CustomerPortalView,
+    // tuyệt đối không tải toàn bộ sản phẩm vào DashboardPage.
+    if (isPendingCustomer || isCustomer) {
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
-    getProductsApi(token)
+    const pageToFetch = targetPage !== undefined ? targetPage : currentPage;
+    if (products.length === 0) {
+      setIsLoading(true);
+    }
+    getProductsApi(token, {
+      page: pageToFetch,
+      page_size: pageSize,
+      search: productSearchTerm,
+      category: selectedCategory,
+      only_low_stock: onlyLowStockFilter,
+    })
       .then((data) => {
         setProducts(data.items);
+        if (data.applied_price_book) {
+          setAppliedPriceBook(data.applied_price_book);
+        }
         setIsCostVisible(data.is_cost_price_visible);
+        setServerTotalCount(data.total);
+        setServerTotalPages(data.total_pages || 1);
+        if (data.summary) {
+          setFinancialSummary(data.summary);
+        }
         setIsLoading(false);
       })
       .catch((err) => {
@@ -593,32 +1766,190 @@ export default function DashboardPage({
       });
   };
 
+  const fetchLowStockAlerts = () => {
+    if (isPendingCustomer || isCustomer || !token) return;
+    getLowStockAlertsApi(token)
+      .then((data) => {
+        setLowStockSummary(data);
+      })
+      .catch((err) => {
+        console.warn('Lỗi tải cảnh báo tồn tối thiểu:', err);
+      });
+  };
+
   useEffect(() => {
-    fetchProducts();
-  }, [token, isPendingCustomer]);
+    if (activeTab === 'inventory' && !isCustomer) {
+      fetchProducts(currentPage);
+      fetchLowStockAlerts();
+    }
+  }, [token, isPendingCustomer, isCustomer, activeTab, currentPage, productSearchTerm, selectedCategory, onlyLowStockFilter]);
 
-  // Tính toán số liệu thống kê
-  const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
-  const totalSellValue = products.reduce((acc, p) => acc + p.sell_price * p.stock, 0);
+  // Lắng nghe sự kiện cập nhật tồn kho để đồng bộ tức thì
+  useEffect(() => {
+    const handleStockUpdate = () => {
+      fetchProducts();
+      fetchLowStockAlerts();
+    };
+    window.addEventListener('INVENTORY_STOCK_UPDATED', handleStockUpdate);
+    return () => {
+      window.removeEventListener('INVENTORY_STOCK_UPDATED', handleStockUpdate);
+    };
+  }, []);
 
-  // Tính giá vốn và lợi nhuận
-  const isCostAvailable = isCostVisible && products.length > 0 && products.every((p) => p.cost_price !== null && p.cost_price !== undefined);
-  const totalCostValue = isCostAvailable ? products.reduce((acc, p) => acc + (p.cost_price || 0) * p.stock, 0) : 0;
-  const totalProfit = totalSellValue - totalCostValue;
+  // Tính toán số liệu thống kê: Ưu tiên lấy từ financialSummary (toàn kho do Backend tổng hợp)
+  const { totalStock, totalSellValue, totalCostValue, totalProfit, isCostAvailable, totalProductsCount } = useMemo(() => {
+    if (financialSummary) {
+      const stock = financialSummary.total_stock ?? 0;
+      const sellVal = financialSummary.total_sell_value ?? 0;
+      const costVal = financialSummary.total_cost_value ?? 0;
+      const profit = financialSummary.total_gross_profit ?? (sellVal - costVal);
+      const hasCost = isCostVisible && financialSummary.total_cost_value !== null && financialSummary.total_cost_value !== undefined;
+      return {
+        totalStock: stock,
+        totalSellValue: sellVal,
+        totalCostValue: hasCost ? costVal : 0,
+        totalProfit: profit,
+        isCostAvailable: hasCost,
+        totalProductsCount: financialSummary.total_products ?? serverTotalCount,
+      };
+    }
 
-  // Lọc sản phẩm
-  const filteredProducts = products.filter((p) => {
-    const q = productSearchTerm.trim().toLowerCase();
-    const matchQuery = !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
-    const matchCat = selectedCategory === 'all' || p.category === selectedCategory;
-    return matchQuery && matchCat;
-  });
+    let stock = 0;
+    let sellVal = 0;
+    let costVal = 0;
+    let hasCost = isCostVisible;
 
-  // Phân trang sản phẩm (mặc định 20 cái)
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i];
+      const s = p.stock || 0;
+      stock += s;
+      sellVal += (p.sell_price || 0) * s;
+      if (hasCost && p.cost_price !== null && p.cost_price !== undefined) {
+        costVal += p.cost_price * s;
+      } else {
+        hasCost = false;
+      }
+    }
+
+    const profit = hasCost ? sellVal - costVal : 0;
+    return {
+      totalStock: stock,
+      totalSellValue: sellVal,
+      totalCostValue: hasCost ? costVal : 0,
+      totalProfit: profit,
+      isCostAvailable: hasCost && products.length > 0,
+      totalProductsCount: serverTotalCount || products.length,
+    };
+  }, [financialSummary, serverTotalCount, products, isCostVisible]);
+
+  const lowStockBranchesMap = useMemo(() => {
+    const map = new Map<number, { minStock: number; warehouseNames: string[] }>();
+    (lowStockSummary?.items || []).forEach((it) => {
+      const existing = map.get(it.product_id);
+      if (existing) {
+        if (!existing.warehouseNames.includes(it.warehouse_name)) {
+          existing.warehouseNames.push(it.warehouse_name);
+        }
+      } else {
+        map.set(it.product_id, {
+          minStock: it.min_stock,
+          warehouseNames: [it.warehouse_name],
+        });
+      }
+    });
+    return map;
+  }, [lowStockSummary]);
+
+
+  // Số lượng mặt hàng độc nhất thực tế dưới định mức
+  const uniqueLowStockCount = useMemo(() => {
+    return lowStockBranchesMap.size;
+  }, [lowStockBranchesMap]);
+
+  // Phân trang sản phẩm Server-side (Mỗi trang tải đúng 20 sản phẩm)
+  const totalPages = Math.max(1, serverTotalPages);
   const safeCurrentPage = Math.min(currentPage, totalPages);
-  const startIndex = (safeCurrentPage - 1) * pageSize;
-  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + pageSize);
+  const filteredProducts = products;
+  const paginatedProducts = products;
+
+  // Xuất file Excel danh mục hàng hóa (Lấy toàn bộ dữ liệu theo bộ lọc hiện tại)
+  const handleExportExcel = async () => {
+    let exportItems = products;
+    try {
+      const fullData = await getProductsApi(token, {
+        search: productSearchTerm,
+        category: selectedCategory,
+        only_low_stock: onlyLowStockFilter,
+      });
+      if (fullData?.items?.length) {
+        exportItems = fullData.items;
+      }
+    } catch {
+      // fallback to current page products
+    }
+
+    const excelTemplate = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:ExcelWorksheet>
+                <x:Name>Danh Sách Hàng Hóa</x:Name>
+                <x:WorksheetOptions>
+                  <x:DisplayGridlines/>
+                </x:WorksheetOptions>
+              </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+          </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          table { border-collapse: collapse; font-family: Calibri, sans-serif; }
+          th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+          td { border: 1px solid #e2e8f0; padding: 8px 10px; color: #334155; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 100px;">Mã SP</th>
+              <th style="width: 250px;">Tên sản phẩm</th>
+              <th style="width: 140px;" class="text-center">Ngành hàng</th>
+              <th style="width: 110px;" class="text-right">Số lượng tồn</th>
+              <th style="width: 150px;" class="text-right">Giá niêm yết (VNĐ)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${exportItems.map((p) => `
+              <tr>
+                <td style="mso-number-format:'\\@'; font-weight: 600;">${p.code}</td>
+                <td>${p.name}</td>
+                <td class="text-center">${p.category}</td>
+                <td class="text-right">${p.stock}</td>
+                <td class="text-right">${p.sell_price.toLocaleString('vi-VN')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    const blob = new Blob(['\uFEFF' + excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `danh_sach_hang_hoa_${new Date().toISOString().slice(0, 10)}.xls`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const roleLabelMap: Record<string, string> = {
     admin: 'Quản Trị Hệ Thống',
@@ -645,8 +1976,18 @@ export default function DashboardPage({
   const primaryRole = officialRoles[0] || user.role;
   const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
 
-  const isLockedScrollTab = (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'create-order' || isSalesOrderEntryOpen) && !isPendingCustomer;
-
+  const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
+  const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
+  const isGoodsReceiptPage = activeTab === 'goods-receipt';
+  const isProductsImportPage = activeTab === 'products-import';
+  const isUsersImportPage = activeTab === 'users-import';
+  const isPaymentCollectionsPage = activeTab === 'payment-collections';
+  const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath.startsWith('/delivery-tracking');
+  const isWarehouseDispatchPage = activeTab === 'warehouse-dispatch';
+  const isDeliveryTripsPage = activeTab === 'delivery-trips';
+  const isStockAdjustmentsPage = activeTab === 'stock-adjustments';
+  const isReturnOrderCreatePage = activeTab === 'return-orders' && currentPath.startsWith('/return-orders/create');
+  const isLockedScrollTab = !isReturnOrderCreatePage && !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailEffective && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && !isStockAdjustmentsPage && !isWarehouseDispatchPage && !isDeliveryTripsPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'return-orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-card' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
   return (
     <DashboardLayout
       header={
@@ -669,33 +2010,87 @@ export default function DashboardPage({
           roleBadgeColorMap={roleBadgeColorMap}
           primaryRole={primaryRole}
           currentBadgeColor={currentBadgeColor}
+          onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
         />
       }
-      noScroll={isLockedScrollTab}
+      noScroll={!isCustomer && !isMobileScreen && isLockedScrollTab}
+      mainClassName={
+        isOrderDetailEffective || isOrdersCreateSubpage || isReturnOrderCreatePage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'debt-payments' || activeTab === 'debt-adjustments' || activeTab === 'debt-statement' || activeTab === 'sales-invoices'
+          ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
+          : activeTab === 'agency-debts'
+            ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
+            : isCustomer
+              ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
+              : isMobileScreen
+              ? 'flex-1 h-full min-h-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
+              : undefined
+      }
       sidebar={
         <Sidebar
-          activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          activeTab={
+            activeTab === 'users-import'
+              ? 'users'
+              : activeTab === 'products-import'
+              ? 'inventory'
+              : activeTab === 'stock-adjustments'
+              ? 'stock-book'
+              : activeTab
+          }
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            setIsMobileSidebarOpen(false);
+          }}
+          isCustomer={isCustomer}
+          canManageProducts={canManageProducts}
           canCreateOrders={canCreateOrders}
           canReadOrders={canReadOrders}
           canViewDealers={canViewDealers}
+          canManageDealerProfiles={canManageDealerProfiles}
+          canAccessDebtAging={canAccessDebtAging}
+          canAccessSalesReport={canAccessSalesReport}
+          canAccessSalesTargets={canAccessSalesTargets}
+          canAccessExecutiveDashboard={canAccessExecutiveDashboard}
+          canAccessDebtLedger={isAccountant || isSalesManager || isAdmin}
+          canAccessDebtPayments={canAccessDebtPayments}
           canManageDeliveryPoints={canManageDeliveryPoints}
+          canAccessDeliveryTracking={canAccessDeliveryTracking}
           canManageSuppliers={canManageSuppliers}
           canAccessPriceBooks={canAccessPriceBooks}
           canManageCategories={canManageCategories}
           canViewProductHistory={isAdmin || isSalesManager || canWriteInventory}
+          canAccessDiscounts={canAccessDiscounts}
+          canAccessStockAudit={canAccessStockAudit}
+          canAccessStockTransfer={canAccessStockTransfer}
+          canAccessWarehouses={canAccessWarehouses}
+          canWriteInventory={canWriteInventory}
+          isWarehouseOrAdmin={isWarehouseOrAdmin}
           isAdmin={isAdmin}
+          canAccessPaymentCollections={canAccessPaymentCollections}
+          canAccessSalesInvoices={canAccessSalesInvoices}
+          canAccessDebtReconciliation={canAccessDebtReconciliation}
+          canAccessDebtStatement={canViewDebtStatement}
+          canAccessDebtAdjustments={canAccessDebtAdjustments}
+          canAccessInventoryTurnover={canAccessInventoryTurnover}
           onLogout={() => {
             if (isLoggingOut) return;
             setShowLogoutConfirm(true);
           }}
           isLoggingOut={isLoggingOut}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
       }
     >
       <div
         className="dashboard-main-container"
-        style={isLockedScrollTab ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailEffective || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'payment-collections' || activeTab === 'debt-payments' || activeTab === 'debt-adjustments' || activeTab === 'debt-statement' || activeTab === 'sales-invoices' || isMobileScreen ? {
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          minHeight: '100%',
+          padding: 0,
+        } : isLockedScrollTab ? {
           height: '100%',
           maxHeight: '100%',
           display: 'flex',
@@ -704,1073 +2099,2202 @@ export default function DashboardPage({
           width: '100%',
         } : undefined}
       >
-      {/* Main Content: Switch between Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
-      {activeTab === 'create-order' || (isSalesOrderEntryOpen && canCreateOrders) ? (
-        canCreateOrders ? (
-          <SalesOrderEntry
-            token={token}
-            username={user.username}
-            products={products}
-            onClose={() => {
-              setIsSalesOrderEntryOpen(false);
-              setActiveTab('orders');
-            }}
-            onCreated={() => {
-              setIsSalesOrderEntryOpen(false);
-              setActiveTab('orders');
-              fetchProducts();
-            }}
-          />
-        ) : (
-          <AccessDeniedView
+        {/* Main Content: Switch between Product Form, Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
+        {productDrawerState.isOpen && activeTab === 'inventory' ? (
+          canManageProducts ? (
+            <ProductFormView
+              product={productDrawerState.product}
+              token={token}
+              isCostVisible={isCostVisible}
+              categories={availableCategories}
+              onBack={() => {
+                setProductDrawerState({ isOpen: false, product: null });
+                try {
+                  window.history.pushState({}, '', '/');
+                } catch {
+                  // ignore
+                }
+              }}
+              onSuccess={(updatedProduct, isDeleted) => {
+                if (isDeleted) {
+                  setProducts((prev) => prev.filter((p) => p.id !== productDrawerState.product?.id));
+                } else if (updatedProduct) {
+                  setProducts((prev) => {
+                    const idx = prev.findIndex((p) => p.id === updatedProduct.id);
+                    if (idx >= 0) {
+                      const copy = [...prev];
+                      copy[idx] = updatedProduct;
+                      return copy;
+                    }
+                    return [updatedProduct, ...prev];
+                  });
+                }
+                setProductDrawerState({ isOpen: false, product: null });
+                try {
+                  window.history.pushState({}, '', '/');
+                } catch {
+                  // ignore
+                }
+                fetchProducts();
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quyền quản lý sản phẩm (Thủ kho / Quản lý kho / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setProductDrawerState({ isOpen: false, product: null })}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'create-order' || (isSalesOrderEntryOpen && canCreateOrders) ? (
+          canCreateOrders ? (
+            <SalesOrderEntry
+              token={token}
+              username={user.username}
+              user={user}
+              products={products}
+              cloneOrderData={cloneOrderData}
+              onClose={() => {
+                setIsSalesOrderEntryOpen(false);
+                setCloneOrderData(null);
+                setActiveTab('orders');
+              }}
+              onCreated={() => {
+                setIsSalesOrderEntryOpen(false);
+                setCloneOrderData(null);
+                setActiveTab('orders');
+                fetchProducts();
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quyền tạo đơn hàng (order:write)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'orders' ? (
+          canReadOrders ? (
+            isOrdersCreateSubpage ? (
+              canCreateOrders ? (
+                <CreateOrderPage
+                  token={token}
+                  currentUser={user}
+                  products={products}
+                  initialDealerId={cloneOrderData?.dealerId || cloneOrderData?.dealer_id}
+                  initialOrderItems={cloneOrderData?.items}
+                  initialNote={cloneOrderData?.note}
+                  onClose={() => {
+                    try {
+                      sessionStorage.removeItem('clone_order_draft');
+                    } catch { }
+                    setCloneOrderData(null);
+                    window.history.pushState({}, '', '/orders');
+                  }}
+                  onSuccess={() => {
+                    try {
+                      sessionStorage.removeItem('clone_order_draft');
+                    } catch { }
+                    setCloneOrderData(null);
+                    window.history.pushState({}, '', '/orders');
+                    fetchProducts();
+                  }}
+                />
+              ) : (
+                <AccessDeniedView
+                  currentUser={user}
+                  requiredPermission="Quyền tạo đơn hàng (order:write)"
+                  onBackToWorkflow={() => {
+                    window.history.pushState({}, '', '/orders');
+                    setActiveTab('orders');
+                  }}
+                  onLogout={onLogout}
+                />
+              )
+            ) : isOrderDetailEffective ? (
+              <OrderDetailPage
+                currentUser={user}
+                token={token}
+                orderId={selectedOrderCodeForDetail || undefined}
+                onBack={() => {
+                  setSelectedOrderCodeForDetail(null);
+                  setOrderSearchCode('');
+                  window.history.pushState({}, '', '/orders');
+                  window.dispatchEvent(new Event('popstate'));
+                }}
+                onCloneOrder={canCreateOrders ? (data) => {
+                  try {
+                    sessionStorage.setItem('clone_order_draft', JSON.stringify(data));
+                  } catch { }
+                  setCloneOrderData(data);
+                  window.history.pushState({}, '', '/orders/create');
+                  window.dispatchEvent(new Event('popstate'));
+                } : undefined}
+                onRefreshProducts={fetchProducts}
+              />
+            ) : (
+              <OrderManagementView
+                currentUser={user}
+                token={token}
+                products={products}
+                initialSearchTerm={orderSearchCode}
+                onBackToHome={() => setActiveTab('inventory')}
+                onRefreshProducts={fetchProducts}
+                onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
+                onCloneOrder={canCreateOrders ? (data) => {
+                  try {
+                    sessionStorage.setItem('clone_order_draft', JSON.stringify(data));
+                  } catch { }
+                  setCloneOrderData(data);
+                  window.history.pushState({}, '', '/orders/create');
+                  window.dispatchEvent(new Event('popstate'));
+                } : undefined}
+              />
+            )
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quyền xem đơn hàng (order:read)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'return-orders' ? (
+          <ReturnOrdersManagementView
             currentUser={user}
-            requiredPermission="Quyền tạo đơn hàng (order:write)"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'orders' ? (
-        canReadOrders ? (
-          <OrderManagementView
-            currentUser={user}
             token={token}
-            products={products}
             onBackToHome={() => setActiveTab('inventory')}
-            onRefreshProducts={fetchProducts}
-            onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
           />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Quyền xem đơn hàng (order:read)"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'users' ? (
-        isAdmin ? (
-          <UserManagementView
+        ) : activeTab === 'goods-receipt' ? (
+          canWriteInventory ? (
+            <GoodsReceiptView
+              token={token}
+              products={products}
+              currentUserWarehouse={user.branch || user.warehouse_name || undefined}
+              initialTab={goodsReceiptInitialTab}
+              initialSearchCode={goodsReceiptInitialCode}
+              onBackToInventory={() => setActiveTab('inventory')}
+              onSuccess={() => {
+                fetchProducts();
+              }}
+              onRequestAdjust={(targetProduct, receiptCode) => {
+                setActiveTab('inventory');
+                setStockActionState({
+                  isOpen: true,
+                  actionType: 'adjust',
+                  product: targetProduct,
+                  initialReason: `Điều chỉnh số lượng theo phiếu nhập kho ${receiptCode}`,
+                });
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Lập phiếu nhập kho từ nhà cung cấp (Thủ kho / Quản lý kho / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'products-import' ? (
+          (isAdmin || isSalesManager) ? (
+            <ProductBulkImportView
+              token={token}
+              onBackToInventory={() => setActiveTab('inventory')}
+              onSuccess={() => {
+                fetchProducts();
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quyền quản lý sản phẩm (Admin / Quản lý kinh doanh)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'users-import' ? (
+          isAdmin ? (
+            <UserBulkImportView
+              token={token}
+              onBackToUsers={() => setActiveTab('users')}
+              onSuccess={() => setActiveTab('users')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản trị hệ thống (Admin)"
+              onBackToWorkflow={() => setActiveTab('users')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'users' ? (
+          isAdmin ? (
+            <UserManagementView
+              currentUser={user}
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+              onCreateAccount={() => setIsCreateAccountModalOpen(true)}
+              onNavigateToImport={() => setActiveTab('users-import')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản trị hệ thống (Admin)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'categories' ? (
+          canManageCategories ? (
+            <CategoryManagementView
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý ngành hàng (Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'discounts' ? (
+          canAccessDiscounts ? (
+            <DiscountPolicyView
+              token={token}
+              user={user}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Chính sách chiết khấu (Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'audit-logs' ? (
+          isAdmin ? (
+            <AuditLogView
+              currentUser={user}
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản trị hệ thống (Admin)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'profile' ? (
+          <ProfileView
             currentUser={user}
             token={token}
             onBackToHome={() => setActiveTab('inventory')}
-            onCreateAccount={() => setIsCreateAccountModalOpen(true)}
+            onUserUpdated={onUserUpdated}
           />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Quản trị hệ thống (Admin)"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'categories' ? (
-        <CategoryManagementView
-          token={token}
-          onBackToHome={() => setActiveTab('inventory')}
-        />
-      ) : activeTab === 'audit-logs' ? (
-        isAdmin ? (
-          <AuditLogView
-            currentUser={user}
-            token={token}
-            onBackToHome={() => setActiveTab('inventory')}
-          />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Quản trị hệ thống (Admin)"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'profile' ? (
-        <ProfileView
-          currentUser={user}
-          token={token}
-          onBackToHome={() => setActiveTab('inventory')}
-          onUserUpdated={onUserUpdated}
-        />
-      ) : activeTab === 'product-history' ? (
-        (isAdmin || isSalesManager || canWriteInventory) ? (
-          <ProductHistoryView
+        ) : activeTab === 'product-history' ? (
+          (isAdmin || isSalesManager || canWriteInventory) ? (
+            <ProductHistoryView
+              currentUser={user}
+              token={token}
+              products={products}
+              initialProductCode={historyProductTarget?.code}
+              initialProductName={historyProductTarget?.name}
+              isCostVisible={isCostVisible}
+              onBackToInventory={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Xem lịch sử thay đổi sản phẩm (Thủ kho / Quản lý kho / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'suppliers' ? (
+          canManageSuppliers ? (
+            <SupplierManagementView
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'agency-debts' ? (
+          <AgencyDebtInvoiceView
             currentUser={user}
             token={token}
-            products={products}
-            initialProductCode={historyProductTarget?.code}
-            initialProductName={historyProductTarget?.name}
-            isCostVisible={isCostVisible}
-            onBackToInventory={() => setActiveTab('inventory')}
-          />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Xem lịch sử thay đổi sản phẩm (Thủ kho / Quản lý kho / Quản lý kinh doanh / Quản trị viên)"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'suppliers' ? (
-        canManageSuppliers ? (
-          <SupplierManagementView
-            token={token}
-            onBackToHome={() => setActiveTab('inventory')}
-          />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'dealers' ? (
-        canViewDealers ? (
-          <DealerSearchView
-            currentUser={user}
-            token={token}
-            onBackToHome={() => setActiveTab('inventory')}
-          />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Tra cứu đại lý & khách hàng (Nhân viên kinh doanh / Quản lý kinh doanh / Quản trị viên)"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'price-books' ? (
-        canAccessPriceBooks ? (
-          <PriceBookManagementView
-            token={token}
-            currentUser={user}
-            products={products}
-            onBackToHome={() => setActiveTab('inventory')}
+            initialInvoiceCode={reminderInvoiceCode}
+            onInitialInvoiceOpened={handleReminderInvoiceOpened}
+            onBackToPortal={() => setActiveTab('inventory')}
             onNavigateToOrders={() => setActiveTab('orders')}
           />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Quản lý Bảng giá theo nhóm khách hàng (Quản trị hệ thống / Quản lý kinh doanh / Kế toán)"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'delivery-points' ? (
-        canManageDeliveryPoints ? (
-          <DeliveryPointsView
-            currentUser={user}
-            token={token}
-            onBackToHome={() => setActiveTab('inventory')}
-          />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Quản lý điểm giao hàng"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-
-      ) : isPendingCustomer ? (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '40px 20px',
-          minHeight: '60vh',
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95))',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '20px',
-            padding: '40px 32px',
-            maxWidth: '560px',
-            width: '100%',
-            textAlign: 'center',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(16px)',
-          }}>
-            <div style={{
-              width: '72px',
-              height: '72px',
-              borderRadius: '20px',
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.35))',
-              border: '1px solid rgba(245, 158, 11, 0.4)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '32px',
-              margin: '0 auto 20px auto',
-              boxShadow: '0 10px 25px rgba(245, 158, 11, 0.25)',
-            }}>
-              ⏳
-            </div>
-
-            <h2 style={{
-              fontSize: '22px',
-              fontWeight: '800',
-              color: '#ffffff',
-              marginBottom: '12px',
-              letterSpacing: '-0.01em',
-            }}>
-              Tài Khoản Đang Chờ Quản Trị Viên Cấp Quyền
-            </h2>
-
-            <p style={{
-              fontSize: '14.5px',
-              color: '#94a3b8',
-              lineHeight: '1.6',
-              marginBottom: '24px',
-            }}>
-              Xin chào <strong style={{ color: '#f8fafc' }}>{user.full_name || user.username}</strong>! Tài khoản của bạn đã được khởi tạo thành công trên hệ thống.
-              Hiện tại tài khoản chưa được Quản trị viên phân bổ vai trò nghiệp vụ (Bán hàng, Kho, Mua hàng...) và phân công chi nhánh.
-            </p>
-
-            <div style={{
-              background: 'rgba(15, 23, 42, 0.6)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '12px',
-              padding: '16px 20px',
-              marginBottom: '26px',
-              textAlign: 'left',
-              fontSize: '13.5px',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                <span style={{ color: '#64748b' }}>Tên đăng nhập:</span>
-                <span style={{ color: '#38bdf8', fontWeight: '600' }}>@{user.username}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                <span style={{ color: '#64748b' }}>Trạng thái tài khoản:</span>
-                <span style={{
-                  color: '#fbbf24',
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '600'
-                }}>
-                  Chờ Quản trị viên phê duyệt
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-                <span style={{ color: '#64748b' }}>Chi nhánh / Kho:</span>
-                <span style={{ color: '#94a3b8' }}>{user.branch || 'Chưa phân công'}</span>
-              </div>
-            </div>
-
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}>
-              <button
-                onClick={async () => {
+        ) : activeTab === 'dealer-profiles' ? (
+          canManageDealerProfiles ? (
+            <DealerProfileManagementView
+              currentUser={user}
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+              onOpenDebtStatement={(dealerId) => {
+                setSelectedDebtStatementDealerId(dealerId);
+                setActiveTab('debt-statement');
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý hồ sơ đại lý (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-payments' ? (
+          (isAccountant || isSalesManager || isAdmin) ? (
+            <DebtPaymentReconciliationView
+              currentUser={user}
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Ghi nhận thanh toán & Đối trừ công nợ (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-aging' ? (
+          canAccessDebtAging ? (
+            <DebtAgingReportView
+              currentUser={user}
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Báo cáo tuổi nợ (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'executive-dashboard' ? (
+          canAccessExecutiveDashboard ? (
+            <ExecutiveDashboardView
+              currentUser={user}
+              token={token}
+              onNavigateTab={(targetTab) => setActiveTab(targetTab as TabType)}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Dashboard điều hành (Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'sales-report' ? (
+          canAccessSalesReport ? (
+            <MultidimensionalSalesReportView
+              currentUser={user}
+              token={token}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Báo cáo doanh số đa chiều (Quản lý kinh doanh / Nhân viên kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'sales-targets' ? (
+          canAccessSalesTargets ? (
+            <SalesTargetManagementView
+              currentUser={user}
+              token={token}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Chỉ tiêu doanh số (Quản lý kinh doanh / Nhân viên kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-ledger' ? (
+          (isAccountant || isSalesManager || isAdmin) ? (
+            <DebtAgeingLedgerView
+              token={token}
+              onNavigateReconciliation={() => setActiveTab('debt-reconciliation')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Sổ công nợ theo đại lý & Phân tích tuổi nợ (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-reconciliation' ? (
+          canAccessDebtReconciliation ? (
+            <DebtReconciliationView
+              token={token}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Đối chiếu công nợ (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-adjustments' ? (
+          canAccessDebtAdjustments ? (
+            <DebtAdjustmentManagementView
+              token={token}
+              currentUserRole={user.role}
+              currentUserId={user.id}
+              currentUserName={user.full_name || user.username}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Giảm trừ công nợ khi trả hàng (Kế toán công nợ / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-statement' ? (
+          canViewDebtStatement ? (
+            <DealerDebtStatementView
+              currentUser={user}
+              token={token}
+              initialDealerId={selectedDebtStatementDealerId}
+              onBack={() => setActiveTab('dealer-profiles')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Sổ chi tiết công nợ (Kế toán công nợ / Quản trị viên / Quản lý kinh doanh)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'dealers' ? (
+          canViewDealers ? (
+            <DealerSearchView
+              currentUser={user}
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Tra cứu đại lý & khách hàng (Nhân viên kinh doanh / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'price-books' ? (
+          canAccessPriceBooks ? (
+            isPriceListsCreateSubpage || isPriceBookEditSubpage ? (
+              canManagePriceBooks ? (
+                <CreatePriceListPage
+                  token={token}
+                  currentUser={user}
+                  products={products}
+                  isEdit={isPriceBookEditSubpage}
+                  onClose={() => {
+                    window.history.pushState({}, '', '/price-books');
+                  }}
+                  onSuccess={() => {
+                    window.history.pushState({}, '', '/price-books');
+                    fetchProducts();
+                  }}
+                />
+              ) : (
+                <AccessDeniedView
+                  currentUser={user}
+                  requiredPermission="Tạo/Sửa Bảng giá bán hàng (Chỉ Quản trị viên và Quản lý kinh doanh)"
+                  onBackToWorkflow={() => {
+                    window.history.pushState({}, '', '/price-books');
+                    setActiveTab('price-books');
+                  }}
+                  onLogout={onLogout}
+                />
+              )
+            ) : isPriceBookDetailSubpage ? (
+              <PriceBookDetailPage
+                token={token}
+                currentUser={user}
+                onBack={() => {
+                  window.history.pushState({}, '', '/price-books');
+                }}
+                onRefreshProducts={fetchProducts}
+              />
+            ) : (
+              <PriceBookManagementView
+                token={token}
+                currentUser={user}
+                products={products}
+                onBackToHome={() => setActiveTab('inventory')}
+                onNavigateToOrders={() => setActiveTab('orders')}
+                onRefreshProducts={fetchProducts}
+              />
+            )
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý Bảng giá theo nhóm khách hàng (Quản trị hệ thống / Quản lý kinh doanh / Kế toán)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'delivery-points' ? (
+          canManageDeliveryPoints ? (
+            <DeliveryPointsView
+              currentUser={user}
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý điểm giao hàng"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'delivery-tracking' ? (
+          canAccessDeliveryTracking ? (
+            isDeliveryTrackingCreateSubpage ? (
+              <CreateDeliveryTripView
+                token={token}
+                userRole={user.role}
+                userRoles={officialRoles}
+                userName={user.full_name || user.username}
+                canManage={canAccessDeliveryTracking}
+                onBack={() => {
+                  window.history.pushState({}, '', '/delivery-tracking');
+                }}
+              />
+            ) : isDeliveryTrackingDetailSubpage ? (
+              <DeliveryTripDetailView
+                token={token}
+                userRole={user.role}
+                userRoles={officialRoles}
+                userName={user.full_name || user.username}
+                canManage={canAccessDeliveryTracking}
+                onBack={() => {
+                  window.history.pushState({}, '', '/delivery-tracking');
+                }}
+              />
+            ) : (
+              <DeliveryTrackingView
+                token={token}
+                userRole={user.role}
+                userRoles={officialRoles}
+                canManage={canAccessDeliveryTracking}
+              />
+            )
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Theo dõi hàng đang giao (Quản trị hệ thống / Quản lý kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'stock-transfers' ? (
+          canAccessStockTransfer ? (
+            <StockTransferManagementView
+              token={token}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+              initialSearchCode={stockTransferInitialCode}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý chuyển kho nội bộ (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'warehouse-dispatch' ? (
+          canWriteInventory || isWarehouseOrAdmin || isAdmin ? (
+            <WarehouseDispatchView
+              token={token}
+              currentUser={user}
+              initialTab={currentPath.includes('supplementary') ? 'supplementary' : currentPath.includes('history') ? 'history' : 'dispatch'}
+              onNavigateTab={(subTab) => {
+                const newUrl = subTab === 'supplementary'
+                  ? '/warehouse/supplementary-deliveries'
+                  : subTab === 'history'
+                    ? '/warehouse/dispatch-history'
+                    : '/warehouse/dispatch';
+                try { window.history.pushState({}, '', newUrl); } catch { }
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý xuất kho & giao thiếu (Quản lý kho / Thủ kho / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'delivery-trips' ? (
+          canWriteInventory || isWarehouseOrAdmin || isAdmin ? (
+            <DeliveryTripsView
+              token={token}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý chuyến giao hàng (Quản lý kho / Thủ kho / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'warehouses' ? (
+          canAccessWarehouses ? (
+            <WarehouseManagementView
+              token={token}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý danh sách kho và vị trí kệ (Nhân viên kinh doanh không có quyền truy cập)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'stock-thresholds' ? (
+          canManageThreshold ? (
+            <StockThresholdManagementView
+              token={token}
+              canManageThresholds={canManageThreshold}
+              onBackToHome={() => {
+                setActiveTab('inventory');
+                fetchProducts();
+                fetchLowStockAlerts();
+              }}
+              onThresholdsUpdated={() => {
+                fetchProducts();
+                fetchLowStockAlerts();
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Cấu hình Định mức tồn tối thiểu (Chỉ Quản trị hệ thống và Quản lý kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'low-stock-alerts' ? (
+          !isCustomer ? (
+            <LowStockAlertManagementView
+              token={token}
+              canManageThresholds={canManageThreshold}
+              canWriteInventory={canWriteInventory}
+              onOpenGoodsReceipt={canWriteInventory ? () => setActiveTab('goods-receipt') : undefined}
+              onOpenThresholdConfig={canManageThreshold ? () => setActiveTab('stock-thresholds') : undefined}
+              onBackToHome={() => {
+                setActiveTab('inventory');
+                fetchProducts();
+                fetchLowStockAlerts();
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Cảnh báo tồn dưới định mức (Chỉ dành cho nhân viên nội bộ)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'stock-card' ? (
+          canAccessStockCard ? (
+            <StockCardView
+              productId={selectedProductForStockCard?.id || 1}
+              productName={selectedProductForStockCard?.name}
+              productCode={selectedProductForStockCard?.code}
+              token={token}
+              onBack={() => {
+                setActiveTab(stockCardReturnTab || 'stock-book');
+                setSelectedProductForStockCard(null);
+              }}
+              onNavigateToTab={(tab, queryParam, productCode) => {
+                if (tab === 'stock-audits' && queryParam) {
+                  setStockAuditSearchCode(queryParam);
+                  if (productCode) setStockAuditSearchProduct(productCode);
+                  setActiveTabState('stock-audits');
+                  try { window.history.pushState({}, '', '/stock-audits'); } catch { }
+                } else if (tab === 'orders' && queryParam) {
+                  setSelectedOrderCodeForDetail(queryParam);
+                  setOrderSearchCode(queryParam);
+                  setActiveTabState('orders');
                   try {
-                    await sessionManager.syncCurrentProfile();
-                    window.location.reload();
-                  } catch {
-                    window.location.reload();
-                  }
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: 'linear-gradient(135deg, #0fba90, #0fad89)',
-                  border: 'none',
-                  borderRadius: '10px',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(15, 173, 137, 0.35)',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
-              >
-                🔄 Kiểm tra lại trạng thái quyền hạn
-              </button>
-
-              <button
-                onClick={() => {
-                  if (isLoggingOut) return;
-                  setShowLogoutConfirm(true);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: 'rgba(30, 41, 59, 0.8)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '10px',
-                  color: '#cbd5e1',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#cbd5e1')}
-              >
-                {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất tài khoản'}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <>
-          {error && (
-            <div style={{
-              background: 'rgba(239, 68, 68, 0.2)',
-              border: '1px solid #ef4444',
-              color: '#fca5a5',
-              padding: '12px 16px',
-              borderRadius: '10px',
-              marginBottom: '20px'
-            }}>
-              ⚠️ {error}
-            </div>
-          )}
-
-          {/* 4 Thẻ KPI Dashboard */}
+                    window.history.pushState({}, '', `/orders/${queryParam}`);
+                    window.dispatchEvent(new Event('popstate'));
+                  } catch { }
+                } else if (tab === 'goods-receipt' && queryParam) {
+                  setGoodsReceiptInitialCode(queryParam);
+                  setGoodsReceiptInitialTab('list');
+                  setActiveTabState('goods-receipt');
+                  try { window.history.pushState({}, '', '/goods-receipt'); } catch { }
+                } else if (tab === 'stock-transfers' && queryParam) {
+                  setStockTransferInitialCode(queryParam);
+                  setActiveTabState('stock-transfers');
+                  try { window.history.pushState({}, '', '/stock-transfers'); } catch { }
+                } else {
+                  setActiveTab(tab as TabType);
+                }
+                setSelectedProductForStockCard(null);
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Xem Thẻ kho sản phẩm (Thủ kho / Quản lý kho / Quản trị hệ thống / Kế toán)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'sales-invoices' ? (
+          canAccessSalesInvoices ? (
+            <SalesInvoiceFromDeliveriesView
+              currentUser={user}
+              token={token}
+              onBackToWorkflow={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Xuất hóa đơn bán hàng từ phiếu giao hàng (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'stock-book' ? (
+          !isCustomer ? (
+            <WarehouseStockBookView
+              token={token}
+              canAccessStockCard={canAccessStockCard}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+              onOpenTurnoverReport={canAccessInventoryTurnover ? () => setActiveTab('inventory-turnover') : undefined}
+              onNavigateToAdjustments={() => {
+                setStockAdjustmentInitialMode('CREATE');
+                setActiveTab('stock-adjustments');
+              }}
+              onNavigateToTab={(tab) => {
+                setActiveTab(tab as TabType);
+              }}
+              onOpenStockCard={(productId, productName, productCode) => {
+                if (canAccessStockCard) {
+                  setSelectedProductForStockCard({ id: productId, name: productName, code: productCode });
+                  setStockCardReturnTab('stock-book');
+                  setActiveTab('stock-card');
+                }
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Sổ kho & Thẻ kho (Chỉ dành cho nhân viên nội bộ)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'inventory-turnover' ? (
+          canAccessInventoryTurnover ? (
+            <InventoryTurnoverReportView
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Báo cáo Tồn kho & Vòng quay hàng hóa (Chỉ Quản trị hệ thống & Quản lý kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'batches' ? (
+          isWarehouseOrAdmin ? (
+            <BatchManagementView
+              token={token}
+              user={user}
+              canWriteInventory={canWriteInventory}
+              onStockUpdated={fetchProducts}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Theo dõi lô & hạn sử dụng (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'picking' ? (
+          isWarehouseOrAdmin ? (
+            <WarehousePickingView
+              token={token}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Soạn hàng theo lộ trình kho (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'stock-audits' ? (
+          canAccessStockAudit ? (
+            <StockAuditManagementView
+              token={token}
+              currentUser={user}
+              initialSearchCode={stockAuditSearchCode}
+              initialSearchProduct={stockAuditSearchProduct}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý kiểm kê kho (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'stock-adjustments' ? (
+          canAccessStockAdjustments ? (
+            <StockAdjustmentPageView
+              token={token}
+              currentUser={user}
+              initialMode={stockAdjustmentInitialMode}
+              onBackToHome={() => setActiveTab('stock-book')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Điều chỉnh tồn kho có phê duyệt (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'payment-collections' ? (
+          canAccessPaymentCollections ? (
+            <PaymentCollectionView
+              currentUser={user}
+              token={token}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Thu tiền theo tuyến & Đối chiếu quỹ (Nhân viên kinh doanh / Kế toán / Quản trị hệ thống)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : isPendingCustomer ? (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '14px',
-            marginBottom: '14px',
-            flexShrink: 0,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '40px 20px',
+            minHeight: '60vh',
           }}>
-            <div className="kpi-stat-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <div>
-                  <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Mặt hàng trong kho</span>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Danh mục sản phẩm lưu hành</div>
-                </div>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#64748b',
-                }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                    <line x1="12" y1="22.08" x2="12" y2="12" />
-                  </svg>
-                </div>
-              </div>
-              <div style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                letterSpacing: '-0.02em',
-                color: '#0f172a',
-                fontVariantNumeric: 'tabular-nums',
-                lineHeight: 1.2,
-                marginTop: '4px'
-              }}>
-                {isLoading ? '...' : `${products.length} mã SP`}
-              </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                fontSize: '12px',
-                color: '#64748b',
-                marginTop: '12px',
-                fontWeight: '500'
-              }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                </svg>
-                <span>Tổng lưu kho: <strong style={{ color: '#0f172a', fontWeight: '600' }}>{totalStock.toLocaleString()}</strong> đơn vị</span>
-              </div>
-            </div>
-
-            <div className="kpi-stat-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <div>
-                  <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Tổng giá trị bán niêm yết</span>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Dự kiến toàn bộ tồn kho</div>
-                </div>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#64748b',
-                }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="1" x2="12" y2="23" />
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                  </svg>
-                </div>
-              </div>
-              <div style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                letterSpacing: '-0.02em',
-                color: '#0f172a',
-                fontVariantNumeric: 'tabular-nums',
-                lineHeight: 1.2,
-                marginTop: '4px'
-              }}>
-                {isLoading ? '...' : `${totalSellValue.toLocaleString('vi-VN')} đ`}
-              </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                fontSize: '12px',
-                color: '#64748b',
-                marginTop: '12px',
-                fontWeight: '500'
-              }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                  <polyline points="17 6 23 6 23 12" />
-                </svg>
-                <span>Giá niêm yết bán lẻ · Đã gồm VAT</span>
-              </div>
-            </div>
-
-            {isCostVisible && isCostAvailable && (
-              <div className="kpi-stat-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <div>
-                    <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Tổng giá vốn tồn kho</span>
-                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Dữ liệu nội bộ bảo mật</div>
-                  </div>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#64748b',
-                  }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                  </div>
-                </div>
-                <div style={{
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  letterSpacing: '-0.02em',
-                  color: '#0f172a',
-                  fontVariantNumeric: 'tabular-nums',
-                  lineHeight: 1.2,
-                  marginTop: '4px'
-                }}>
-                  {isLoading ? '...' : `${totalCostValue.toLocaleString('vi-VN')} đ`}
-                </div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '12px',
-                  color: '#64748b',
-                  marginTop: '12px',
-                  fontWeight: '500'
-                }}>
-                  <span style={{ color: '#0284c7' }}>🔒</span>
-                  <span>Quyền xem: Quản lý kinh doanh / Admin</span>
-                </div>
-              </div>
-            )}
-
-            {isCostVisible && isCostAvailable && (
-              <div className="kpi-stat-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <div>
-                    <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Lợi nhuận gộp dự kiến</span>
-                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Biên lãi chênh lệch giá</div>
-                  </div>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#64748b',
-                  }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                      <polyline points="17 6 23 6 23 12" />
-                    </svg>
-                  </div>
-                </div>
-                <div style={{
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  letterSpacing: '-0.02em',
-                  color: '#0f172a',
-                  fontVariantNumeric: 'tabular-nums',
-                  lineHeight: 1.2,
-                  marginTop: '4px'
-                }}>
-                  {isLoading ? '...' : `+${totalProfit.toLocaleString('vi-VN')} đ`}
-                </div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '12px',
-                  color: '#15803d',
-                  marginTop: '12px',
-                  fontWeight: '600'
-                }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                    <polyline points="17 6 23 6 23 12" />
-                  </svg>
-                  <span>Biên lợi nhuận: +{totalSellValue && totalCostValue ? Math.round(((totalSellValue - totalCostValue) / totalSellValue) * 100) : 0}%</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Clean Enterprise Data Table Container */}
-          <div
-            className="premium-table-card"
-            style={{
-              padding: '0',
-              borderRadius: '12px',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              flex: 1,
-              minHeight: 0,
-            }}
-          >
-            {/* Thanh công cụ tìm kiếm và tác vụ (Cố định ở trên) */}
             <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '12px 20px',
-              borderBottom: '1px solid #e2e8f0',
-              gap: '12px',
-              background: '#ffffff',
-              flexShrink: 0
+              background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95))',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '20px',
+              padding: '40px 32px',
+              maxWidth: '560px',
+              width: '100%',
+              textAlign: 'center',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(16px)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
-                <div style={{ position: 'relative', width: '280px', maxWidth: '100%' }}>
-                  <span style={{ position: 'absolute', left: '10px', top: '9px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="11" cy="11" r="8" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Tìm theo mã hoặc tên sản phẩm..."
-                    value={productSearchInput}
-                    onChange={(e) => setProductSearchInput(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '7px 12px 7px 32px',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '13px',
-                      color: '#0f172a',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => {
-                    setSelectedCategory(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  style={{
-                    padding: '7px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '13px',
-                    color: '#334155',
-                    background: '#ffffff',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="all">Tất cả ngành hàng</option>
-                  {Array.from(new Set(products.map((p) => p.category).filter(Boolean))).map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+              <div style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '20px',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.35))',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '32px',
+                margin: '0 auto 20px auto',
+                boxShadow: '0 10px 25px rgba(245, 158, 11, 0.25)',
+              }}>
+                ⏳
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '12.5px', color: '#64748b', marginRight: '4px' }}>
-                  Hiển thị <strong style={{ color: '#0f172a' }}>{filteredProducts.length}</strong> / {products.length} SP
-                </span>
+              <h2 style={{
+                fontSize: '22px',
+                fontWeight: '800',
+                color: '#ffffff',
+                marginBottom: '12px',
+                letterSpacing: '-0.01em',
+              }}>
+                Tài Khoản Đang Chờ Quản Trị Viên Cấp Quyền
+              </h2>
 
+              <p style={{
+                fontSize: '14.5px',
+                color: '#94a3b8',
+                lineHeight: '1.6',
+                marginBottom: '24px',
+              }}>
+                Xin chào <strong style={{ color: '#f8fafc' }}>{user.full_name || user.username}</strong>! Tài khoản của bạn đã được khởi tạo thành công trên hệ thống.
+                Hiện tại tài khoản chưa được Quản trị viên phân bổ vai trò nghiệp vụ (Bán hàng, Kho, Mua hàng...) và phân công chi nhánh.
+              </p>
 
-                {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
-                {(isAdmin || isSalesManager) && (
-                  <button
-                    type="button"
-                    onClick={() => setIsProductBulkImportOpen(true)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: '#ecfdf5',
-                      border: '1px solid #a7f3d0',
-                      padding: '7px 12px',
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
-                      fontWeight: '600',
-                      color: '#0fad89',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#d1fae5';
-                      e.currentTarget.style.borderColor = '#6ee7b7';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#ecfdf5';
-                      e.currentTarget.style.borderColor = '#a7f3d0';
-                    }}
-                    title="Nhập danh mục sản phẩm hàng loạt từ file Excel"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>Nhập file</span>
-                  </button>
-                )}
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '12px',
+                padding: '16px 20px',
+                marginBottom: '26px',
+                textAlign: 'left',
+                fontSize: '13.5px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <span style={{ color: '#64748b' }}>Tên đăng nhập:</span>
+                  <span style={{ color: '#38bdf8', fontWeight: '600' }}>@{user.username}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <span style={{ color: '#64748b' }}>Trạng thái tài khoản:</span>
+                  <span style={{
+                    color: '#fbbf24',
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '600'
+                  }}>
+                    Chờ Quản trị viên phê duyệt
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+                  <span style={{ color: '#64748b' }}>Chi nhánh / Kho:</span>
+                  <span style={{ color: '#94a3b8' }}>{user.branch || 'Chưa phân công'}</span>
+                </div>
+              </div>
 
-                {/* Nút Xuất file Excel danh mục */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}>
                 <button
-                  type="button"
-                  onClick={() => {
-                    const excelTemplate = `
-                      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-                      <head>
-                        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-                        <!--[if gte mso 9]>
-                        <xml>
-                          <x:ExcelWorkbook>
-                            <x:ExcelWorksheets>
-                              <x:ExcelWorksheet>
-                                <x:Name>Danh Sách Hàng Hóa</x:Name>
-                                <x:WorksheetOptions>
-                                  <x:DisplayGridlines/>
-                                </x:WorksheetOptions>
-                              </x:ExcelWorksheet>
-                            </x:ExcelWorksheets>
-                          </x:ExcelWorkbook>
-                        </xml>
-                        <![endif]-->
-                        <style>
-                          table { border-collapse: collapse; font-family: Calibri, sans-serif; }
-                          th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
-                          td { border: 1px solid #e2e8f0; padding: 8px 10px; color: #334155; }
-                          .text-center { text-align: center; }
-                          .text-right { text-align: right; }
-                        </style>
-                      </head>
-                      <body>
-                        <table>
-                          <thead>
-                            <tr>
-                              <th style="width: 100px;">Mã SP</th>
-                              <th style="width: 250px;">Tên sản phẩm</th>
-                              <th style="width: 140px;" class="text-center">Ngành hàng</th>
-                              <th style="width: 110px;" class="text-right">Số lượng tồn</th>
-                              <th style="width: 150px;" class="text-right">Giá niêm yết (VNĐ)</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            ${filteredProducts.map((p) => `
-                              <tr>
-                                <td style="mso-number-format:'\\@'; font-weight: 600;">${p.code}</td>
-                                <td>${p.name}</td>
-                                <td class="text-center">${p.category}</td>
-                                <td class="text-right">${p.stock}</td>
-                                <td class="text-right">${p.sell_price.toLocaleString('vi-VN')}</td>
-                              </tr>
-                            `).join('')}
-                          </tbody>
-                        </table>
-                      </body>
-                      </html>
-                    `;
-                    const blob = new Blob(['\uFEFF' + excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.setAttribute('href', url);
-                    link.setAttribute('download', `danh_sach_hang_hoa_${new Date().toISOString().slice(0, 10)}.xls`);
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
+                  onClick={async () => {
+                    try {
+                      await sessionManager.syncCurrentProfile();
+                      window.location.reload();
+                    } catch {
+                      window.location.reload();
+                    }
                   }}
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    padding: '7px 12px',
-                    borderRadius: '8px',
-                    fontSize: '12.5px',
-                    fontWeight: '600',
-                    color: '#334155',
+                    width: '100%',
+                    padding: '12px',
+                    background: 'linear-gradient(135deg, #0fba90, #0fad89)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    fontWeight: '700',
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease'
+                    boxShadow: '0 4px 14px rgba(15, 173, 137, 0.35)',
+                    transition: 'all 0.2s ease',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#f8fafc';
-                    e.currentTarget.style.borderColor = '#94a3b8';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#ffffff';
-                    e.currentTarget.style.borderColor = '#cbd5e1';
-                  }}
-                  title="Xuất danh sách sản phẩm dạng Excel"
+                  onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <span>Xuất file</span>
+                  🔄 Kiểm tra lại trạng thái quyền hạn
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (isLoggingOut) return;
+                    setShowLogoutConfirm(true);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: 'rgba(30, 41, 59, 0.8)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '10px',
+                    color: '#cbd5e1',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#cbd5e1')}
+                >
+                  {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất tài khoản'}
                 </button>
               </div>
             </div>
+          </div>
+        ) : isCustomer ? (
+          <CustomerPortalView
+            currentUser={user}
+            token={token}
+            products={products}
+            appliedPriceBook={appliedPriceBook}
+            activeView={activeTab === 'cart' ? 'cart' : 'products'}
+            onViewChange={(view) => setActiveTab(view === 'cart' ? 'cart' : 'inventory')}
+            onRefreshProducts={fetchProducts}
+            onNavigateToOrders={() => setActiveTab('orders')}
+            onNavigateToDebt={(invoiceCode) => {
+              setReminderInvoiceCode(invoiceCode);
+              setActiveTab('agency-debts');
+            }}
+          />
+        ) : (
+          <>
+            {error && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.2)',
+                border: '1px solid #ef4444',
+                color: '#fca5a5',
+                padding: '12px 16px',
+                borderRadius: '10px',
+                marginBottom: '20px'
+              }}>
+                ⚠️ {error}
+              </div>
+            )}
 
-            {/* Vùng cuộn riêng cho bảng hàng hóa (cố định thead) */}
+            {/* 4 Thẻ KPI Dashboard (Thu gọn bé gọn) */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gap: '10px',
+              marginBottom: '10px',
+              flexShrink: 0,
+            }}>
+              <div className="kpi-stat-card" style={{ padding: '10px 14px', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                  <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Mặt hàng trong kho</span>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                    Tổng tồn: <strong style={{ color: '#0f172a' }}>{totalStock.toLocaleString()}</strong>
+                  </span>
+                </div>
+                <div style={{
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  letterSpacing: '-0.02em',
+                  color: '#0f172a',
+                  fontVariantNumeric: 'tabular-nums',
+                  lineHeight: 1.2,
+                }}>
+                  {isLoading ? '...' : `${totalProductsCount.toLocaleString('vi-VN')} mã SP`}
+                </div>
+              </div>
+
+              <div className="kpi-stat-card" style={{ padding: '10px 14px', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                  <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tổng giá trị bán niêm yết</span>
+                  <span style={{ fontSize: '10.5px', color: '#64748b' }}>Đã gồm VAT</span>
+                </div>
+                <div style={{
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  letterSpacing: '-0.02em',
+                  color: '#0f172a',
+                  fontVariantNumeric: 'tabular-nums',
+                  lineHeight: 1.2,
+                }}>
+                  {isLoading ? '...' : `${totalSellValue.toLocaleString('vi-VN')} đ`}
+                </div>
+              </div>
+
+              {isCostVisible && isCostAvailable && (
+                <div className="kpi-stat-card" style={{ padding: '10px 14px', borderRadius: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tổng giá vốn tồn kho</span>
+                    <span style={{ fontSize: '10.5px', color: '#0284c7' }}>Admin / QL</span>
+                  </div>
+                  <div style={{
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    letterSpacing: '-0.02em',
+                    color: '#0f172a',
+                    fontVariantNumeric: 'tabular-nums',
+                    lineHeight: 1.2,
+                  }}>
+                    {isLoading ? '...' : `${totalCostValue.toLocaleString('vi-VN')} đ`}
+                  </div>
+                </div>
+              )}
+
+              {isCostVisible && isCostAvailable && (
+                <div className="kpi-stat-card" style={{ padding: '10px 14px', borderRadius: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Lợi nhuận gộp dự kiến</span>
+                    <span style={{ fontSize: '11px', color: '#15803d', fontWeight: '600' }}>
+                      +{totalSellValue && totalCostValue ? Math.round(((totalSellValue - totalCostValue) / totalSellValue) * 100) : 0}%
+                    </span>
+                  </div>
+                  <div style={{
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    letterSpacing: '-0.02em',
+                    color: '#0f172a',
+                    fontVariantNumeric: 'tabular-nums',
+                    lineHeight: 1.2,
+                  }}>
+                    {isLoading ? '...' : `+${totalProfit.toLocaleString('vi-VN')} đ`}
+                  </div>
+                </div>
+              )}
+
+              {/* Thẻ Cảnh báo tồn tối thiểu */}
+              <div
+                className="kpi-stat-card"
+                id="btn-kpi-low-stock-alert"
+                onClick={() => setActiveTab('low-stock-alerts')}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  border: uniqueLowStockCount > 0 ? '1.5px solid #fca5a5' : '1px solid #e2e8f0',
+                  background: uniqueLowStockCount > 0 ? 'linear-gradient(135deg, #fff5f5, #ffffff)' : '#ffffff',
+                  transition: 'all 0.15s ease',
+                }}
+                title="Nhấn để xem trang chi tiết các mặt hàng dưới định mức tồn cần đặt hàng NCC"
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                  <span style={{ fontSize: '11.5px', color: uniqueLowStockCount > 0 ? '#b91c1c' : '#64748b', fontWeight: '700' }}>
+                    Tồn dưới định mức
+                  </span>
+                  <span style={{ fontSize: '10px', color: uniqueLowStockCount > 0 ? '#dc2626' : '#15803d', fontWeight: '700' }}>
+                    {uniqueLowStockCount > 0 ? 'Cần đặt NCC' : 'An toàn'}
+                  </span>
+                </div>
+                <div style={{
+                  fontSize: '18px',
+                  fontWeight: '800',
+                  letterSpacing: '-0.02em',
+                  color: uniqueLowStockCount > 0 ? '#dc2626' : '#0f172a',
+                  fontVariantNumeric: 'tabular-nums',
+                  lineHeight: 1.2,
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: '6px',
+                }}>
+                  {isLoading ? '...' : `${uniqueLowStockCount} mặt hàng`}
+                  {!isLoading && (lowStockSummary?.items?.length || 0) > uniqueLowStockCount && (
+                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#e11d48' }}>
+                      ({lowStockSummary?.items?.length} kho thiếu)
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* CHÍNH SÁCH CHIẾT KHẤU - 1 Ô GỌN GÀNG (Hiển thị ở tất cả các phân quyền) */}
+            {(() => {
+              try {
+                const policies = discountPoliciesState.length > 0
+                  ? discountPoliciesState
+                  : (localStorage.getItem('discountPolicies') ? JSON.parse(localStorage.getItem('discountPolicies')!) : []);
+                const activePolicies = policies.filter((p: any) => p.status === 'active');
+                if (activePolicies.length > 0) {
+                  return (
+                    <div style={{
+                      marginBottom: '10px',
+                      background: '#ffffff',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      padding: '7px 12px',
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        flexWrap: 'wrap',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
+                          <span style={{ fontSize: '12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                            Chính sách chiết khấu:
+                          </span>
+                          {activePolicies.map((p: any) => (
+                            <div
+                              key={p.id}
+                              style={{
+                                background: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '5px',
+                                padding: '2px 8px',
+                                fontSize: '11.5px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                              }}
+                            >
+                              <strong style={{ color: '#2563eb' }}>{p.code}</strong>
+                              <span style={{ color: '#475569' }}>
+                                {p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}:
+                              </span>
+                              <span style={{ color: '#059669', fontWeight: '600' }}>
+                                {p.tiers?.map((t: any) => {
+                                  const isAmt = t.discount_type === 'amount' || (t.discount_amount && t.discount_amount > 0 && !t.discount_percent);
+                                  const valStr = isAmt ? `${Number(t.discount_amount).toLocaleString('vi-VN')}đ/sp` : `${t.discount_percent}%`;
+                                  return `≥${t.min_quantity}sp (-${valStr})`;
+                                }).join(', ')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsDiscountExpanded(!isDiscountExpanded)}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '5px',
+                            padding: '2px 8px',
+                            fontSize: '11px',
+                            color: '#475569',
+                            cursor: 'pointer',
+                            fontWeight: '500',
+                          }}
+                        >
+                          {isDiscountExpanded ? 'Thu gọn ▲' : 'Bảng chi tiết ▼'}
+                        </button>
+                      </div>
+
+                      {isDiscountExpanded && (
+                        <div style={{ overflowX: 'auto', marginTop: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                            <thead>
+                              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Mã CS</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Sản phẩm áp dụng</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Đối tượng</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Thời hạn</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Bậc chiết khấu</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {activePolicies.map((p: any) => (
+                                <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '6px 10px', fontWeight: '600', color: '#2563eb' }}>{p.code}</td>
+                                  <td style={{ padding: '6px 10px', color: '#334155' }}>{p.title === 'Tất cả sản phẩm' ? <span style={{ background: '#dbeafe', color: '#1e40af', padding: '1px 6px', borderRadius: '10px', fontSize: '11px' }}>Tất cả SP</span> : p.title}</td>
+                                  <td style={{ padding: '6px 10px', color: '#475569' }}>{p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}</td>
+                                  <td style={{ padding: '6px 10px', color: '#64748b' }}>{p.start_date} - {p.end_date || 'Vô thời hạn'}</td>
+                                  <td style={{ padding: '6px 10px' }}>
+                                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                      {p.tiers && p.tiers.map((t: any, idx: number) => {
+                                        const isAmt = t.discount_type === 'amount' || (t.discount_amount && t.discount_amount > 0 && !t.discount_percent);
+                                        const valStr = isAmt ? `${Number(t.discount_amount).toLocaleString('vi-VN')}đ/sp` : `${t.discount_percent}%`;
+                                        return (
+                                          <span key={idx} style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #d1fae5', padding: '1px 5px', borderRadius: '4px', fontSize: '10.5px', fontWeight: '500' }}>
+                                            Từ {t.min_quantity}sp: -{valStr}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+              } catch (e) { }
+              return null;
+            })()}
+
+            {/* Clean Enterprise Data Table Container */}
             <div
-              className="roles-grid-scroll"
+              className="premium-table-card"
               style={{
-                overflowX: 'auto',
-                overflowY: 'auto',
+                padding: '0',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
                 flex: 1,
                 minHeight: 0,
-                scrollBehavior: 'smooth'
               }}
             >
-              {isLoading ? (
-                <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
-                  <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>
-                  <div style={{ fontSize: '14px', fontWeight: '500' }}>Đang tải dữ liệu từ máy chủ Backend...</div>
+              {/* Thanh công cụ tìm kiếm và tác vụ (Cố định ở trên) */}
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 20px',
+                borderBottom: '1px solid #e2e8f0',
+                gap: '12px',
+                background: '#ffffff',
+                flexShrink: 0
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
+                  <div style={{ position: 'relative', width: '280px', maxWidth: '100%' }}>
+                    <span style={{ position: 'absolute', left: '10px', top: '9px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Tìm theo mã hoặc tên sản phẩm..."
+                      value={productSearchInput}
+                      onChange={(e) => setProductSearchInput(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '7px 12px 7px 32px',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '13px',
+                        color: '#0f172a',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => {
+                      setSelectedCategory(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '13px',
+                      color: '#334155',
+                      background: '#ffffff',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="all">Tất cả ngành hàng</option>
+                    {Array.from(new Set([...categoryList, ...products.map((p) => p.category).filter(Boolean)])).map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Nút lọc nhanh hàng dưới định mức */}
+                  <button
+                    type="button"
+                    id="btn-filter-low-stock"
+                    onClick={() => {
+                      setOnlyLowStockFilter(!onlyLowStockFilter);
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      border: onlyLowStockFilter ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                      background: onlyLowStockFilter ? '#fee2e2' : '#ffffff',
+                      color: onlyLowStockFilter ? '#b91c1c' : '#475569',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease',
+                    }}
+                    title="Lọc nhanh danh sách các mặt hàng đang bị thiếu hoặc chạm định mức tồn tối thiểu"
+                  >
+                    <span>Dưới định mức</span>
+                    <span
+                      style={{
+                        background: onlyLowStockFilter ? '#b91c1c' : '#f1f5f9',
+                        color: onlyLowStockFilter ? '#ffffff' : '#64748b',
+                        padding: '1px 6px',
+                        borderRadius: '999px',
+                        fontSize: '11px',
+                        fontWeight: '750',
+                      }}
+                    >
+                      {uniqueLowStockCount}
+                    </span>
+                  </button>
                 </div>
-              ) : filteredProducts.length === 0 ? (
-                <div style={{ padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '13.5px' }}>
-                  Không tìm thấy sản phẩm nào phù hợp với điều kiện tìm kiếm.
-                </div>
-              ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
-                  <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc', boxShadow: '0 1px 0 #e2e8f0' }}>
-                    <tr style={{
-                      color: '#64748b',
-                      background: '#f8fafc',
-                      fontSize: '11px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      borderBottom: '1px solid #e2e8f0',
-                    }}>
-                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Mã SP</th>
-                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Tên Sản Phẩm</th>
-                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Ngành Hàng</th>
-                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Đơn Vị Tính</th>
-                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Số Lượng Tồn</th>
-                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Niêm Yết (Bán)</th>
-                      {isCostVisible && (
-                        <>
-                          <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Vốn Nhập Kho</th>
-                          <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Biên Lợi Nhuận</th>
-                        </>
-                      )}
-                      {canPerformProductAction && (
-                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '80px', background: '#f8fafc' }}>Thao Tác</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedProducts.map((item, idx) => (
-                      <tr
-                        key={item.id}
-                        className="inventory-row"
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12.5px', color: '#64748b', marginRight: '4px' }}>
+                    Hiển thị <strong style={{ color: '#0f172a' }}>{serverTotalCount}</strong> / {totalProductsCount} SP
+                  </span>
+
+                  {/* Nút Khai báo định mức tồn tối thiểu cho Quản lý kho và Admin */}
+                  {canManageThreshold && (
+                    <button
+                      type="button"
+                      id="btn-stock-threshold-modal"
+                      onClick={() => setActiveTab('stock-thresholds')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        padding: '7px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12.5px',
+                        fontWeight: '600',
+                        color: '#334155',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title="Khai báo định mức tồn tối thiểu theo từng SKU và từng kho"
+                    >
+                      Định mức tồn
+                    </button>
+                  )}
+
+
+
+                  {/* Dropdown Excel ▾ */}
+                  <div ref={excelMenuRef} style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      id="btn-excel-menu"
+                      onClick={() => setIsExcelMenuOpen(!isExcelMenuOpen)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        padding: '7px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12.5px',
+                        fontWeight: '600',
+                        color: '#334155',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#f8fafc';
+                        e.currentTarget.style.borderColor = '#94a3b8';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#ffffff';
+                        e.currentTarget.style.borderColor = '#cbd5e1';
+                      }}
+                      title="Tùy chọn nhập / xuất file Excel"
+                    >
+                      Excel ▾
+                    </button>
+
+                    {isExcelMenuOpen && (
+                      <div
                         style={{
-                          background: idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
-                          borderBottom: '1px solid #f1f5f9',
+                          position: 'absolute',
+                          top: 'calc(100% + 4px)',
+                          right: 0,
+                          minWidth: '150px',
+                          background: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+                          zIndex: 50,
+                          padding: '4px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
                         }}
                       >
-                        <td style={{
-                          padding: '13px 18px',
-                          textAlign: 'left',
-                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                          fontSize: '12px',
+                        {(isAdmin || isSalesManager) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsExcelMenuOpen(false);
+                              setActiveTab('products-import');
+                            }}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              background: 'transparent',
+                              border: 'none',
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12.5px',
+                              fontWeight: '500',
+                              color: '#0f172a',
+                              cursor: 'pointer',
+                              transition: 'background 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            Nhập file Excel
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsExcelMenuOpen(false);
+                            handleExportExcel();
+                          }}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            background: 'transparent',
+                            border: 'none',
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            fontSize: '12.5px',
+                            fontWeight: '500',
+                            color: '#0f172a',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          Xuất file Excel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dropdown gộp chung: + Thêm mới ▾ (Thêm sản phẩm & Nhập kho) */}
+                  {(canManageProducts || canWriteInventory) && (
+                    <div ref={addActionMenuRef} style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        id="btn-add-action-menu"
+                        onClick={() => setIsAddActionMenuOpen(!isAddActionMenuOpen)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                          border: 'none',
+                          padding: '7px 16px',
+                          borderRadius: '8px',
+                          fontSize: '12.5px',
                           fontWeight: '600',
-                          color: '#334155',
-                        }}>
-                          {item.code}
-                        </td>
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)';
+                          e.currentTarget.style.boxShadow = '0 4px 14px rgba(15, 186, 144, 0.45)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 186, 144, 0.35)';
+                        }}
+                        title="Tùy chọn Thêm sản phẩm mới hoặc Lập phiếu nhập kho"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="12" y1="5" x2="12" y2="19" />
+                          <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        <span>Thêm mới</span>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{
+                            transition: 'transform 0.15s ease',
+                            transform: isAddActionMenuOpen ? 'rotate(180deg)' : 'none',
+                          }}
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </button>
 
-                        <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
-                          {item.name}
-                        </td>
-
-                        <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>{item.category}</span>
-                            {canManageCategories && (
-                              <button
-                                onClick={() => setMovingProduct({ id: item.id, name: item.name, category_id: item.category_id })}
+                      {isAddActionMenuOpen && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 4px)',
+                            right: 0,
+                            minWidth: '220px',
+                            background: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '10px',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+                            zIndex: 50,
+                            padding: '6px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                          }}
+                        >
+                          {canManageProducts && (
+                            <button
+                              type="button"
+                              id="btn-add-product"
+                              onClick={() => {
+                                setIsAddActionMenuOpen(false);
+                                setProductDrawerState({ isOpen: true, product: null });
+                                try {
+                                  window.history.pushState({}, '', '/add-product');
+                                } catch { }
+                              }}
+                              style={{
+                                width: '100%',
+                                textAlign: 'left',
+                                background: 'transparent',
+                                border: 'none',
+                                padding: '9px 12px',
+                                borderRadius: '7px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = '#f0fdf4')}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                            >
+                              <div
                                 style={{
-                                  background: 'transparent',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  padding: '2px',
-                                  color: '#94a3b8',
+                                  width: '30px',
+                                  height: '30px',
+                                  borderRadius: '6px',
+                                  background: '#ecfdf5',
+                                  color: '#0fad89',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  justifyContent: 'center'
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
                                 }}
-                                title="Chuyển ngành hàng"
-                                onMouseEnter={e => e.currentTarget.style.color = '#3b82f6'}
-                                onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
                               >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <line x1="12" y1="5" x2="12" y2="19" />
+                                  <line x1="5" y1="12" x2="19" y2="12" />
                                 </svg>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Cột Đơn vị tính cơ sở & quy đổi */}
-                        <td style={{ padding: '13px 18px', textAlign: 'left', fontSize: '12.5px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                            <span style={{ fontWeight: '600', color: '#0f172a' }}>
-                              {item.base_unit || 'Cái'} <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: '400' }}>(cơ sở)</span>
-                            </span>
-                            {item.units && item.units.length > 0 ? (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                {item.units.map((u, uIdx) => (
-                                  <span
-                                    key={uIdx}
-                                    style={{
-                                      fontSize: '11px',
-                                      background: '#ecfdf5',
-                                      color: '#065f46',
-                                      padding: '1px 6px',
-                                      borderRadius: '4px',
-                                      border: '1px solid #a7f3d0',
-                                    }}
-                                    title={`1 ${u.unit_name} = ${u.conversion_rate} ${item.base_unit || 'Cái'}`}
-                                  >
-                                    {u.unit_name} (×{u.conversion_rate})
-                                  </span>
-                                ))}
                               </div>
-                            ) : (
-                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Chưa có ĐVT quy đổi</span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                          <span style={{
-                            fontWeight: '600',
-                            color: '#0f172a',
-                          }}>
-                            {item.stock.toLocaleString()} {item.base_unit || 'cái'}
-                          </span>
-                        </td>
-
-                        <td style={{ padding: '13px 18px', color: '#0f172a', fontWeight: '600', fontSize: '13.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                          {item.sell_price.toLocaleString('vi-VN')} đ
-                        </td>
-
-                        {isCostVisible && (
-                          <>
-                            <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                                <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>
-                                  {item.cost_price ? `${item.cost_price.toLocaleString('vi-VN')} đ` : '—'}
-                                </span>
-                                <span style={{ fontSize: '10.5px', color: '#94a3b8', letterSpacing: '-0.01em' }}>
-                                  Chỉ Quản lý
-                                </span>
+                              <div>
+                                <div style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>
+                                  Thêm sản phẩm
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                  Tạo mã SKU và hàng hóa mới
+                                </div>
                               </div>
-                            </td>
-                            <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                              {item.profit_margin !== undefined && item.profit_margin !== null ? (
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  color: item.profit_margin >= 0 ? '#15803d' : '#dc2626',
-                                  fontWeight: '600',
-                                  fontSize: '13px',
-                                }}>
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    {item.profit_margin >= 0 ? (
-                                      <>
-                                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                                        <polyline points="17 6 23 6 23 12" />
-                                      </>
-                                    ) : (
-                                      <>
-                                        <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
-                                        <polyline points="17 18 23 18 23 12" />
-                                      </>
-                                    )}
-                                  </svg>
-                                  <span>{item.profit_margin >= 0 ? '+' : ''}{item.profit_margin}%</span>
-                                </span>
-                              ) : (
-                                <span style={{ color: '#94a3b8' }}>—</span>
-                              )}
-                            </td>
-                          </>
-                        )}
-                        {canPerformProductAction && (
-                          <td style={{ padding: '10px 18px', textAlign: 'center' }}>
-                            <div style={{ position: 'relative', display: 'inline-block' }}>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenProductMenuId(openProductMenuId === item.id ? null : item.id);
-                                }}
+                            </button>
+                          )}
+
+                          {canWriteInventory && (
+                            <button
+                              type="button"
+                              id="btn-goods-receipt-modal"
+                              onClick={() => {
+                                setIsAddActionMenuOpen(false);
+                                setActiveTab('goods-receipt');
+                              }}
+                              style={{
+                                width: '100%',
+                                textAlign: 'left',
+                                background: 'transparent',
+                                border: 'none',
+                                padding: '9px 12px',
+                                borderRadius: '7px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = '#ecfdf5')}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                            >
+                              <div
                                 style={{
-                                  width: '32px',
-                                  height: '32px',
-                                  padding: 0,
-                                  display: 'inline-flex',
+                                  width: '30px',
+                                  height: '30px',
+                                  borderRadius: '6px',
+                                  background: '#eff6ff',
+                                  color: '#2563eb',
+                                  display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  background: openProductMenuId === item.id ? '#e2e8f0' : '#ffffff',
-                                  color: openProductMenuId === item.id ? '#0f172a' : '#64748b',
-                                  border: '1px solid #cbd5e1',
-                                  borderRadius: '8px',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.15s ease',
-                                  boxShadow: 'none',
-                                  margin: 0,
+                                  flexShrink: 0,
                                 }}
-                                onMouseEnter={(e) => {
-                                  if (openProductMenuId !== item.id) {
-                                    e.currentTarget.style.background = '#f8fafc';
-                                    e.currentTarget.style.color = '#0f172a';
-                                    e.currentTarget.style.borderColor = '#94a3b8';
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (openProductMenuId !== item.id) {
-                                    e.currentTarget.style.background = '#ffffff';
-                                    e.currentTarget.style.color = '#64748b';
-                                    e.currentTarget.style.borderColor = '#cbd5e1';
-                                  }
-                                }}
-                                title="Thao tác sản phẩm"
-                                aria-label="Thao tác sản phẩm"
                               >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <circle cx="12" cy="12" r="1.5" />
-                                  <circle cx="12" cy="5" r="1.5" />
-                                  <circle cx="12" cy="19" r="1.5" />
-                                </svg>
-                              </button>
-
-                              {openProductMenuId === item.id && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    right: 0,
-                                    ...(idx >= paginatedProducts.length - 2 && paginatedProducts.length > 2
-                                      ? { bottom: 'calc(100% + 4px)' }
-                                      : { top: 'calc(100% + 4px)' }),
-                                    background: '#ffffff',
-                                    border: '1px solid #e2e8f0',
-                                    borderRadius: '10px',
-                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
-                                    padding: '5px',
-                                    minWidth: '150px',
-                                    zIndex: 50,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '2px',
-                                    textAlign: 'left',
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
                                 >
-                                  {canConfigUnit && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setUnitConfigProduct(item);
-                                        setOpenProductMenuId(null);
-                                      }}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        width: '100%',
-                                        padding: '8px 12px',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        borderRadius: '6px',
-                                        fontSize: '13px',
-                                        fontWeight: '600',
-                                        color: '#334155',
-                                        cursor: 'pointer',
-                                        boxShadow: 'none',
-                                        margin: 0,
-                                        transition: 'background 0.15s ease',
-                                        textAlign: 'left',
-                                      }}
-                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                                      title="Cấu hình ĐVT cơ sở & danh sách ĐVT quy đổi (Lốc, Thùng...)"
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                        <circle cx="12" cy="12" r="3" />
-                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                                      </svg>
-                                      <span>Cấu hình ĐVT</span>
-                                    </button>
-                                  )}
+                                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                                  <polyline points="7 10 12 15 17 10" />
+                                  <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>
+                                  Nhập kho
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                  Lập phiếu nhập kho từ Nhà cung cấp
+                                </div>
+                              </div>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
 
-                                  {canWriteInventory && (
-                                    <>
+              {/* Vùng cuộn riêng cho bảng hàng hóa (cố định thead) */}
+              <div
+                className="roles-grid-scroll"
+                style={{
+                  overflowX: 'auto',
+                  overflowY: 'auto',
+                  flex: 1,
+                  minHeight: 0,
+                  scrollBehavior: 'smooth'
+                }}
+              >
+                {isLoading ? (
+                  <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>
+                    <div style={{ fontSize: '14px', fontWeight: '500' }}>Đang tải dữ liệu từ máy chủ Backend...</div>
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div style={{ padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '13.5px' }}>
+                    Không tìm thấy sản phẩm nào phù hợp với điều kiện tìm kiếm.
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', minWidth: '1200px', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '13.5px' }}>
+                    <colgroup>
+                      <col style={{ width: '95px' }} />
+                      <col />
+                      <col style={{ width: '110px' }} />
+                      <col style={{ width: '135px' }} />
+                      <col style={{ width: '165px' }} />
+                      <col style={{ width: '130px' }} />
+                      <col style={{ width: '125px' }} />
+                      {isCostVisible && <col style={{ width: '125px' }} />}
+                      {canPerformProductAction && <col style={{ width: '60px' }} />}
+                    </colgroup>
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc', boxShadow: '0 1px 0 #e2e8f0' }}>
+                      <tr style={{
+                        color: '#64748b',
+                        background: '#f8fafc',
+                        fontSize: '11px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        borderBottom: '1px solid #e2e8f0',
+                      }}>
+                        <th style={{ padding: '12px 14px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Mã SP</th>
+                        <th style={{ padding: '12px 14px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Tên Sản Phẩm</th>
+                        <th style={{ padding: '12px 14px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Ngành Hàng</th>
+                        <th style={{ padding: '12px 14px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Đơn Vị Tính</th>
+                        <th style={{ padding: '12px 14px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Số Lượng Tồn</th>
+                        <th style={{ padding: '12px 14px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Niêm Yết (Bán)</th>
+                        <th style={{ padding: '12px 14px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Sàn (Tối thiểu)</th>
+                        {isCostVisible && (
+                          <th style={{ padding: '12px 14px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Vốn Nhập Kho</th>
+                        )}
+                        {canPerformProductAction && (
+                          <th style={{ padding: '12px 14px', fontWeight: '600', textAlign: 'center', background: '#f8fafc' }}>Thao Tác</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedProducts.map((item, idx) => (
+                        <tr
+                          key={item.id}
+                          className="inventory-row"
+                          style={{
+                            background: idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
+                            borderBottom: '1px solid #f1f5f9',
+                          }}
+                        >
+                          <td style={{
+                            padding: '12px 14px',
+                            textAlign: 'left',
+                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            color: '#334155',
+                          }}>
+                            {item.code}
+                          </td>
+
+                          <td style={{ padding: '12px 14px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              {item.images && item.images.length > 0 ? (
+                                <img
+                                  src={getProductImageUrl(item.images[0])}
+                                  alt=""
+                                  style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #cbd5e1', flexShrink: 0 }}
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', border: '1px solid #e2e8f0', flexShrink: 0 }}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                <span style={{ wordBreak: 'break-word' }}>{item.name}</span>
+                                {item.status === 'inactive' && (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      fontSize: '11px',
+                                      fontWeight: '700',
+                                      background: '#fee2e2',
+                                      color: '#b91c1c',
+                                      border: '1px solid #fecaca',
+                                      padding: '2px 8px',
+                                      borderRadius: '999px',
+                                      width: 'fit-content',
+                                      marginTop: '3px',
+                                    }}
+                                  >
+                                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#dc2626', flexShrink: 0 }} />
+                                    Ngừng giao dịch
+                                  </span>
+                                )}
+                                {item.status === 'active' && (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      fontSize: '11px',
+                                      fontWeight: '700',
+                                      background: '#dcfce7',
+                                      color: '#15803d',
+                                      border: '1px solid #bbf7d0',
+                                      padding: '2px 8px',
+                                      borderRadius: '999px',
+                                      width: 'fit-content',
+                                      marginTop: '3px',
+                                    }}
+                                  >
+                                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
+                                    Đang giao dịch
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          <td style={{ padding: '12px 14px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>{item.category}</span>
+                              {canManageCategories && (
+                                <button
+                                  onClick={() => setMovingProduct({ id: item.id, name: item.name, category_id: item.category_id })}
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '2px',
+                                    color: '#94a3b8',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                  title="Chuyển ngành hàng"
+                                  onMouseEnter={e => e.currentTarget.style.color = '#3b82f6'}
+                                  onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Cột Đơn vị tính cơ sở & quy đổi */}
+                          <td style={{ padding: '12px 14px', textAlign: 'left', fontSize: '12.5px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                              <span style={{ fontWeight: '600', color: '#0f172a' }}>
+                                {item.base_unit || 'Cái'} <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: '400' }}>(cơ sở)</span>
+                              </span>
+                              {item.units && item.units.length > 0 ? (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                  {item.units.map((u, uIdx) => (
+                                    <span
+                                      key={uIdx}
+                                      style={{
+                                        fontSize: '11px',
+                                        background: '#ecfdf5',
+                                        color: '#065f46',
+                                        padding: '1px 6px',
+                                        borderRadius: '4px',
+                                        border: '1px solid #a7f3d0',
+                                      }}
+                                      title={`1 ${u.unit_name} = ${u.conversion_rate} ${item.base_unit || 'Cái'}`}
+                                    >
+                                      {u.unit_name} (×{u.conversion_rate})
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '11px', color: '#94a3b8' }}>Chưa có ĐVT quy đổi</span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td style={{
+                            padding: '10px 14px',
+                            verticalAlign: 'middle',
+                            textAlign: 'right',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}>
+                            {(() => {
+                              const branchInfo = lowStockBranchesMap.get(item.id);
+                              const minVal = branchInfo?.minStock ?? (item.min_stock ?? 10);
+                              const isBelowGlobal = item.stock <= minVal;
+                              const hasBranchShortage = Boolean(branchInfo && branchInfo.warehouseNames.length > 0);
+                              const branchCount = branchInfo?.warehouseNames.length || 0;
+                              const branchText = branchInfo?.warehouseNames.join(', ') || 'chi nhánh';
+                              const firstBranch = branchInfo?.warehouseNames[0] || 'chi nhánh';
+                              const shortageLabel = branchCount > 1
+                                ? `${branchCount} kho`
+                                : (firstBranch.length <= 8 ? firstBranch : '1 kho');
+
+                              const isLowStock = isBelowGlobal || hasBranchShortage;
+
+                              return (
+                                <div style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'flex-end',
+                                  justifyContent: 'center',
+                                  gap: '3px',
+                                  width: '100%',
+                                }}>
+                                  <span style={{
+                                    fontWeight: '700',
+                                    color: isLowStock ? '#dc2626' : '#0f172a',
+                                  }}>
+                                    {item.stock.toLocaleString()} {item.base_unit || 'cái'}
+                                  </span>
+                                  {isBelowGlobal ? (
+                                    <span
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '3px',
+                                        background: '#fee2e2',
+                                        color: '#b91c1c',
+                                        border: '1px solid #fca5a5',
+                                        borderRadius: '4px',
+                                        padding: '1.5px 6px',
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        whiteSpace: 'nowrap',
+                                        maxWidth: '100%',
+                                        boxSizing: 'border-box',
+                                      }}
+                                      title={`Tồn kho hiện tại (${item.stock}) <= Định mức tối thiểu (${minVal})`}
+                                    >
+                                      Dưới định mức
+                                    </span>
+                                  ) : hasBranchShortage ? (
+                                    <span
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '3px',
+                                        background: '#fee2e2',
+                                        color: '#b91c1c',
+                                        border: '1px solid #fca5a5',
+                                        borderRadius: '4px',
+                                        padding: '1.5px 6px',
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        lineHeight: '1.45',
+                                        whiteSpace: 'nowrap',
+                                        maxWidth: '100%',
+                                        boxSizing: 'border-box',
+                                      }}
+                                      title={`Tồn tổng công ty (${item.stock}) > định mức (${minVal}) nhưng đang dưới định mức tồn tối thiểu tại: ${branchText}`}
+                                    >
+                                      Dưới mức ({shortageLabel})
+                                    </span>
+                                  ) : null}
+                                </div>
+                              );
+                            })()}
+                          </td>
+
+                          <td style={{ padding: '12px 14px', color: '#0f172a', fontWeight: '600', fontSize: '13.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                            {item.sell_price > 0 ? (
+                              `${item.sell_price.toLocaleString('vi-VN')} đ`
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontSize: '12px', fontStyle: 'italic', fontWeight: '400' }}>Chưa thiết lập</span>
+                            )}
+                          </td>
+
+                          <td style={{ padding: '12px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                            {item.floor_price && item.floor_price > 0 ? (
+                              <span style={{ color: '#0284c7', fontWeight: '600', fontSize: '13.5px' }}>
+                                {item.floor_price.toLocaleString('vi-VN')} đ
+                              </span>
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontSize: '12px', fontStyle: 'italic', fontWeight: '400' }}>Chưa thiết lập</span>
+                            )}
+                          </td>
+
+                          {isCostVisible && (
+                            <td style={{ padding: '12px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>
+                                {item.cost_price ? `${item.cost_price.toLocaleString('vi-VN')} đ` : '—'}
+                              </span>
+                            </td>
+                          )}
+                          {canPerformProductAction && (
+                            <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                              <div style={{ position: 'relative', display: 'inline-block' }}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenProductMenuId(openProductMenuId === item.id ? null : item.id);
+                                  }}
+                                  style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    padding: 0,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: openProductMenuId === item.id ? '#e2e8f0' : '#ffffff',
+                                    color: openProductMenuId === item.id ? '#0f172a' : '#64748b',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: 'none',
+                                    margin: 0,
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (openProductMenuId !== item.id) {
+                                      e.currentTarget.style.background = '#f8fafc';
+                                      e.currentTarget.style.color = '#0f172a';
+                                      e.currentTarget.style.borderColor = '#94a3b8';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (openProductMenuId !== item.id) {
+                                      e.currentTarget.style.background = '#ffffff';
+                                      e.currentTarget.style.color = '#64748b';
+                                      e.currentTarget.style.borderColor = '#cbd5e1';
+                                    }
+                                  }}
+                                  title="Thao tác sản phẩm"
+                                  aria-label="Thao tác sản phẩm"
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="1.5" />
+                                    <circle cx="12" cy="5" r="1.5" />
+                                    <circle cx="12" cy="19" r="1.5" />
+                                  </svg>
+                                </button>
+
+                                {openProductMenuId === item.id && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      right: 0,
+                                      ...(idx >= paginatedProducts.length - 2 && paginatedProducts.length > 2
+                                        ? { bottom: 'calc(100% + 4px)' }
+                                        : { top: 'calc(100% + 4px)' }),
+                                      background: '#ffffff',
+                                      border: '1px solid #e2e8f0',
+                                      borderRadius: '10px',
+                                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
+                                      padding: '5px',
+                                      minWidth: '150px',
+                                      zIndex: 50,
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '2px',
+                                      textAlign: 'left',
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {(isAdmin || isSalesManager) && (
                                       <button
                                         type="button"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setStockActionState({ isOpen: true, actionType: 'receipt', product: item });
+                                          setProductDrawerState({ isOpen: true, product: item });
                                           setOpenProductMenuId(null);
                                         }}
                                         style={{
@@ -1784,24 +4308,63 @@ export default function DashboardPage({
                                           borderRadius: '6px',
                                           fontSize: '13px',
                                           fontWeight: '600',
-                                          color: '#065f46',
+                                          color: '#0f172a',
                                           cursor: 'pointer',
                                           boxShadow: 'none',
                                           margin: 0,
                                           transition: 'background 0.15s ease',
                                           textAlign: 'left',
                                         }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#ecfdf5')}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
                                         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                                        title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
                                       >
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                          <line x1="12" y1="5" x2="12" y2="19" />
-                                          <line x1="5" y1="12" x2="19" y2="12" />
+                                          <path d="M12 20h9" />
+                                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                                         </svg>
-                                        <span>Nhập kho</span>
+                                        <span>Chỉnh sửa sản phẩm</span>
                                       </button>
+                                    )}
 
+                                    {canConfigUnit && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setUnitConfigProduct(item);
+                                          setOpenProductMenuId(null);
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          width: '100%',
+                                          padding: '8px 12px',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          fontSize: '13px',
+                                          fontWeight: '600',
+                                          color: '#334155',
+                                          cursor: 'pointer',
+                                          boxShadow: 'none',
+                                          margin: 0,
+                                          transition: 'background 0.15s ease',
+                                          textAlign: 'left',
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                        title="Cấu hình ĐVT cơ sở & danh sách ĐVT quy đổi (Lốc, Thùng...)"
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                          <circle cx="12" cy="12" r="3" />
+                                          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                        </svg>
+                                        <span>Cấu hình ĐVT</span>
+                                      </button>
+                                    )}
+
+                                    {canWriteInventory && (
                                       <button
                                         type="button"
                                         onClick={(e) => {
@@ -1836,446 +4399,516 @@ export default function DashboardPage({
                                         </svg>
                                         <span>Xuất kho</span>
                                       </button>
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                                    )}
 
-            {/* Thanh điều khiển Phân Trang Cố Định Ở Đáy Bảng */}
-            {filteredProducts.length > 0 && (
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                padding: '8px 18px',
-                borderTop: '1px solid #e2e8f0',
-                background: '#ffffff',
-                gap: '12px',
-                fontSize: '12px',
-                color: '#64748b',
-                flexShrink: 0
-              }}>
-                {/* Khối phân trang liền thanh chuẩn theo thiết kế thu nhỏ */}
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'stretch',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '5px',
-                    overflow: 'hidden',
-                    background: '#ffffff',
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                    height: '24px',
-                  }}
-                >
-                  {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
-                  {safeCurrentPage > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                      style={{
-                        minWidth: '24px',
-                        height: '100%',
-                        padding: '0 6px',
-                        border: 'none',
-                        borderRight: '1px solid #e5e7eb',
-                        background: '#ffffff',
-                        color: '#4b5563',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'background-color 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                      title="Trang trước"
-                    >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="15 18 9 12 15 6" />
-                      </svg>
-                    </button>
-                  )}
+                                    {canAccessStockCard && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedProductForStockCard({ id: item.id, name: item.name, code: item.code });
+                                        setStockCardReturnTab('inventory');
+                                        setActiveTab('stock-card');
+                                        setOpenProductMenuId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        color: '#1d4ed8',
+                                        cursor: 'pointer',
+                                        boxShadow: 'none',
+                                        margin: 0,
+                                        transition: 'background 0.15s ease',
+                                        textAlign: 'left',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#eff6ff')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      title="Xem thẻ kho chi tiết để truy nguyên số tồn bị lệch"
+                                    >
+                                      <span>Xem thẻ kho</span>
+                                    </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
 
-                  {/* Danh sách các số trang */}
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1)
-                    .reduce<(number | string)[]>((acc, p, idx, arr) => {
-                      if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
-                        acc.push('...');
-                      }
-                      acc.push(p);
-                      return acc;
-                    }, [])
-                    .map((p, idx, arr) => {
-                      const hasNext = safeCurrentPage < totalPages;
-                      const isLastItem = idx === arr.length - 1 && !hasNext;
-                      if (typeof p === 'string') {
+              {/* Thanh điều khiển Phân Trang Cố Định Ở Đáy Bảng */}
+              {filteredProducts.length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  padding: '8px 18px',
+                  borderTop: '1px solid #e2e8f0',
+                  background: '#ffffff',
+                  gap: '12px',
+                  fontSize: '12px',
+                  color: '#64748b',
+                  flexShrink: 0
+                }}>
+                  {/* Khối phân trang liền thanh chuẩn theo thiết kế thu nhỏ */}
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'stretch',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '5px',
+                      overflow: 'hidden',
+                      background: '#ffffff',
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                      height: '24px',
+                    }}
+                  >
+                    {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
+                    {safeCurrentPage > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        style={{
+                          minWidth: '24px',
+                          height: '100%',
+                          padding: '0 6px',
+                          border: 'none',
+                          borderRight: '1px solid #e5e7eb',
+                          background: '#ffffff',
+                          color: '#4b5563',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                        title="Trang trước"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                      </button>
+                    )}
+
+                    {/* Danh sách các số trang */}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1)
+                      .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                        if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                          acc.push('...');
+                        }
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, idx, arr) => {
+                        const hasNext = safeCurrentPage < totalPages;
+                        const isLastItem = idx === arr.length - 1 && !hasNext;
+                        if (typeof p === 'string') {
+                          return (
+                            <span
+                              key={`ellipsis-${idx}`}
+                              style={{
+                                minWidth: '22px',
+                                height: '100%',
+                                padding: '0 4px',
+                                borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                                background: '#ffffff',
+                                color: '#6b7280',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '11px',
+                                userSelect: 'none',
+                              }}
+                            >
+                              ...
+                            </span>
+                          );
+                        }
+
+                        const isActive = p === safeCurrentPage;
                         return (
-                          <span
-                            key={`ellipsis-${idx}`}
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setCurrentPage(p)}
                             style={{
-                              minWidth: '22px',
+                              minWidth: '24px',
                               height: '100%',
-                              padding: '0 4px',
+                              padding: '0 7px',
+                              border: 'none',
                               borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
-                              background: '#ffffff',
-                              color: '#6b7280',
+                              background: isActive ? '#0fad89' : '#ffffff',
+                              color: isActive ? '#ffffff' : '#374151',
+                              cursor: isActive ? 'default' : 'pointer',
+                              fontSize: '11.5px',
+                              fontWeight: isActive ? '700' : '500',
                               display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              fontSize: '11px',
-                              userSelect: 'none',
+                              transition: 'background-color 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
                             }}
                           >
-                            ...
-                          </span>
+                            {p}
+                          </button>
                         );
-                      }
+                      })}
 
-                      const isActive = p === safeCurrentPage;
-                      return (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => setCurrentPage(p)}
-                          style={{
-                            minWidth: '24px',
-                            height: '100%',
-                            padding: '0 7px',
-                            border: 'none',
-                            borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
-                            background: isActive ? '#0fad89' : '#ffffff',
-                            color: isActive ? '#ffffff' : '#374151',
-                            cursor: isActive ? 'default' : 'pointer',
-                            fontSize: '11.5px',
-                            fontWeight: isActive ? '700' : '500',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'background-color 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
-                          }}
-                        >
-                          {p}
-                        </button>
-                      );
-                    })}
-
-                  {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
-                  {safeCurrentPage < totalPages && (
-                    <button
-                      type="button"
-                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                      style={{
-                        minWidth: '24px',
-                        height: '100%',
-                        padding: '0 6px',
-                        border: 'none',
-                        background: '#ffffff',
-                        color: '#4b5563',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'background-color 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                      title="Trang sau"
-                    >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </button>
-                  )}
+                    {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
+                    {safeCurrentPage < totalPages && (
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                        style={{
+                          minWidth: '24px',
+                          height: '100%',
+                          padding: '0 6px',
+                          border: 'none',
+                          background: '#ffffff',
+                          color: '#4b5563',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                        title="Trang sau"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Cảnh báo phiên sắp hết hạn */}
-      {isWarningZone && (
-        <ModalPortal>
-          <div style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.7)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 99999,
-            padding: '20px'
-          }}>
-            <div style={{
-              width: '100%',
-              maxWidth: '440px',
-              background: '#1e293b',
-              border: '1px solid rgba(245, 158, 11, 0.5)',
-              borderRadius: '18px',
-              padding: '28px 24px',
-              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(245, 158, 11, 0.2)',
-              textAlign: 'center',
-              color: '#f8fafc'
-            }}>
-              <h3 style={{ fontSize: '19px', fontWeight: '700', margin: '0 0 10px', color: '#fde68a' }}>
-                Phiên Làm Việc Sắp Hết Hạn
-              </h3>
-              <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 14px' }}>
-                Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian.
-              </p>
+              )}
             </div>
-          </div>
-        </ModalPortal>
-      )}
+          </>
+        )}
 
-      {/* Modals */}
-      <SecurityModal
-        isOpen={isSecurityModalOpen}
-        onClose={() => setIsSecurityModalOpen(false)}
-        token={token}
-        username={user.username}
-        onTokenUpdated={onTokenUpdated}
-      />
-
-      <CreateCustomerModal
-        isOpen={isCreateAccountModalOpen}
-        onClose={() => setIsCreateAccountModalOpen(false)}
-        token={token}
-        onSuccess={(msg) => {
-          window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { message: msg } }));
-          emitStatusToast({ message: msg.replace(/^✅\s*/, ''), title: 'Tạo tài khoản thành công' });
-        }}
-      />
-
-      <MoveCategoryModal
-        isOpen={movingProduct !== null}
-        onClose={() => setMovingProduct(null)}
-        token={token}
-        productId={movingProduct?.id || 0}
-        productName={movingProduct?.name || ''}
-        currentCategoryId={movingProduct?.category_id}
-        onSuccess={() => {
-          getProductsApi(token).then(data => {
-            setProducts(data.items);
-          }).catch(console.error);
-        }}
-      />
-
-      {/* Xác nhận đăng xuất */}
-      {showLogoutConfirm && (
-        <ModalPortal>
-          <div
-            style={{
+        {/* Cảnh báo phiên sắp hết hạn */}
+        {isWarningZone && (
+          <ModalPortal>
+            <div style={{
               position: 'fixed',
               inset: 0,
-              backgroundColor: 'rgba(15, 23, 42, 0.65)',
-              backdropFilter: 'blur(4px)',
+              background: 'rgba(15, 23, 42, 0.7)',
+              backdropFilter: 'blur(6px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               zIndex: 99999,
-              padding: '16px',
-              animation: 'fadeInCard 0.15s ease-out'
-            }}
-          >
+              padding: '20px'
+            }}>
+              <div style={{
+                width: '100%',
+                maxWidth: '440px',
+                background: '#1e293b',
+                border: '1px solid rgba(245, 158, 11, 0.5)',
+                borderRadius: '18px',
+                padding: '28px 24px',
+                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(245, 158, 11, 0.2)',
+                textAlign: 'center',
+                color: '#f8fafc'
+              }}>
+                <h3 style={{ fontSize: '19px', fontWeight: '700', margin: '0 0 10px', color: '#fde68a' }}>
+                  Phiên Làm Việc Sắp Hết Hạn
+                </h3>
+                <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 14px' }}>
+                  Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian.
+                </p>
+              </div>
+            </div>
+          </ModalPortal>
+        )}
+
+        {/* Modals */}
+        <SecurityModal
+          isOpen={isSecurityModalOpen}
+          onClose={() => setIsSecurityModalOpen(false)}
+          token={token}
+          username={user.username}
+          onTokenUpdated={onTokenUpdated}
+        />
+
+        <CreateCustomerModal
+          isOpen={isCreateAccountModalOpen}
+          onClose={() => setIsCreateAccountModalOpen(false)}
+          token={token}
+          onSuccess={(msg) => {
+            window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { message: msg } }));
+            emitStatusToast({ message: msg.replace(/^✅\s*/, ''), title: 'Tạo tài khoản thành công' });
+          }}
+        />
+
+        <MoveCategoryModal
+          isOpen={movingProduct !== null}
+          onClose={() => setMovingProduct(null)}
+          token={token}
+          productId={movingProduct?.id || 0}
+          productName={movingProduct?.name || ''}
+          currentCategoryId={movingProduct?.category_id}
+          onSuccess={() => {
+            fetchProducts(currentPage);
+          }}
+        />
+
+        {/* Xác nhận đăng xuất */}
+        {showLogoutConfirm && (
+          <ModalPortal>
             <div
               style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '16px',
-                padding: '24px',
-                maxWidth: '380px',
-                width: '100%',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                textAlign: 'center',
-                border: '1px solid #e2e8f0'
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                backdropFilter: 'blur(4px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 99999,
+                padding: '16px',
+                animation: 'fadeInCard 0.15s ease-out'
               }}
             >
               <div
                 style={{
-                  width: '52px',
-                  height: '52px',
-                  borderRadius: '50%',
-                  backgroundColor: '#fef2f2',
-                  color: '#dc2626',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px auto',
-                  border: '1px solid #fee2e2'
+                  backgroundColor: '#ffffff',
+                  borderRadius: '16px',
+                  padding: '24px',
+                  maxWidth: '380px',
+                  width: '100%',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                  textAlign: 'center',
+                  border: '1px solid #e2e8f0'
                 }}
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-              </div>
-
-              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0' }}>
-                Xác nhận đăng xuất
-              </h3>
-              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 24px 0' }}>
-                Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
-              </p>
-
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowLogoutConfirm(false)}
+                <div
                   style={{
-                    flex: 1,
-                    padding: '9px 16px',
-                    borderRadius: '10px',
-                    border: '1px solid #cbd5e1',
-                    backgroundColor: '#ffffff',
-                    color: '#334155',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'background 0.15s ease'
+                    width: '52px',
+                    height: '52px',
+                    borderRadius: '50%',
+                    backgroundColor: '#fef2f2',
+                    color: '#dc2626',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 16px auto',
+                    border: '1px solid #fee2e2'
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
                 >
-                  Hủy bỏ
-                </button>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setShowLogoutConfirm(false);
-                    setIsLoggingOut(true);
-                    try {
-                      await onLogout();
-                    } finally {
-                      setIsLoggingOut(false);
-                    }
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '9px 16px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    backgroundColor: '#dc2626',
-                    color: '#ffffff',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
-                    transition: 'background 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#b91c1c')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dc2626')}
-                >
-                  Đăng xuất
-                </button>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0' }}>
+                  Xác nhận đăng xuất
+                </h3>
+                <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 24px 0' }}>
+                  Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
+                </p>
+
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowLogoutConfirm(false)}
+                    style={{
+                      flex: 1,
+                      padding: '9px 16px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      backgroundColor: '#ffffff',
+                      color: '#334155',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                  >
+                    Hủy bỏ
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setShowLogoutConfirm(false);
+                      setIsLoggingOut(true);
+                      try {
+                        await onLogout();
+                      } finally {
+                        setIsLoggingOut(false);
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '9px 16px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      backgroundColor: '#dc2626',
+                      color: '#ffffff',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#b91c1c')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dc2626')}
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </ModalPortal>
-      )}
+          </ModalPortal>
+        )}
 
-      <ProductAuditDrawer
-        isOpen={productAuditDrawerState.isOpen}
-        onClose={() => setProductAuditDrawerState((prev) => ({ ...prev, isOpen: false }))}
-        productCode={productAuditDrawerState.productCode}
-        productName={productAuditDrawerState.productName}
-        token={token}
-        initialFilter={productAuditDrawerState.initialFilter || 'ALL'}
-        isCostVisible={isCostVisible}
-      />
-
-      <PriceUpdateModal
-        isOpen={Boolean(priceUpdateModalProduct)}
-        product={priceUpdateModalProduct}
-        onClose={() => setPriceUpdateModalProduct(null)}
-        token={token}
-        isCostVisible={isCostVisible}
-        onSuccess={() => {
-          emitStatusToast({
-            title: 'Cập nhật giá thành công',
-            message: 'Đã lưu giá mới thành công.',
-          });
-          fetchProducts();
-        }}
-      />
-
-      {isProductBulkImportOpen && (
-        <ProductBulkImportModal
+        <ProductAuditDrawer
+          isOpen={productAuditDrawerState.isOpen}
+          onClose={() => setProductAuditDrawerState((prev) => ({ ...prev, isOpen: false }))}
+          productCode={productAuditDrawerState.productCode}
+          productName={productAuditDrawerState.productName}
           token={token}
-          onClose={() => setIsProductBulkImportOpen(false)}
+          initialFilter={productAuditDrawerState.initialFilter || 'ALL'}
+          isCostVisible={isCostVisible}
+        />
+
+        <PriceUpdateModal
+          isOpen={Boolean(priceUpdateModalProduct)}
+          product={priceUpdateModalProduct}
+          onClose={() => setPriceUpdateModalProduct(null)}
+          token={token}
+          isCostVisible={isCostVisible}
           onSuccess={() => {
-            setIsProductBulkImportOpen(false);
+            emitStatusToast({
+              title: 'Cập nhật giá thành công',
+              message: 'Đã lưu giá mới thành công.',
+            });
             fetchProducts();
           }}
         />
-      )}
 
-      {/* SCRUM Unit Conversion Modals */}
-      {unitConfigProduct && (
-        <ProductUnitModal
-          isOpen={Boolean(unitConfigProduct)}
+        {isProductBulkImportOpen && (
+          <ProductBulkImportModal
+            token={token}
+            onClose={() => setIsProductBulkImportOpen(false)}
+            onSuccess={() => {
+              setIsProductBulkImportOpen(false);
+              fetchProducts();
+            }}
+          />
+        )}
+
+        {/* Unit Conversion Modals */}
+        {unitConfigProduct && (
+          <ProductUnitModal
+            isOpen={Boolean(unitConfigProduct)}
+            token={token}
+            product={unitConfigProduct}
+            onClose={() => setUnitConfigProduct(null)}
+            onSuccess={() => {
+              setUnitConfigProduct(null);
+              fetchProducts();
+            }}
+          />
+        )}
+
+        {stockActionState.isOpen && (
+          <StockActionModal
+            isOpen={stockActionState.isOpen}
+            token={token}
+            user={user}
+            actionType={stockActionState.actionType}
+            product={stockActionState.product}
+            products={products}
+            initialReason={stockActionState.initialReason}
+            onClose={() => setStockActionState({ isOpen: false, actionType: 'receipt', product: null })}
+            onSuccess={() => {
+              if (stockActionState.product) {
+                setHistoryProductTarget({
+                  code: stockActionState.product.code,
+                  name: stockActionState.product.name,
+                });
+              }
+              setStockActionState({ isOpen: false, actionType: 'receipt', product: null });
+              fetchProducts();
+            }}
+          />
+        )}
+
+
+
+
+
+        {movingProduct && (
+          <MoveCategoryModal
+            isOpen={Boolean(movingProduct)}
+            token={token}
+            productId={movingProduct.id}
+            productName={movingProduct.name}
+            currentCategoryId={movingProduct.category_id}
+            onClose={() => setMovingProduct(null)}
+            onSuccess={() => {
+              setMovingProduct(null);
+              fetchProducts();
+            }}
+          />
+        )}
+        {/* Modals Cảnh Báo Tồn Kho Tối Thiểu */}
+        <StockThresholdModal
+          isOpen={isThresholdModalOpen}
           token={token}
-          product={unitConfigProduct}
-          onClose={() => setUnitConfigProduct(null)}
-          onSuccess={() => {
-            setUnitConfigProduct(null);
+          canManageThresholds={canManageThreshold}
+          onClose={() => setIsThresholdModalOpen(false)}
+          onThresholdsUpdated={() => {
             fetchProducts();
+            fetchLowStockAlerts();
           }}
         />
-      )}
 
-      {stockActionState.isOpen && (
-        <StockActionModal
-          isOpen={stockActionState.isOpen}
-          token={token}
-          actionType={stockActionState.actionType}
-          product={stockActionState.product}
-          onClose={() => setStockActionState({ isOpen: false, actionType: 'receipt', product: null })}
-          onSuccess={() => {
-            setStockActionState({ isOpen: false, actionType: 'receipt', product: null });
-            fetchProducts();
-          }}
+        <LowStockAlertModal
+          isOpen={isLowStockAlertModalOpen}
+          items={lowStockSummary?.items || []}
+          onClose={() => setIsLowStockAlertModalOpen(false)}
+          onOpenThresholdConfig={canManageThreshold ? () => {
+            setIsLowStockAlertModalOpen(false);
+            setActiveTab('stock-thresholds');
+          } : undefined}
+          onOpenGoodsReceipt={canWriteInventory ? () => {
+            setIsLowStockAlertModalOpen(false);
+            setActiveTab('goods-receipt');
+          } : undefined}
         />
-      )}
 
-
-
-      {movingProduct && (
-        <MoveCategoryModal
-          isOpen={Boolean(movingProduct)}
-          token={token}
-          productId={movingProduct.id}
-          productName={movingProduct.name}
-          currentCategoryId={movingProduct.category_id}
-          onClose={() => setMovingProduct(null)}
-          onSuccess={() => {
-            setMovingProduct(null);
-            fetchProducts();
-          }}
-        />
-      )}
-      <StatusToastHost />
-    </div>
+        <StatusToastHost />
+      </div>
     </DashboardLayout>
   );
 }

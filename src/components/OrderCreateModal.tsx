@@ -7,11 +7,21 @@ import {
   getDealersApi,
   resolvePriceApi,
   DealerItem,
-  getAvatarUrl,
   listDeliveryPointsApi,
+  getDiscountPoliciesApi,
+  DiscountPolicy,
+  DealerPurchaseHistory,
+  PurchaseHistoryItem,
+  getDealerPurchaseHistoryApi,
+  getDealerStockSummaryApi,
+  DealerStockSummaryResponse,
+  DealerCreditInfo,
+  getDealerCreditInfoApi,
 } from '../services/api';
+import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discountEngine';
 import { searchDealers } from '../services/dealerSearchApi';
 import { emitStatusToast } from './StatusToast';
+import { DealerCreditBadge } from './DealerCreditBadge';
 import type { DeliveryPoint } from '../types/deliveryPoint';
 
 interface OrderCreateModalProps {
@@ -22,6 +32,10 @@ interface OrderCreateModalProps {
   currentUser?: User;
   onSuccess: () => void;
   initialDealerId?: number;
+  initialOrderItems?: SelectedOrderItem[];
+  initialNote?: string;
+  initialDeliveryPointId?: number | null;
+  isPageMode?: boolean;
 }
 
 export interface SelectedOrderItem {
@@ -54,6 +68,10 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   currentUser,
   onSuccess,
   initialDealerId = 1,
+  initialOrderItems,
+  initialNote,
+  initialDeliveryPointId,
+  isPageMode = false,
 }) => {
   if (!isOpen) return null;
 
@@ -63,17 +81,144 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const [loadingDealers, setLoadingDealers] = useState(false);
 
   // Danh sách nhiều sản phẩm trong đơn hàng
-  const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>([]);
+  const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>(() => initialOrderItems || []);
 
   // Điểm giao hàng
   const [points, setPoints] = useState<DeliveryPoint[]>([]);
-  const [deliveryPointId, setDeliveryPointId] = useState<number | null>(null);
+  const [deliveryPointId, setDeliveryPointId] = useState<number | null>(() => initialDeliveryPointId !== undefined ? initialDeliveryPointId : null);
 
-  const [note, setNote] = useState<string>('');
+  // Chiết khấu sản lượng
+  const [policies, setPolicies] = useState<DiscountPolicy[]>([]);
+  const [discountPercent, setDiscountPercent] = useState<string>('0');
+  const [isManualDiscount, setIsManualDiscount] = useState<boolean>(false);
+  const [note, setNote] = useState<string>(() => initialNote || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const setErrorMsg = (msg: string | null) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  };
+
+  // SCRUM-52 / SCRUM-57: Lịch sử mua hàng của đại lý & gợi ý mặt hàng
+  const [purchaseHistory, setPurchaseHistory] = useState<DealerPurchaseHistory | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyForbidden, setHistoryForbidden] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialOrderItems && initialOrderItems.length > 0) {
+        setOrderItems(initialOrderItems);
+      }
+      if (initialDealerId) {
+        setDealerId(initialDealerId);
+      }
+      if (initialDeliveryPointId !== undefined) {
+        setDeliveryPointId(initialDeliveryPointId);
+      }
+      if (initialNote !== undefined) {
+        setNote(initialNote);
+      }
+    }
+  }, [isOpen, initialOrderItems, initialDealerId, initialDeliveryPointId, initialNote]);
+
+  // AC 1 & 2: Quản lý tồn kho khả dụng theo kho phục vụ của đại lý
+  const [stockSummary, setStockSummary] = useState<DealerStockSummaryResponse | null>(null);
+  const [isLoadingStock, setIsLoadingStock] = useState<boolean>(false);
+
+  // AC 1: Tải thông tin công nợ, hạn mức & nợ quá hạn của đại lý
+  const [creditInfo, setCreditInfo] = useState<DealerCreditInfo | null>(null);
+  const [isLoadingCredit, setIsLoadingCredit] = useState<boolean>(false);
+
+  const isCustomer = Boolean(
+    currentUser?.role === 'customer' ||
+    currentUser?.role === 'agent' ||
+    (currentUser?.roles && (currentUser.roles.includes('customer') || currentUser.roles.includes('agent')))
+  );
+
+  // RBAC Guard: Chỉ Sales và Admin mới được sửa giá và xem cảnh báo giá sàn
+  const canEditPrice = Boolean(
+    currentUser &&
+    ['admin', 'sales_manager', 'sales'].some((r) =>
+      currentUser.role === r || (currentUser.roles && currentUser.roles.includes(r))
+    )
+  );
 
   const selectedDealer = dealers.find((d) => d.id === dealerId) || dealers[0];
+  const isLockedDealer = Boolean(
+    selectedDealer?.status &&
+    (selectedDealer.status.toLowerCase().includes('khóa') ||
+     selectedDealer.status.toLowerCase().includes('lock'))
+  );
+
+  // Helper tìm đại lý tương ứng với tài khoản đại lý đang đăng nhập
+  const findCustomerOwnDealer = useCallback((itemsList: any[]) => {
+    if (!currentUser || !itemsList || itemsList.length === 0) return null;
+    return itemsList.find((d: any) =>
+      d.id === currentUser.id ||
+      (d.code && currentUser.username && d.code.toLowerCase() === currentUser.username.toLowerCase()) ||
+      (d.email && currentUser.email && d.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+      (d.phone && currentUser.phone && d.phone === currentUser.phone) ||
+      (d.name && currentUser.full_name && d.name.toLowerCase() === currentUser.full_name.toLowerCase())
+    ) || itemsList[0];
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (isOpen && token) {
+      const local = parseStoredPolicies();
+      if (local.length > 0) {
+        setPolicies(local);
+      }
+      getDiscountPoliciesApi(token, { is_active: true })
+        .then((res) => {
+          if (res.items && res.items.length > 0) {
+            const merged = [...res.items];
+            local.forEach((lp) => {
+              if (!merged.some((p) => p.code === lp.code)) merged.push(lp);
+            });
+            setPolicies(merged);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, token]);
+
+  // SCRUM-52 / SCRUM-57: Tải lịch sử mua hàng và gợi ý mặt hàng theo đại lý
+  useEffect(() => {
+    if (!isOpen || !token || !dealerId) {
+      setPurchaseHistory(null);
+      setHistoryForbidden(false);
+      setIsLoadingHistory(false);
+      return;
+    }
+    let isMounted = true;
+    setIsLoadingHistory(true);
+    setHistoryForbidden(false);
+
+    getDealerPurchaseHistoryApi(token, Number(dealerId))
+      .then((history) => {
+        if (!isMounted) return;
+        setPurchaseHistory(history);
+        setHistoryForbidden(false);
+      })
+      .catch((err: unknown) => {
+        if (!isMounted) return;
+        setPurchaseHistory(null);
+        if (err instanceof Error && (err.message.includes('phân công') || err.message.includes('403'))) {
+          setHistoryForbidden(true);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingHistory(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, token, dealerId]);
 
   // Tải danh sách đại lý khi mở modal
   useEffect(() => {
@@ -84,13 +229,23 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           const items = res.items || [];
           if (items.length > 0) {
             setDealers(items);
-            setDealerId((prev) => (items.some((d) => d.id === prev) ? prev : items[0].id));
+            if (isCustomer) {
+              const own = findCustomerOwnDealer(items);
+              if (own) setDealerId(own.id);
+            } else {
+              setDealerId((prev) => (items.some((d) => d.id === prev) ? prev : items[0].id));
+            }
           } else {
             getDealersApi(token)
               .then((dList) => {
                 if (dList && dList.length > 0) {
                   setDealers(dList);
-                  setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                  if (isCustomer) {
+                    const own = findCustomerOwnDealer(dList);
+                    if (own) setDealerId(own.id);
+                  } else {
+                    setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                  }
                 }
               })
               .catch(() => {});
@@ -101,7 +256,12 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             .then((dList) => {
               if (dList && dList.length > 0) {
                 setDealers(dList);
-                setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                if (isCustomer) {
+                  const own = findCustomerOwnDealer(dList);
+                  if (own) setDealerId(own.id);
+                } else {
+                  setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                }
               }
             })
             .catch(() => {});
@@ -110,7 +270,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           setLoadingDealers(false);
         });
     }
-  }, [isOpen, token]);
+  }, [isOpen, token, isCustomer, findCustomerOwnDealer]);
 
   // Tải điểm giao hàng theo Đại lý được chọn
   const loadPoints = useCallback(async () => {
@@ -135,9 +295,80 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     loadPoints();
   }, [loadPoints]);
 
-  const isDebtWarning =
-    selectedDealer?.debt_status &&
-    (selectedDealer.debt_status.includes('Vượt') || selectedDealer.debt_status.includes('Quá hạn'));
+  // AC 1: Tải tồn kho khả dụng của kho phục vụ cho đại lý được chọn
+  useEffect(() => {
+    if (!dealerId || !token) {
+      setStockSummary(null);
+      return;
+    }
+    let isCancelled = false;
+    setIsLoadingStock(true);
+    getDealerStockSummaryApi(token, dealerId)
+      .then((data) => {
+        if (!isCancelled) {
+          setStockSummary(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load dealer stock summary in modal:', err);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingStock(false);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [dealerId, token]);
+
+  // AC 1: Tải thông tin công nợ, hạn mức & nợ quá hạn
+  useEffect(() => {
+    if (!dealerId || !token) {
+      setCreditInfo(null);
+      return;
+    }
+    let isCancelled = false;
+    setIsLoadingCredit(true);
+    getDealerCreditInfoApi(token, dealerId)
+      .then((info) => {
+        if (!isCancelled) {
+          setCreditInfo(info);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load dealer credit info in modal:', err);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingCredit(false);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [dealerId, token]);
+
+  const stockMap = React.useMemo(() => {
+    const map = new Map<number, { actual_stock: number; reserved_stock: number; available_stock: number }>();
+    if (!stockSummary?.items) return map;
+    for (const item of stockSummary.items) {
+      map.set(item.product_id, item);
+    }
+    return map;
+  }, [stockSummary]);
+
+  const hasStockErrors = React.useMemo(() => {
+    if (!dealerId) return false;
+    return orderItems.some((item) => {
+      const stockItem = stockMap.get(item.productId);
+      if (!stockItem) return false;
+      const q = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
+      const rate = item.conversionRate || 1;
+      const maxOrderable = Math.max(0, Math.floor(stockItem.available_stock / rate));
+      return q > maxOrderable;
+    });
+  }, [dealerId, orderItems, stockMap]);
 
   // Nhận diện nhãn và màu sắc nhóm khách hàng
   const getCustomerGroupDisplay = (group?: string) => {
@@ -215,6 +446,18 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     // Reset Dropdown ngay lập tức để người dùng có thể tiếp tục chọn sản phẩm khác
     e.target.value = '';
 
+    const stockItem = stockMap.get(pId);
+    const availableStock = stockItem ? stockItem.available_stock : (prod.stock ?? 0);
+    const isOutOfStock = availableStock <= 0 || prod.status === 'out_of_stock' || prod.status === 'inactive';
+    if (isOutOfStock) {
+      emitStatusToast({
+        title: 'Hết hàng',
+        message: `Sản phẩm "${prod.name}" hiện đã hết hàng tại kho, không thể chọn đặt hàng!`,
+        type: 'warning',
+      });
+      return;
+    }
+
     // Kiểm tra xem sản phẩm đã có trong danh sách hay chưa
     const existingIndex = orderItems.findIndex((item) => item.productId === pId);
     if (existingIndex >= 0) {
@@ -253,9 +496,13 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         itemSellPrice = res.sale_price;
         itemFloorPrice = res.floor_price;
         itemNote = res.price_book_name || res.price_book_code;
-      } catch {
-        itemSellPrice = prod.sell_price || 0;
-        itemFloorPrice = prod.sell_price || 0;
+      } catch (err: any) {
+        emitStatusToast({
+          title: 'Chặn thêm sản phẩm',
+          message: `Sản phẩm [${prod.code}] chưa có bảng giá đang hiệu lực cho nhóm khách hàng này. Vui lòng kiểm tra lại cấu hình giá.`,
+          type: 'error',
+        });
+        return;
       }
     }
 
@@ -277,8 +524,172 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     setOrderItems((prev) => [...prev, newItem]);
   };
 
+  // SCRUM-52 / SCRUM-57: Thêm nhanh một mặt hàng từ lịch sử với số lượng bình quân / lần trước
+  const handleAddHistoryItem = async (item: PurchaseHistoryItem) => {
+    const prod = products.find((p) => p.id === item.product_id);
+    const qtyToAdd = Math.max(1, Math.round(item.last_order_quantity || item.avg_quantity || 1));
+    const baseUnit = prod?.base_unit || item.unit || 'Cái';
+    const itemUnit = item.unit || baseUnit;
+
+    const existingIndex = orderItems.findIndex((it) => it.productId === item.product_id && it.unitName === itemUnit);
+    if (existingIndex >= 0) {
+      setOrderItems((prev) =>
+        prev.map((it, idx) => {
+          if (idx !== existingIndex) return it;
+          const currentQty = typeof it.quantity === 'number' ? it.quantity : parseFloat(it.quantity) || 0;
+          return {
+            ...it,
+            quantity: currentQty + qtyToAdd,
+          };
+        })
+      );
+      emitStatusToast({
+        title: 'Đã cập nhật số lượng',
+        message: `Đã tăng thêm ${qtyToAdd} ${itemUnit} cho "${item.product_name}".`,
+      });
+      return;
+    }
+
+    const units = prod
+      ? [
+          { unit_name: baseUnit, conversion_rate: 1.0, is_base: true },
+          ...(prod.units || []).map((u) => ({
+            unit_name: u.unit_name,
+            conversion_rate: u.conversion_rate,
+            is_base: false,
+          })),
+        ]
+      : [{ unit_name: itemUnit, conversion_rate: item.conversion_rate || 1.0, is_base: true }];
+
+    let itemSellPrice = item.price || prod?.sell_price || 0;
+    let itemFloorPrice: number | null = prod?.sell_price || item.price || 0;
+    let itemNote: string | undefined = undefined;
+
+    if (dealerId) {
+      try {
+        const res = await resolvePriceApi(token, dealerId, item.product_id);
+        itemSellPrice = res.sale_price;
+        itemFloorPrice = res.floor_price;
+        itemNote = res.price_book_name || res.price_book_code;
+      } catch {
+        // fallback
+      }
+    }
+
+    const newItem: SelectedOrderItem = {
+      productId: item.product_id,
+      productCode: item.product_code,
+      productName: item.product_name,
+      stock: prod?.stock ?? 999,
+      baseUnit,
+      unitName: itemUnit,
+      conversionRate: item.conversion_rate || 1.0,
+      availableUnits: units,
+      quantity: qtyToAdd,
+      sellPrice: itemSellPrice,
+      floorPrice: itemFloorPrice,
+      priceNote: itemNote,
+    };
+
+    setOrderItems((prev) => [...prev, newItem]);
+    emitStatusToast({
+      title: 'Đã thêm sản phẩm',
+      message: `Đã thêm "${item.product_name}" (${qtyToAdd} ${itemUnit}) vào đơn hàng.`,
+    });
+  };
+
+  // SCRUM-52 / SCRUM-57: Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới
+  const handleAddAllPreviousItems = async () => {
+    if (!purchaseHistory) return;
+    const itemsToAdd = (purchaseHistory.last_order_items && purchaseHistory.last_order_items.length > 0)
+      ? purchaseHistory.last_order_items
+      : purchaseHistory.items.map((it) => ({
+          product_id: it.product_id,
+          product_code: it.product_code,
+          product_name: it.product_name,
+          quantity: it.last_order_quantity || it.avg_quantity || 1,
+          price: it.price,
+          unit: it.unit,
+          conversion_rate: it.conversion_rate || 1,
+        }));
+
+    if (itemsToAdd.length === 0) {
+      emitStatusToast({
+        title: 'Thông báo',
+        message: 'Không tìm thấy nhóm hàng từ lần mua trước để thêm.',
+      });
+      return;
+    }
+
+    let updated = [...orderItems];
+
+    for (const item of itemsToAdd) {
+      const prod = products.find((p) => p.id === item.product_id);
+      const qtyToAdd = Math.max(1, Math.round(item.quantity || 1));
+      const baseUnit = prod?.base_unit || item.unit || 'Cái';
+      const itemUnit = item.unit || baseUnit;
+
+      const existingIndex = updated.findIndex((it) => it.productId === item.product_id && it.unitName === itemUnit);
+      if (existingIndex >= 0) {
+        const cur = updated[existingIndex];
+        const currentQty = typeof cur.quantity === 'number' ? cur.quantity : parseFloat(cur.quantity) || 0;
+        updated[existingIndex] = {
+          ...cur,
+          quantity: currentQty + qtyToAdd,
+        };
+      } else {
+        const units = prod
+          ? [
+              { unit_name: baseUnit, conversion_rate: 1.0, is_base: true },
+              ...(prod.units || []).map((u) => ({
+                unit_name: u.unit_name,
+                conversion_rate: u.conversion_rate,
+                is_base: false,
+              })),
+            ]
+          : [{ unit_name: itemUnit, conversion_rate: item.conversion_rate || 1.0, is_base: true }];
+
+        let itemSellPrice = item.price || prod?.sell_price || 0;
+        let itemFloorPrice: number | null = prod?.sell_price || item.price || 0;
+        let itemNote: string | undefined = undefined;
+
+        if (dealerId) {
+          try {
+            const res = await resolvePriceApi(token, dealerId, item.product_id);
+            itemSellPrice = res.sale_price;
+            itemFloorPrice = res.floor_price;
+            itemNote = res.price_book_name || res.price_book_code;
+          } catch {
+            // fallback
+          }
+        }
+
+        updated.push({
+          productId: item.product_id,
+          productCode: item.product_code,
+          productName: item.product_name,
+          stock: prod?.stock ?? 999,
+          baseUnit,
+          unitName: itemUnit,
+          conversionRate: item.conversion_rate || 1.0,
+          availableUnits: units,
+          quantity: qtyToAdd,
+          sellPrice: itemSellPrice,
+          floorPrice: itemFloorPrice,
+          priceNote: itemNote,
+        });
+      }
+    }
+
+    setOrderItems(updated);
+    emitStatusToast({
+      title: 'Đã thêm nhóm hàng',
+      message: `Đã thêm nhanh cả nhóm ${itemsToAdd.length} mặt hàng đã mua lần trước vào đơn mới!`,
+    });
+  };
+
   // Cập nhật số lượng của dòng sản phẩm
-  const handleQuantityChange = (index: number, val: string) => {
+  const handleQuantityChange = (index: number, val: string | number) => {
     setOrderItems((prev) =>
       prev.map((item, idx) => (idx === index ? { ...item, quantity: val } : item))
     );
@@ -311,8 +722,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     setOrderItems((prev) => prev.filter((_, idx) => idx !== index));
   };
 
-  // Tính toán tổng tiền và tổng số lượng
-  const totalAmount = orderItems.reduce((sum, item) => {
+  // Tính toán tổng tiền hàng và tổng số lượng
+  const subtotalAmount = orderItems.reduce((sum, item) => {
     const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
     return sum + qty * item.sellPrice;
   }, 0);
@@ -327,12 +738,123 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     (item) => item.floorPrice !== null && item.sellPrice < item.floorPrice
   );
 
+  // Đánh giá chính sách chiết khấu theo Best Price Rule cho toàn đơn hàng
+  const discountEvaluation = React.useMemo(() => {
+    const itemsForEvaluation = orderItems.map((item) => {
+      const q = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
+      return {
+        productId: item.productId,
+        quantity: Math.round(q),
+        price: item.sellPrice,
+        name: item.productName,
+        code: item.productCode,
+      };
+    });
+
+    return evaluateBestDiscountPolicy(
+      policies,
+      itemsForEvaluation,
+      selectedDealer
+        ? {
+            id: selectedDealer.id,
+            customer_group: selectedDealer.customer_group || '',
+            name: selectedDealer.name,
+          }
+        : null,
+      Math.round(totalQuantity),
+      subtotalAmount
+    );
+  }, [policies, orderItems, selectedDealer, totalQuantity, subtotalAmount]);
+
+  // Tự động điền giá trị % vào ô "Chiết khấu (%)" khi số lượng thỏa mãn các bậc
+  useEffect(() => {
+    if (isCustomer || !isManualDiscount) {
+      if (discountEvaluation.isQualified) {
+        setDiscountPercent(String(discountEvaluation.discountPercent));
+      } else {
+        setDiscountPercent('0');
+      }
+    }
+  }, [discountEvaluation, isManualDiscount, isCustomer]);
+
+  const parsedDiscount = Number(discountPercent);
+  const safeDiscount = Number.isFinite(parsedDiscount) ? Math.min(100, Math.max(0, parsedDiscount)) : 0;
+  const discountAmount = Math.round((subtotalAmount * safeDiscount) / 100);
+  const totalAmount = subtotalAmount - discountAmount;
+
+  // AC 4 & User Story 46: Phân quyền mở rộng cho Đại lý (Customer / Agent) tự lên đơn
+  const rawRoles = currentUser?.roles && currentUser.roles.length > 0 ? currentUser.roles : (currentUser?.role ? [currentUser.role] : []);
+  const isSalesOrAdmin = !currentUser || rawRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r));
+  const isCustomerRole = Boolean(
+    currentUser && (
+      currentUser.role === 'customer' ||
+      currentUser.role === 'agent' ||
+      rawRoles.includes('customer') ||
+      rawRoles.includes('agent')
+    )
+  );
+  // Tiếp tục chặn nghiêm ngặt các vai trò không liên quan: muahang, kho, ketoan
+  const isStrictlyBlockedRole = Boolean(
+    currentUser &&
+    rawRoles.some((r) => ['muahang', 'purchasing', 'kho', 'warehouse', 'warehouse_manager', 'ketoan', 'accountant'].includes(r)) &&
+    !isSalesOrAdmin &&
+    !isCustomerRole
+  );
+  const canCreateOrder = (isSalesOrAdmin || isCustomerRole) && !isStrictlyBlockedRole;
+
+  // AC 2 & 3: Kiểm tra nợ quá hạn và vượt hạn mức
+  // Cấu hình chặn nợ quá hạn CHỈ áp dụng khi mua hàng ở trang đại lý (isCustomerRole). Ở trang admin tạo đơn không bị chặn bởi cấu hình.
+  const isOverdueBlocked = Boolean(
+    isCustomerRole &&
+    (creditInfo?.is_overdue ||
+      (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30)))
+  );
+  const isOverLimit = Boolean(
+    creditInfo &&
+    creditInfo.credit_limit > 0 &&
+    (creditInfo.current_debt + totalAmount > creditInfo.credit_limit)
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
     if (!selectedDealer) {
       setErrorMsg('Vui lòng chọn khách hàng / đại lý.');
+      return;
+    }
+
+    const isLockedDealer = Boolean(
+      selectedDealer?.status &&
+      (selectedDealer.status.toLowerCase().includes('khóa') ||
+       selectedDealer.status.toLowerCase().includes('lock'))
+    );
+    if (isLockedDealer) {
+      setErrorMsg(`Đại lý "${selectedDealer?.name}" hiện đang bị KHÓA giao dịch. Không thể tạo đơn hàng mới.`);
+      emitStatusToast({
+        title: 'Đại lý bị khóa giao dịch',
+        message: `Đại lý "${selectedDealer?.name}" hiện đang bị KHÓA giao dịch. Vui lòng liên hệ quản trị viên.`,
+        type: 'error',
+      });
+      return;
+    }
+
+    if (!canCreateOrder) {
+      setErrorMsg('Bạn không có quyền tạo đơn hàng. Chức năng chỉ dành cho Nhân viên kinh doanh, Quản trị hệ thống và Đại lý.');
+      return;
+    }
+
+    // AC 3: Chặn tạo đơn hoàn toàn khi đại lý có nợ quá hạn
+    if (isOverdueBlocked) {
+      const overdueDays = creditInfo?.max_debt_age || 0;
+      const maxAllowed = creditInfo?.overdue_days_allowed || 30;
+      const overdueMsg = `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${overdueDays} ngày, vượt mức cho phép ${maxAllowed} ngày). Hệ thống chặn tạo đơn hàng hoàn toàn!`;
+      setErrorMsg(overdueMsg);
+      emitStatusToast({
+        title: 'Chặn tạo đơn do nợ quá hạn',
+        message: overdueMsg,
+        type: 'error',
+      });
       return;
     }
 
@@ -346,6 +868,23 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       if (q <= 0) {
         setErrorMsg(`Số lượng của sản phẩm "${item.productName}" phải lớn hơn 0.`);
         return;
+      }
+      // AC 3: Kiểm tra vượt tồn khả dụng tại kho phục vụ
+      const stockItem = stockMap.get(item.productId);
+      if (stockItem) {
+        const rate = item.conversionRate || 1;
+        const maxOrderable = Math.max(0, Math.floor(stockItem.available_stock / rate));
+        if (q > maxOrderable) {
+          const warehouseName = stockSummary?.warehouse_name || 'kho';
+          const errMsg = `Sản phẩm "${item.productName}" vượt quá tồn khả dụng tại ${warehouseName}. Số lượng tối đa có thể đặt: ${maxOrderable} ${item.unitName}.`;
+          setErrorMsg(errMsg);
+          emitStatusToast({
+            title: 'Vượt tồn khả dụng',
+            message: errMsg,
+            type: 'error',
+          });
+          return;
+        }
       }
     }
 
@@ -363,14 +902,18 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             conversion_rate: item.conversionRate,
           };
         }),
+        discount_percent: safeDiscount,
         note: note.trim() || undefined,
         delivery_point_id: deliveryPointId,
       });
 
       if (res.status === 'PENDING_APPROVAL' || (res as any).requires_approval) {
+        const reasonText = (res as any).approval_reason
+          ? `: ${(res as any).approval_reason}.`
+          : ' do có chiết khấu hoặc đơn giá bán vượt mức quy định.';
         emitStatusToast({
           title: 'Đơn hàng chuyển sang Chờ quản lý duyệt',
-          message: `Đơn ${res.order_code} đã được tạo thành công với ${orderItems.length} sản phẩm và chuyển sang trạng thái Chờ quản lý duyệt do có đơn giá bán thấp hơn giá niêm yết / giá sàn quy định.`,
+          message: `Đơn ${res.order_code} đã được tạo thành công và chuyển sang trạng thái Chờ quản lý duyệt${reasonText}`,
         });
       } else {
         emitStatusToast({
@@ -382,166 +925,39 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi tạo đơn hàng');
+      const msg = err.message || 'Lỗi khi tạo đơn hàng';
+      emitStatusToast({
+        title: msg.includes('quá hạn') ? 'Chặn tạo đơn do nợ quá hạn' : (msg.includes('vượt quá tồn') ? 'Vượt tồn khả dụng' : 'Lỗi tạo đơn hàng'),
+        message: msg,
+        type: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  return createPortal(
-    <div
+  const formContent = (
+    <form
+      onSubmit={handleSubmit}
       style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
-        backdropFilter: 'blur(4px)',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 99999,
-        padding: '16px',
-        boxSizing: 'border-box',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isSubmitting) onClose();
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+        overflow: isPageMode ? 'visible' : 'hidden',
       }}
     >
+      {/* Vùng nội dung cuộn mượt mà */}
       <div
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '16px',
-          maxWidth: '840px',
-          width: '100%',
-          maxHeight: 'calc(100vh - 32px)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          border: '1px solid #e2e8f0',
-          boxSizing: 'border-box',
-          position: 'relative',
+          flex: isPageMode ? 'none' : 1,
+          overflowY: isPageMode ? 'visible' : 'auto',
+          padding: isPageMode ? '24px 28px' : '20px 24px',
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden',
+          gap: '16px',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header Modal (Cố định ở trên) */}
-        <div
-          style={{
-            padding: '20px 24px 16px 24px',
-            borderBottom: '1px solid #f1f5f9',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            flexShrink: 0,
-            background: '#ffffff',
-          }}
-        >
-          <div>
-            <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
-              Tạo Đơn Hàng Mới
-            </h3>
-            {currentUser && (
-              <div style={{ marginTop: '6px' }}>
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    padding: '2px 8px',
-                    borderRadius: '999px',
-                    fontSize: '12px',
-                    color: '#334155',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '50%',
-                      background: currentUser.avatar_url ? '#f1f5f9' : '#2563eb',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '10px',
-                      fontWeight: '700',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {currentUser.avatar_url ? (
-                      <img
-                        src={getAvatarUrl(currentUser.avatar_url)}
-                        alt=""
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      (currentUser.full_name || currentUser.username).charAt(0).toUpperCase()
-                    )}
-                  </div>
-                  <span>
-                    Người tạo: <strong>{currentUser.full_name || currentUser.username}</strong>
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontSize: '22px',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              padding: '4px',
-              lineHeight: 1,
-              borderRadius: '6px',
-              flexShrink: 0,
-            }}
-            title="Đóng"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Form Body: Container flex column để phần giữa cuộn, Footer cố định */}
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            flex: 1,
-            minHeight: 0,
-            overflow: 'hidden',
-          }}
-        >
-          {/* Vùng nội dung cuộn mượt mà */}
-          <div
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '20px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-            }}
-          >
-            {errorMsg && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  color: '#dc2626',
-                  fontSize: '13px',
-                }}
-              >
-                {errorMsg}
-              </div>
-            )}
           {/* 1. KHÁCH HÀNG & NHÓM KHÁCH HÀNG */}
           <div
             style={{
@@ -579,7 +995,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               id="select-dealer-customer"
               value={dealerId}
               onChange={(e) => setDealerId(parseInt(e.target.value, 10))}
-              disabled={loadingDealers || dealers.length === 0}
+              disabled={loadingDealers || dealers.length === 0 || isCustomer || dealers.length === 1}
               style={{
                 width: '100%',
                 padding: '9px 12px',
@@ -587,43 +1003,259 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 border: '1px solid #cbd5e1',
                 fontSize: '13.5px',
                 outline: 'none',
-                background: '#ffffff',
+                background: isCustomer || dealers.length === 1 ? '#f1f5f9' : '#ffffff',
                 boxSizing: 'border-box',
                 fontWeight: '500',
               }}
             >
               {dealers.map((d) => {
                 const dGroup = getCustomerGroupDisplay(d.customer_group);
+                const isLocked = Boolean(
+                  d.status &&
+                  (d.status.toLowerCase().includes('khóa') ||
+                   d.status.toLowerCase().includes('lock'))
+                );
                 return (
-                  <option key={d.id} value={d.id}>
-                    {d.code ? `[${d.code}] ` : ''}{d.name} ({dGroup.label})
+                  <option key={d.id} value={d.id} disabled={isLocked}>
+                    {d.code ? `[${d.code}] ` : ''}{d.name} ({dGroup.label}){isLocked ? ' [Đã khóa]' : ''}
                   </option>
                 );
               })}
             </select>
 
-            {isDebtWarning && (
+            {isCustomer && (
               <div
                 style={{
                   marginTop: '8px',
+                  padding: '7px 12px',
+                  borderRadius: '6px',
+                  background: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
                   fontSize: '12.5px',
-                  color: '#dc2626',
+                  color: '#065f46',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: 500,
+                }}
+              >
+                <span>✓ <strong>Cổng Đại lý tự đặt hàng:</strong> Hệ thống tự động gán đơn hàng cho tài khoản đại lý <strong>{selectedDealer?.name || currentUser?.full_name}</strong></span>
+              </div>
+            )}
+
+            {/* AC 1: Hiển thị kho phục vụ riêng cho đại lý */}
+            {stockSummary && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '12px',
+                  color: '#0369a1',
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                }}
+              >
+                <span>Kho phục vụ: <strong>{stockSummary.warehouse_name}</strong> ({stockSummary.warehouse_id})</span>
+                {isLoadingStock && <span style={{ color: '#0284c7' }}>(Đang cập nhật tồn...)</span>}
+              </div>
+            )}
+
+            {isLockedDealer && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  fontSize: '12.5px',
+                  color: '#991b1b',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
                 <span>
-                  <strong>Cảnh báo:</strong> Khách hàng đang có trạng thái: <strong>{selectedDealer?.debt_status}</strong>. Đơn hàng có thể bị chặn khi lưu.
+                  <strong>Đại lý bị khóa giao dịch:</strong> Đại lý này hiện đang ở trạng thái <strong>Đã khóa</strong>. Hệ thống chặn tạo đơn hàng mới.
                 </span>
               </div>
             )}
+
+            {/* AC 1, 2, 3: Hiển thị 3 chỉ số công nợ của đại lý & cảnh báo (ở trang admin không hiển thị cảnh báo cấu hình) */}
+            <div style={{ marginTop: '12px' }}>
+              <DealerCreditBadge
+                creditInfo={creditInfo}
+                currentOrderAmount={totalAmount}
+                isLoading={isLoadingCredit}
+                hidePolicyAlerts={!isCustomerRole}
+              />
+            </div>
           </div>
+
+          {/* SCRUM-52 / SCRUM-57: LỊCH SỬ MUA HÀNG ĐẠI LÝ & GỢI Ý MẶT HÀNG */}
+          {selectedDealer && !historyForbidden && (
+            <div
+              style={{
+                marginBottom: '16px',
+                padding: '12px 14px',
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderRadius: '10px',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  marginBottom: '10px',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
+                      Mặt hàng đại lý thường lấy (3 tháng gần nhất)
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    {isLoadingHistory ? (
+                      'Đang tra cứu lịch sử mua hàng của đại lý...'
+                    ) : purchaseHistory && purchaseHistory.has_history ? (
+                      <>
+                        Đại lý đã đặt <strong>{purchaseHistory.total_orders_3_months} đơn</strong> trong 3 tháng qua.
+                        {purchaseHistory.last_order && (
+                          <span>
+                            {' '}• Lần mua gần nhất: <strong>{purchaseHistory.last_order.order_code}</strong> ({purchaseHistory.last_order.created_at})
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      'Đại lý chưa có lịch sử mua hàng trong 3 tháng gần nhất.'
+                    )}
+                  </div>
+                </div>
+
+                {purchaseHistory && purchaseHistory.has_history && (
+                  <button
+                    type="button"
+                    onClick={handleAddAllPreviousItems}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    }}
+                    title="Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới"
+                  >
+                    <span>Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới</span>
+                    <span
+                      style={{
+                        background: 'rgba(255,255,255,0.25)',
+                        padding: '1px 6px',
+                        borderRadius: '10px',
+                        fontSize: '11px',
+                      }}
+                    >
+                      {purchaseHistory.last_order_items?.length || purchaseHistory.items.length} món
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {isLoadingHistory && (
+                <div style={{ textAlign: 'center', padding: '12px', fontSize: '12.5px', color: '#64748b' }}>
+                  Đang tải dữ liệu sản lượng bình quân...
+                </div>
+              )}
+
+              {!isLoadingHistory && purchaseHistory && purchaseHistory.has_history && (
+                <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#ffffff' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9', color: '#475569', textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '6px 8px' }}>Mã SP</th>
+                        <th style={{ padding: '6px 8px' }}>Tên mặt hàng</th>
+                        <th style={{ padding: '6px 8px' }}>ĐVT</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center' }}>SL bình quân (3 tháng)</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center' }}>SL lần trước</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'right' }}>Đơn giá</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center' }}>Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {purchaseHistory.items.map((item) => (
+                        <tr key={item.product_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontWeight: '600', color: '#334155' }}>
+                            {item.product_code}
+                          </td>
+                          <td style={{ padding: '6px 8px' }}>
+                            <div style={{ fontWeight: '500', color: '#0f172a' }}>{item.product_name}</div>
+                            {item.last_purchased_date && (
+                              <div style={{ fontSize: '10.5px', color: '#94a3b8' }}>Gần nhất: {item.last_purchased_date}</div>
+                            )}
+                          </td>
+                          <td style={{ padding: '6px 8px', color: '#64748b' }}>{item.unit}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '2px 6px',
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                                borderRadius: '4px',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {item.avg_quantity} {item.unit}/đơn
+                            </span>
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'center', color: '#334155', fontWeight: '500' }}>
+                            {item.last_order_quantity > 0 ? `${item.last_order_quantity} ${item.unit}` : '—'}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '500' }}>
+                            {item.price.toLocaleString('vi-VN')} đ
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleAddHistoryItem(item)}
+                              style={{
+                                padding: '3px 8px',
+                                background: '#eff6ff',
+                                color: '#1d4ed8',
+                                border: '1px solid #bfdbfe',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              + Thêm
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 2. CHỌN SẢN PHẨM (DROPDOWN TỰ ĐỘNG RESET SAU KHI CHỌN ĐỂ THÊM TIẾP) */}
           <div style={{ marginBottom: '16px' }}>
@@ -651,9 +1283,12 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               <option value="">-- Bấm vào đây để chọn và thêm sản phẩm vào danh sách --</option>
               {products.map((p) => {
                 const isAdded = orderItems.some((item) => item.productId === p.id);
+                const stockItem = stockMap.get(p.id);
+                const availableStock = stockItem ? stockItem.available_stock : (p.stock ?? 0);
+                const isOutOfStock = availableStock <= 0 || p.status === 'out_of_stock' || p.status === 'inactive';
                 return (
-                  <option key={p.id} value={p.id}>
-                    {p.code} - {p.name} (Tồn: {p.stock} {p.base_unit || 'Cái'}){isAdded ? ' [Đã có trong đơn]' : ''}
+                  <option key={p.id} value={p.id} disabled={isOutOfStock}>
+                    {p.code} - {p.name} {isOutOfStock ? '[HẾT HÀNG]' : `(Tồn: ${availableStock} ${p.base_unit || 'Cái'})`}{isAdded ? ' [Đã có trong đơn]' : ''}
                   </option>
                 );
               })}
@@ -697,7 +1332,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   fontSize: '13px',
                 }}
               >
-                <div style={{ fontSize: '24px', marginBottom: '6px' }}>📦</div>
                 Chưa có sản phẩm nào trong đơn hàng.
               </div>
             ) : (
@@ -735,43 +1369,99 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                         const itemQty =
                           typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
                         const itemTotal = itemQty * item.sellPrice;
-                        const isBelowFloor = item.floorPrice !== null && item.sellPrice < item.floorPrice;
+                        const isBelowFloor = canEditPrice && item.floorPrice !== null && item.sellPrice < item.floorPrice;
+                        const stockItem = stockMap.get(item.productId);
+                        const rate = item.conversionRate || 1;
+                        const maxOrderable = stockItem ? Math.max(0, Math.floor(stockItem.available_stock / rate)) : undefined;
+                        const actualInUnit = stockItem ? Math.floor(stockItem.actual_stock / rate) : undefined;
+                        const reservedInUnit = stockItem ? Math.floor(stockItem.reserved_stock / rate) : undefined;
+                        const isExceeded = stockItem !== undefined && maxOrderable !== undefined && itemQty > maxOrderable;
 
                         return (
                           <tr
                             key={item.productId}
                             style={{
                               borderBottom: idx === orderItems.length - 1 ? 'none' : '1px solid #f1f5f9',
-                              background: isBelowFloor ? '#fef2f2' : idx % 2 === 0 ? '#ffffff' : '#fafafa',
+                              background: isExceeded ? '#fff1f2' : isBelowFloor ? '#fef2f2' : idx % 2 === 0 ? '#ffffff' : '#fafafa',
                             }}
                           >
                             {/* Tên sản phẩm */}
-                            <td style={{ padding: '10px 12px' }}>
+                            <td style={{ padding: '10px 12px', verticalAlign: 'middle' }}>
                               <div style={{ fontWeight: '600', color: '#0f172a' }}>{item.productName}</div>
                               <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                Mã: <span style={{ fontFamily: 'monospace' }}>{item.productCode}</span> · Tồn: {item.stock} {item.baseUnit}
+                                Mã: <span style={{ fontFamily: 'monospace' }}>{item.productCode}</span>
                               </div>
+
+                              {/* AC 1 & 2: Hiển thị tồn khả dụng theo kho phục vụ riêng cho đại lý */}
+                              {stockItem && (
+                                <div style={{ fontSize: '11px', marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center' }}>
+                                  <span
+                                    style={{
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      fontWeight: '600',
+                                      fontSize: '11px',
+                                      background: isExceeded ? '#fee2e2' : maxOrderable === 0 ? '#f1f5f9' : '#dcfce7',
+                                      color: isExceeded ? '#dc2626' : maxOrderable === 0 ? '#64748b' : '#15803d',
+                                      border: `1px solid ${isExceeded ? '#fca5a5' : maxOrderable === 0 ? '#cbd5e1' : '#86efac'}`,
+                                    }}
+                                    title={`Tồn thực tế: ${actualInUnit} ${item.unitName} - Đang giữ chỗ: ${reservedInUnit} ${item.unitName}`}
+                                  >
+                                    Tồn khả dụng: {maxOrderable} {item.unitName}
+                                  </span>
+                                  <span style={{ fontSize: '10.5px', color: '#64748b' }}>
+                                    (Thực tế: {actualInUnit} | Giữ chỗ: {reservedInUnit})
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* AC 3: Cảnh báo vượt tồn khả dụng và nút gợi ý đặt tối đa */}
+                              {isExceeded && maxOrderable !== undefined && (
+                                <div style={{ marginTop: '4px', fontSize: '11px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span>Vượt tồn kho ({maxOrderable} {item.unitName})</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuantityChange(idx, maxOrderable)}
+                                    style={{
+                                      background: '#fee2e2',
+                                      border: '1px solid #f87171',
+                                      color: '#b91c1c',
+                                      borderRadius: '4px',
+                                      padding: '1px 6px',
+                                      fontSize: '10.5px',
+                                      fontWeight: '600',
+                                      cursor: 'pointer',
+                                    }}
+                                    title="Điều chỉnh số lượng về tồn khả dụng tối đa"
+                                  >
+                                    Đặt tối đa ({maxOrderable})
+                                  </button>
+                                </div>
+                              )}
+
                               {item.priceNote && (
                                 <div style={{ fontSize: '11px', color: '#0284c7', marginTop: '2px' }}>
-                                  🏷️ {item.priceNote}
+                                  {item.priceNote}
                                 </div>
                               )}
                             </td>
 
                             {/* Đơn vị tính */}
-                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
                               {item.availableUnits.length > 1 ? (
                                 <select
                                   value={item.unitName}
                                   onChange={(e) => handleUnitChange(idx, e.target.value)}
                                   style={{
-                                    padding: '4px 6px',
+                                    height: '36px',
+                                    padding: '0 8px',
                                     borderRadius: '6px',
                                     border: '1px solid #cbd5e1',
-                                    fontSize: '12px',
+                                    fontSize: '13px',
                                     background: '#fff',
                                     outline: 'none',
                                     cursor: 'pointer',
+                                    boxSizing: 'border-box',
                                   }}
                                 >
                                   {item.availableUnits.map((u) => (
@@ -783,13 +1473,17 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                               ) : (
                                 <span
                                   style={{
-                                    display: 'inline-block',
-                                    padding: '2px 8px',
-                                    borderRadius: '4px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '36px',
+                                    padding: '0 10px',
+                                    borderRadius: '6px',
                                     background: '#f1f5f9',
                                     color: '#475569',
-                                    fontSize: '12px',
+                                    fontSize: '13px',
                                     fontWeight: '500',
+                                    boxSizing: 'border-box',
                                   }}
                                 >
                                   {item.unitName}
@@ -798,18 +1492,21 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                             </td>
 
                             {/* Số lượng */}
-                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
                               <input
                                 type="number"
                                 min="1"
                                 step="1"
                                 value={item.quantity}
+                                onFocus={(e) => e.target.select()}
                                 onChange={(e) => handleQuantityChange(idx, e.target.value)}
                                 style={{
                                   width: '70px',
-                                  padding: '5px 8px',
+                                  height: '36px',
+                                  padding: '0 8px',
                                   borderRadius: '6px',
-                                  border: '1px solid #cbd5e1',
+                                  border: isExceeded ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                  background: isExceeded ? '#fef2f2' : '#ffffff',
                                   fontSize: '13px',
                                   fontWeight: '600',
                                   textAlign: 'center',
@@ -820,15 +1517,21 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                             </td>
 
                             {/* Đơn giá bán thực tế */}
-                            <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', verticalAlign: 'middle' }}>
                               <input
                                 type="number"
                                 min="0"
+                                step="any"
+                                disabled={!canEditPrice}
+                                readOnly={!canEditPrice}
                                 value={item.sellPrice}
-                                onChange={(e) => handlePriceChange(idx, parseFloat(e.target.value) || 0)}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => canEditPrice && handlePriceChange(idx, parseFloat(e.target.value) || 0)}
+                                title={!canEditPrice ? 'Chỉ Sales và Admin được sửa giá' : (item.floorPrice !== null ? `Giá sàn: ${item.floorPrice.toLocaleString('vi-VN')} đ` : undefined)}
                                 style={{
                                   width: '105px',
-                                  padding: '5px 8px',
+                                  height: '36px',
+                                  padding: '0 8px',
                                   borderRadius: '6px',
                                   border: isBelowFloor ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                                   fontSize: '13px',
@@ -836,31 +1539,22 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                   textAlign: 'right',
                                   outline: 'none',
                                   color: isBelowFloor ? '#b91c1c' : '#0f172a',
-                                  background: isBelowFloor ? '#fff' : '#fff',
+                                  background: !canEditPrice ? '#f1f5f9' : '#fff',
+                                  cursor: !canEditPrice ? 'not-allowed' : 'text',
                                   boxSizing: 'border-box',
                                 }}
                               />
-                              {item.floorPrice !== null && (
-                                <div
-                                  style={{
-                                    fontSize: '10.5px',
-                                    color: isBelowFloor ? '#dc2626' : '#64748b',
-                                    fontWeight: isBelowFloor ? '700' : '400',
-                                    marginTop: '2px',
-                                  }}
-                                >
-                                  Sàn: {item.floorPrice.toLocaleString('vi-VN')} đ
-                                </div>
-                              )}
                             </td>
 
                             {/* Thành tiền (Số lượng x Đơn giá) */}
-                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
-                              {itemTotal.toLocaleString('vi-VN')} đ
+                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '36px' }}>
+                                {itemTotal.toLocaleString('vi-VN')} đ
+                              </span>
                             </td>
 
                             {/* Nút xóa sản phẩm */}
-                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveItem(idx)}
@@ -869,8 +1563,11 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                   border: 'none',
                                   color: '#ef4444',
                                   cursor: 'pointer',
-                                  padding: '4px',
+                                  height: '36px',
+                                  padding: '0 6px',
                                   borderRadius: '4px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
@@ -878,21 +1575,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                 }}
                                 title="Xóa sản phẩm khỏi đơn"
                               >
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <polyline points="3 6 5 6 21 6" />
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                  <line x1="10" y1="11" x2="10" y2="17" />
-                                  <line x1="14" y1="11" x2="14" y2="17" />
-                                </svg>
+                                Xóa
                               </button>
                             </td>
                           </tr>
@@ -905,11 +1588,10 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             )}
           </div>
 
-          {/* 4. TỔNG THÀNH TIỀN TOÀN ĐƠN HÀNG */}
+          {/* 4. TỔNG TIỀN VÀ CHIẾT KHẤU SẢN LƯỢNG */}
           <div
-            id="text-order-total-amount"
             style={{
-              marginBottom: '16px',
+              marginBottom: '12px',
               padding: '12px 16px',
               borderRadius: '10px',
               background: '#f8fafc',
@@ -921,11 +1603,145 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           >
             <div>
               <span style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>
-                Tổng cộng ({orderItems.length} sản phẩm · {totalQuantity} đơn vị):
+                Tổng tiền hàng ({orderItems.length} sản phẩm · {totalQuantity} đơn vị):
               </span>
             </div>
-            <div style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-              {totalAmount.toLocaleString('vi-VN')} đồng
+            <div
+              id="text-order-subtotal-amount"
+              style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}
+            >
+              {subtotalAmount.toLocaleString('vi-VN')} đ
+            </div>
+          </div>
+
+          {/* CHIẾT KHẤU SẢN LƯỢNG */}
+          <div style={{ marginBottom: '14px', background: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>
+                    Chiết khấu (%)
+                    {isCustomer && (
+                      <span style={{ fontSize: '11px', fontWeight: '500', color: '#64748b', marginLeft: '6px' }}>
+                        (Cố định theo chính sách)
+                      </span>
+                    )}
+                  </label>
+                  {!isCustomer && isManualDiscount && discountEvaluation.isQualified && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsManualDiscount(false);
+                        setDiscountPercent(String(discountEvaluation.discountPercent));
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#2563eb',
+                        fontSize: '11.5px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        padding: 0,
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      ↺ Theo chính sách ({discountEvaluation.discountPercent}%)
+                    </button>
+                  )}
+                </div>
+                <input
+                  id="input-order-discount-percent"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={discountPercent}
+                  disabled={isCustomer}
+                  readOnly={isCustomer}
+                  title={isCustomer ? "Đại lý không có quyền tự điều chỉnh chiết khấu" : undefined}
+                  onChange={(e) => {
+                    if (isCustomer) return;
+                    setIsManualDiscount(true);
+                    setDiscountPercent(e.target.value);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    textAlign: 'right',
+                    boxSizing: 'border-box',
+                    fontWeight: '700',
+                    background: isCustomer ? '#f1f5f9' : '#ffffff',
+                    color: isCustomer ? '#64748b' : '#0f172a',
+                    cursor: isCustomer ? 'not-allowed' : 'text',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  Tiền chiết khấu
+                </label>
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    fontWeight: '700',
+                    color: '#15803d',
+                    textAlign: 'right',
+                  }}
+                >
+                  − {discountAmount.toLocaleString('vi-VN')} đ
+                </div>
+              </div>
+            </div>
+
+            {discountEvaluation.isQualified && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginTop: '8px',
+                  padding: '6px 10px',
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: '6px',
+                  color: '#15803d',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                }}
+              >
+                <span>{discountEvaluation.label}</span>
+              </div>
+            )}
+
+            {isManualDiscount && safeDiscount > discountEvaluation.discountPercent && (
+              <div
+                style={{
+                  marginTop: '6px',
+                  padding: '6px 10px',
+                  background: '#fffbeb',
+                  border: '1px solid #fef3c7',
+                  borderRadius: '6px',
+                  color: '#b45309',
+                  fontSize: '11.5px',
+                }}
+              >
+                Chiết khấu bạn nhập ({safeDiscount}%) cao hơn mức chính sách ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý duyệt.
+              </div>
+            )}
+            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>Tổng thanh toán thực tế:</span>
+              <strong id="text-order-total-amount" style={{ fontSize: '16px', color: '#059669', fontWeight: '800' }}>
+                {totalAmount.toLocaleString('vi-VN')} đồng
+              </strong>
             </div>
           </div>
 
@@ -945,7 +1761,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 lineHeight: '1.4',
               }}
             >
-              ⚠️ Đơn hàng có sản phẩm có đơn giá bán thấp hơn giá niêm yết / giá sàn quy định. Đơn hàng sẽ được chuyển sang trạng thái Chờ quản lý phê duyệt.
+              Đơn hàng có sản phẩm có đơn giá bán thấp hơn giá niêm yết / giá sàn quy định. Đơn hàng sẽ được chuyển sang trạng thái Chờ quản lý phê duyệt.
             </div>
           )}
 
@@ -1083,33 +1899,243 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             <button
               id="btn-submit-order"
               type="submit"
-              disabled={isSubmitting || orderItems.length === 0}
+              disabled={isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder}
               style={{
                 padding: '9px 22px',
                 borderRadius: '8px',
                 border: 'none',
-                background: orderItems.length === 0 ? '#94a3b8' : isAnyBelowFloorPrice ? '#ea580c' : '#0fad89',
+                background: orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder ? '#94a3b8' : (isAnyBelowFloorPrice || isOverLimit || isCustomerRole) ? '#ea580c' : '#0fad89',
                 fontSize: '13.5px',
                 fontWeight: '700',
                 color: '#fff',
-                cursor: isSubmitting || orderItems.length === 0 ? 'not-allowed' : 'pointer',
+                cursor: isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder ? 'not-allowed' : 'pointer',
                 opacity: isSubmitting ? 0.7 : 1,
                 boxShadow:
-                  orderItems.length === 0
+                  orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder
                     ? 'none'
-                    : isAnyBelowFloorPrice
+                    : (isAnyBelowFloorPrice || isOverLimit || isCustomerRole)
                     ? '0 4px 6px -1px rgba(234, 88, 12, 0.3)'
                     : '0 4px 6px -1px rgba(15, 173, 137, 0.3)',
               }}
+              title={
+                !canCreateOrder
+                  ? 'Chỉ Nhân viên kinh doanh, Quản trị hệ thống và Đại lý mới có quyền tạo đơn'
+                  : isOverdueBlocked
+                  ? `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${creditInfo?.max_debt_age} ngày), bị chặn tạo đơn hoàn toàn`
+                  : isLockedDealer
+                  ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng`
+                  : hasStockErrors
+                  ? 'Có sản phẩm vượt quá tồn khả dụng kho phục vụ. Vui lòng điều chỉnh số lượng trước khi đặt hàng'
+                  : isCustomerRole
+                  ? 'Tạo đơn hàng từ Cổng Đại lý (Đơn hàng gửi lên sẽ luôn ở trạng thái Chờ duyệt)'
+                  : undefined
+              }
             >
               {isSubmitting
                 ? 'Đang lưu đơn hàng...'
+                : !canCreateOrder
+                ? 'Không có quyền tạo đơn'
+                : isOverdueBlocked
+                ? 'Bị chặn do nợ quá hạn'
+                : isLockedDealer
+                ? 'Đại lý bị khóa (Không thể tạo đơn)'
+                : hasStockErrors
+                ? 'Vượt tồn khả dụng (Không thể tạo đơn)'
+                : isCustomerRole
+                ? `Tạo đơn hàng (Chờ duyệt${orderItems.length > 0 ? ` - ${orderItems.length} SP` : ''})`
                 : isAnyBelowFloorPrice
                 ? 'Gửi duyệt (Dưới giá niêm yết / sàn)'
+                : isOverLimit
+                ? 'Tạo đơn (Cần duyệt do vượt hạn mức)'
                 : `Tạo đơn hàng (${orderItems.length} sản phẩm)`}
             </button>
           </div>
         </form>
+  );
+
+  if (isPageMode) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '1280px',
+          margin: '0 auto',
+          padding: '8px 16px 40px 16px',
+          boxSizing: 'border-box',
+        }}
+      >
+        {/* Header trang tạo đơn */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '18px',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#334155',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+            >
+              ← Quay lại danh sách đơn hàng
+            </button>
+            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
+              Tạo Đơn Hàng Mới
+            </h2>
+          </div>
+
+          {currentUser && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#f1f5f9',
+                border: '1px solid #e2e8f0',
+                padding: '6px 14px',
+                borderRadius: '999px',
+                fontSize: '12.5px',
+                color: '#334155',
+              }}
+            >
+              <span>
+                Người tạo: <strong>{currentUser.full_name || currentUser.username}</strong>
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Khung form chính */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 16px rgba(15, 23, 42, 0.06)',
+            overflow: 'hidden',
+          }}
+        >
+          {formContent}
+        </div>
+      </div>
+    );
+  }
+
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 99999,
+        padding: '16px',
+        boxSizing: 'border-box',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) onClose();
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          maxWidth: '840px',
+          width: '100%',
+          maxHeight: 'calc(100vh - 32px)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          border: '1px solid #e2e8f0',
+          boxSizing: 'border-box',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header Modal (Cố định ở trên) */}
+        <div
+          style={{
+            padding: '20px 24px 16px 24px',
+            borderBottom: '1px solid #f1f5f9',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            flexShrink: 0,
+            background: '#ffffff',
+          }}
+        >
+          <div>
+            <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
+              Tạo Đơn Hàng Mới
+            </h3>
+            {currentUser && (
+              <div style={{ marginTop: '6px' }}>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    fontSize: '12px',
+                    color: '#334155',
+                  }}
+                >
+                  <span>
+                    Người tạo: <strong>{currentUser.full_name || currentUser.username}</strong>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              fontSize: '22px',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: '4px',
+              lineHeight: 1,
+              borderRadius: '6px',
+              flexShrink: 0,
+            }}
+            title="Đóng"
+          >
+            ✕
+          </button>
+        </div>
+
+        {formContent}
       </div>
     </div>,
     document.body
