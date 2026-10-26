@@ -78,6 +78,7 @@ import { DebtPaymentReconciliationView } from './DebtPaymentReconciliationView';
 import { DebtReconciliationView } from './DebtReconciliationView';
 import { DealerDebtStatementView } from './DealerDebtStatementView';
 import { DebtAdjustmentManagementView } from './DebtAdjustmentManagementView';
+import { ReceiptVoucherManagementPage } from './ReceiptVoucherManagementPage';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -368,6 +369,7 @@ export default function DashboardPage({
     const isSalesInvoicesPath = pathname === '/sales-invoices' || pathname.startsWith('/sales-invoices/');
     const isDebtAdjustmentsPath = pathname === '/debt-adjustments' || pathname.startsWith('/debt-adjustments/');
     const isDebtStatementPath = pathname === '/debt-statement' || pathname.startsWith('/debt-statement/');
+    const isReceiptVouchersPath = pathname === '/receipt-vouchers' || pathname.startsWith('/receipt-vouchers/');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -494,6 +496,13 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/debt-statement'); } catch { }
       }
       return 'debt-statement';
+    }
+
+    if (isReceiptVouchersPath || oldTabVal === 'receipt-vouchers') {
+      if (hasOldTabParam || pathname !== '/receipt-vouchers') {
+        try { window.history.replaceState({}, '', '/receipt-vouchers'); } catch { }
+      }
+      return 'receipt-vouchers';
     }
 
     if (isStockAdjustmentsPath || oldTabVal === 'stock-adjustments' || oldTabVal === 'stock-adjustment') {
@@ -1028,6 +1037,13 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'receipt-vouchers') {
+      setActiveTabState('receipt-vouchers');
+      try {
+        window.history.pushState({}, '', '/receipt-vouchers');
+      } catch {
+        // ignore
+      }
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -1418,6 +1434,17 @@ export default function DashboardPage({
         setActiveTabState('debt-statement');
         return;
       }
+
+      const isReceiptVouchersPath = pathname === '/receipt-vouchers' || pathname.startsWith('/receipt-vouchers/');
+      if (isReceiptVouchersPath || tabParam === 'receipt-vouchers') {
+        if (pathname !== '/receipt-vouchers' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/receipt-vouchers');
+          } catch { }
+        }
+        setActiveTabState('receipt-vouchers');
+        return;
+      }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       if (isDealersPath || tabParam === 'dealers') {
         if (pathname !== '/dealers' || tabParam) {
@@ -1501,6 +1528,11 @@ export default function DashboardPage({
     const d = params.get('dealer_id') || params.get('dealer');
     return d ? Number(d) : undefined;
   });
+
+  // State điều hướng tới trang Phiếu thu tiền đại lý (/receipt-vouchers)
+  const [selectedReceiptVoucherDealerId, setSelectedReceiptVoucherDealerId] = useState<number | null>(null);
+  const [selectedReceiptVoucherOrderCode, setSelectedReceiptVoucherOrderCode] = useState<string | null>(null);
+  const [selectedReceiptVoucherDefaultAmount, setSelectedReceiptVoucherDefaultAmount] = useState<number | null>(null);
 
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [appliedPriceBook, setAppliedPriceBook] = useState<string | null>(null);
@@ -2448,6 +2480,12 @@ export default function DashboardPage({
                 setSelectedDebtStatementDealerId(dealerId);
                 setActiveTab('debt-statement');
               }}
+              onOpenReceiptVouchers={(dealerId, orderCode, defaultAmount) => {
+                setSelectedReceiptVoucherDealerId(dealerId);
+                setSelectedReceiptVoucherOrderCode(orderCode || null);
+                setSelectedReceiptVoucherDefaultAmount(defaultAmount || null);
+                setActiveTab('receipt-vouchers');
+              }}
             />
           ) : (
             <AccessDeniedView
@@ -2587,6 +2625,27 @@ export default function DashboardPage({
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Sổ chi tiết công nợ (Kế toán công nợ / Quản trị viên / Quản lý kinh doanh)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'receipt-vouchers' ? (
+          canManageDealerProfiles ? (
+            <ReceiptVoucherManagementPage
+              currentUser={user}
+              token={token}
+              initialDealerId={selectedReceiptVoucherDealerId}
+              initialOrderCode={selectedReceiptVoucherOrderCode}
+              initialAmount={selectedReceiptVoucherDefaultAmount}
+              onBack={() => {
+                window.history.pushState({}, '', '/dealer-profiles');
+                setActiveTabState('dealer-profiles');
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Lập & Quản lý phiếu thu tiền đại lý (Kế toán công nợ / Quản trị viên / Quản lý kinh doanh)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />

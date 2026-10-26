@@ -30,6 +30,7 @@ interface DealerProfileManagementProps {
   token?: string;
   onBackToHome?: () => void;
   onOpenDebtStatement?: (dealerId: number) => void;
+  onOpenReceiptVouchers?: (dealerId: number, orderCode?: string, defaultAmount?: number) => void;
 }
 
 const CUSTOMER_GROUP_OPTIONS = [
@@ -72,6 +73,7 @@ export default function DealerProfileManagementView({
   token,
   onBackToHome,
   onOpenDebtStatement,
+  onOpenReceiptVouchers,
 }: DealerProfileManagementProps) {
   // Data list & loading
   const [dealers, setDealers] = useState<DealerSearchItem[]>([]);
@@ -689,6 +691,10 @@ export default function DealerProfileManagementView({
   };
 
   const handleOpenCreateReceipt = (dealer: DealerSearchItem, orderCode?: string, defaultAmount?: number) => {
+    if (onOpenReceiptVouchers) {
+      onOpenReceiptVouchers(dealer.id, orderCode, defaultAmount);
+      return;
+    }
     setCreateReceiptTargetDealer(dealer);
     setCreateReceiptOrderCode(orderCode);
     setCreateReceiptDefaultAmount(defaultAmount);
@@ -1163,6 +1169,23 @@ export default function DealerProfileManagementView({
                 <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
               </svg>
               Sổ chi tiết công nợ
+            </button>
+          )}
+
+          {onOpenReceiptVouchers && (
+            <button
+              type="button"
+              className="btn-secondary-white"
+              onClick={() => onOpenReceiptVouchers(dealers[0]?.id || 0)}
+              title="Quản lý và lập Phiếu thu tiền đại lý trên 1 trang chung 1 bảng"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+              Phiếu thu tiền
             </button>
           )}
 

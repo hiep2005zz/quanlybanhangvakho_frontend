@@ -47,7 +47,8 @@ export type TabType =
   | 'debt-payments'
   | 'debt-reconciliation'
   | 'debt-statement'
-  | 'debt-adjustments';
+  | 'debt-adjustments'
+  | 'receipt-vouchers';
 
 export interface SidebarProps {
   activeTab?: TabType;
@@ -841,8 +842,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // Kiểm tra trạng thái active của mục menu
   const checkIsItemActive = (item: MenuItemConfig) => {
-    // Sổ chi tiết công nợ được mở từ Hồ sơ & Hạn mức nợ -> Giữ active cho Hồ sơ & Hạn mức nợ
-    if (item.tab === 'dealer-profiles' && (currentPath === '/debt-statement' || activeTab === 'debt-statement')) {
+    // Sổ chi tiết công nợ hoặc Phiếu thu tiền được mở từ Hồ sơ & Hạn mức nợ -> Giữ active cho Hồ sơ & Hạn mức nợ
+    if (
+      item.tab === 'dealer-profiles' &&
+      (currentPath === '/debt-statement' ||
+        activeTab === 'debt-statement' ||
+        currentPath === '/receipt-vouchers' ||
+        activeTab === 'receipt-vouchers')
+    ) {
       return true;
     }
 
