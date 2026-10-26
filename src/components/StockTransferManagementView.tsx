@@ -1031,7 +1031,7 @@ export function StockTransferManagementView({
           {/* HEADER NẰM TRÊN CÙNG CỦA KHUNG */}
           <div className="px-6 py-4.5 border-b border-slate-200/80 bg-gradient-to-r from-slate-50/90 via-white to-blue-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-xs shrink-0">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#0fad89] to-[#0F8A5F] text-white shadow-xs shrink-0">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
@@ -1625,7 +1625,7 @@ export function StockTransferManagementView({
                     transferItems.length === 0 ||
                     hasAnyOverStock
                   }
-                  className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer border-0"
                 >
                   {creating ? (
                     <>
@@ -1690,7 +1690,7 @@ export function StockTransferManagementView({
           {canWriteInventory && (
             <button
               onClick={handleOpenCreatePage}
-              className="px-4 py-2 text-xs font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+              className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] rounded-lg transition-all shadow-sm hover:shadow-md cursor-pointer border-0"
             >
               Lập phiếu chuyển kho
             </button>
@@ -2094,7 +2094,7 @@ export function StockTransferManagementView({
                       padding: '0 7px',
                       border: 'none',
                       borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
-                      background: isActive ? '#2ba1f4' : '#ffffff',
+                      background: isActive ? '#0fad89' : '#ffffff',
                       color: isActive ? '#ffffff' : '#374151',
                       cursor: isActive ? 'default' : 'pointer',
                       fontSize: '11.5px',
@@ -2506,7 +2506,7 @@ export function StockTransferManagementView({
                         !comp.isFullyCompensated && (
                           <button
                             onClick={() => handleOpenCompensateModal(detailTransfer)}
-                            className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
+                            className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer border-0"
                           >
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M5 12h14" />
@@ -2669,7 +2669,7 @@ export function StockTransferManagementView({
                   type="button"
                   disabled={loadingCompensateStock || submittingCompensate}
                   onClick={handleSubmitCompensateTransfer}
-                  className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 rounded-xl shadow-md hover:shadow-lg transition-all"
+                  className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] disabled:opacity-50 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border-0"
                 >
                   {submittingCompensate ? 'Đang xuất chuyển bù...' : 'Xác nhận xuất giao bù'}
                 </button>

@@ -33,6 +33,12 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
     initialSelectedOrderCodes && initialSelectedOrderCodes.length > 0 ? initialSelectedOrderCodes : []
   );
 
+  // Phân trang đơn hàng chờ soạn (mặc định 10 đơn/trang)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalRecords, setTotalRecords] = useState<number>(0);
+  const pageSize = 10;
+
   // --- STATE PHIẾU SOẠN HÀNG ĐANG THỰC HIỆN ---
   const [activeBatch, setActiveBatch] = useState<BatchPickingPreviewResponse | null>(null);
   const [isGeneratingBatch, setIsGeneratingBatch] = useState<boolean>(false);
@@ -52,12 +58,26 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
   const [routeSearch, setRouteSearch] = useState<string>('');
   const [expandedBreakdown, setExpandedBreakdown] = useState<Record<number, boolean>>({});
 
-  // Tải danh sách đơn hàng đã duyệt
+  // Tải danh sách đơn hàng đã duyệt theo trang
   const fetchEligibleOrders = useCallback(async () => {
     setIsLoadingOrders(true);
     try {
-      const data = await getEligiblePickingOrdersApi(token, orderSearch, orderStatusFilter);
-      setOrders(data);
+      const res = await getEligiblePickingOrdersApi(
+        token,
+        orderSearch,
+        orderStatusFilter,
+        currentPage,
+        pageSize
+      );
+      if (res && 'pagination' in res) {
+        setOrders(res.items || res.data || []);
+        setTotalPages(res.pagination.total_pages || 1);
+        setTotalRecords(res.pagination.total_records || 0);
+      } else if (Array.isArray(res)) {
+        setOrders(res);
+        setTotalPages(Math.max(1, Math.ceil(res.length / pageSize)));
+        setTotalRecords(res.length);
+      }
     } catch (err: any) {
       emitStatusToast({
         message: err?.message || 'Không thể tải danh sách đơn hàng sẵn sàng soạn.',
@@ -67,7 +87,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
     } finally {
       setIsLoadingOrders(false);
     }
-  }, [token, orderSearch, orderStatusFilter]);
+  }, [token, orderSearch, orderStatusFilter, currentPage, pageSize]);
 
   useEffect(() => {
     fetchEligibleOrders();
@@ -80,6 +100,23 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
     }
   }, [initialSelectedOrderCodes]);
 
+  // Danh sách các trang hiển thị cho thanh phân trang
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('...');
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (currentPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
   // Toggle chọn đơn hàng
   const toggleSelectOrder = (code: string) => {
     setSelectedOrderCodes((prev) =>
@@ -87,11 +124,18 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
     );
   };
 
+  // Kiểm tra xem toàn bộ đơn ở trang hiện tại đã được chọn chưa
+  const isAllCurrentPageSelected =
+    orders.length > 0 && orders.every((o) => selectedOrderCodes.includes(o.order_code));
+
+  // Chọn/bỏ chọn tất cả đơn ở trang hiện tại mà không làm mất các đơn đã chọn ở trang khác
   const selectAllOrders = () => {
-    if (selectedOrderCodes.length === orders.length) {
-      setSelectedOrderCodes([]);
+    if (isAllCurrentPageSelected) {
+      const currentCodes = new Set(orders.map((o) => o.order_code));
+      setSelectedOrderCodes((prev) => prev.filter((c) => !currentCodes.has(c)));
     } else {
-      setSelectedOrderCodes(orders.map((o) => o.order_code));
+      const currentCodes = orders.map((o) => o.order_code);
+      setSelectedOrderCodes((prev) => Array.from(new Set([...prev, ...currentCodes])));
     }
   };
 
@@ -412,7 +456,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                     <h1 className="text-base font-bold text-gray-900 m-0 leading-tight">
                       Phiếu Soạn Hàng
                     </h1>
-                    <span className="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <span className="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                       {activeBatch.batch_code}
                     </span>
                   </div>
@@ -437,7 +481,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                       <h1 className="text-xl font-bold text-gray-900 m-0 leading-tight whitespace-nowrap">
                         Phiếu Soạn Hàng
                       </h1>
-                      <span className="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+                      <span className="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
                         {activeBatch.batch_code}
                       </span>
                     </div>
@@ -462,7 +506,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
               {/* Hàng 2: Tóm tắt đơn gộp & Thanh tiến độ soạn hàng */}
               <div className="pt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                 <p className="text-xs text-gray-600 m-0">
-                  Gộp <strong className="text-gray-900 font-bold">{activeBatch.total_orders} đơn</strong>: <span className="font-mono text-indigo-700 font-semibold break-words">{activeBatch.selected_order_codes.join(', ')}</span>
+                  Gộp <strong className="text-gray-900 font-bold">{activeBatch.total_orders} đơn</strong>: <span className="font-mono text-emerald-800 font-semibold break-words">{activeBatch.selected_order_codes.join(', ')}</span>
                 </p>
                 <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
                   <span className="font-semibold text-gray-700">
@@ -478,8 +522,8 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
               </div>
 
               {/* Hàng 3: Lộ trình nhặt hàng hướng dẫn (liền mạch, tinh tế) */}
-              <div className="mt-2.5 px-3 py-2 bg-indigo-50/70 border border-indigo-100/90 rounded-lg text-xs text-indigo-950 flex items-center gap-1.5 font-medium">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-indigo-600">
+              <div className="mt-2.5 px-3 py-2 bg-emerald-50/70 border border-emerald-100/90 rounded-lg text-xs text-emerald-950 flex items-center gap-1.5 font-medium">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-emerald-600">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -589,9 +633,9 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
 
             {/* PHẦN 3: BẢNG DỮ LIỆU DÒNG HÀNG (LIỀN MẠCH, KHÔNG TÁCH RỜI) */}
             {/* Thanh thông báo gợi ý vuốt ngang trên mobile */}
-            <div className="sm:hidden px-3 py-1.5 bg-indigo-50/50 border-b border-gray-100 flex items-center justify-between text-[11px] text-gray-500 font-medium">
+            <div className="sm:hidden px-3 py-1.5 bg-emerald-50/50 border-b border-gray-100 flex items-center justify-between text-[11px] text-gray-500 font-medium">
               <span>Lộ trình nhặt hàng:</span>
-              <span className="inline-flex items-center gap-1 text-indigo-700 font-semibold">
+              <span className="inline-flex items-center gap-1 text-emerald-800 font-semibold">
                 <span>Vuốt ngang để soạn &amp; xác nhận</span>
                 &rarr;
               </span>
@@ -643,14 +687,14 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                           >
                             {/* Chặng */}
                             <td className="py-3.5 px-3 text-center align-middle">
-                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shadow-xs">
+                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-900 text-white font-bold text-xs shadow-xs">
                                 #{item.step_number}
                               </span>
                             </td>
 
                             {/* Vị trí kệ & Tồn */}
                             <td className="py-3.5 px-3 align-middle">
-                              <div className="font-bold text-xs sm:text-sm text-indigo-950">
+                              <div className="font-bold text-xs sm:text-sm text-gray-900">
                                 {item.zone && item.zone !== 'Chưa phân bổ' ? (
                                   <>
                                     {item.zone} &bull; {item.aisle} &bull; {item.rack} &bull; {item.bin}
@@ -660,7 +704,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                                 )}
                               </div>
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-semibold">
+                                <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
                                   {item.location_code}
                                 </span>
                                 <span className="text-[11px] text-gray-500">
@@ -672,7 +716,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                             {/* Sản phẩm & Chi tiết đơn gộp */}
                             <td className="py-3.5 px-4 align-middle">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-xs text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded shrink-0">
+                                <span className="font-mono font-bold text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded shrink-0">
                                   {item.product_code}
                                 </span>
                                 <span className="font-bold text-gray-900 text-sm">
@@ -683,7 +727,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => toggleBreakdown(item.product_id)}
-                                className="mt-1 text-xs text-indigo-700 hover:text-indigo-900 font-semibold flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 touch-manipulation"
+                                className="mt-1 text-xs text-emerald-700 hover:text-emerald-900 font-semibold flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 touch-manipulation"
                               >
                                 <span>Gộp {item.order_breakdown.length} đơn</span>
                                 <span className="underline">({isExpanded ? 'Thu gọn' : 'Chi tiết'})</span>
@@ -896,7 +940,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                   type="button"
                   disabled={isSubmittingBatch}
                   onClick={handleCompleteBatch}
-                  className="flex-2 sm:flex-initial px-6 py-2.5 h-11 text-xs sm:text-sm font-bold text-white bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 rounded-lg shadow-sm border-0 cursor-pointer transition-all disabled:opacity-50 touch-manipulation"
+                  className="flex-2 sm:flex-initial px-6 py-2.5 h-11 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] rounded-lg shadow-sm border-0 cursor-pointer transition-all disabled:opacity-50 touch-manipulation"
                 >
                   {isSubmittingBatch ? 'Đang hoàn tất...' : 'Hoàn tất soạn hàng'}
                 </button>
@@ -939,7 +983,10 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                 type="text"
                 placeholder="Tìm theo mã đơn, tên đại lý..."
                 value={orderSearch}
-                onChange={(e) => setOrderSearch(e.target.value)}
+                onChange={(e) => {
+                  setOrderSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-900 bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
               />
 
@@ -959,7 +1006,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                 <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-semibold text-gray-700 touch-manipulation py-0.5">
                   <input
                     type="checkbox"
-                    checked={orders.length > 0 && selectedOrderCodes.length === orders.length}
+                    checked={isAllCurrentPageSelected}
                     onChange={selectAllOrders}
                     className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
                   />
@@ -967,7 +1014,10 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                 </label>
 
                 <span className="text-xs text-gray-500">
-                  Đã chọn: <strong className="text-indigo-600 font-bold">{selectedOrderCodes.length}</strong> đơn
+                  Đã chọn: <strong className="text-emerald-700 font-bold">{selectedOrderCodes.length}</strong> đơn
+                  {totalRecords > 0 && (
+                    <span className="hidden sm:inline text-gray-400"> (Tổng {totalRecords} đơn)</span>
+                  )}
                 </span>
               </div>
 
@@ -977,7 +1027,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                 onClick={() => handleGenerateBatch()}
                 className={`px-3.5 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-white rounded-lg shadow-xs border-0 cursor-pointer transition-all touch-manipulation flex items-center justify-center gap-1.5 shrink-0 ${
                   selectedOrderCodes.length > 0
-                    ? 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800'
+                    ? 'bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] shadow-sm hover:shadow-md'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60 hidden sm:flex'
                 }`}
               >
@@ -1016,7 +1066,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                     onClick={() => toggleSelectOrder(ord.order_code)}
                     className={`bg-white rounded-xl border p-3.5 sm:p-4 transition-all duration-150 cursor-pointer shadow-xs active:scale-[0.99] touch-manipulation select-none ${
                       isSelected
-                        ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/20'
+                        ? 'border-emerald-600 ring-2 ring-emerald-500/20 bg-emerald-50/30'
                         : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                     }`}
                   >
@@ -1026,7 +1076,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => {}} // Handle by parent div
-                          className="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 pointer-events-none"
+                          className="w-5 h-5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 pointer-events-none accent-emerald-600"
                         />
                         <span className="font-mono font-bold text-sm text-gray-900">
                           {ord.order_code}
@@ -1072,17 +1122,102 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
             </div>
           )}
 
+          {/* PHÂN TRANG CHUẨN ERP (Mặc định 10 đơn/trang) */}
+          {!isLoadingOrders && totalRecords > 0 && (
+            <div className="mt-4 bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center justify-between flex-wrap gap-3 shadow-xs">
+              <div className="text-xs text-gray-600">
+                Hiển thị <strong className="text-gray-900">{orders.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</strong> -{' '}
+                <strong className="text-gray-900">{Math.min(currentPage * pageSize, totalRecords)}</strong> /{' '}
+                <strong className="text-gray-900">{totalRecords}</strong> đơn hàng | Trang{' '}
+                <strong className="text-gray-900">{currentPage}</strong> / {totalPages}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="inline-flex items-stretch border border-gray-300 rounded-lg overflow-hidden bg-white h-8 shadow-xs">
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage(1)}
+                    className="px-2.5 h-full border-0 border-r border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed cursor-pointer flex items-center justify-center text-xs font-medium transition-colors"
+                    title="Trang đầu"
+                  >
+                    «
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="px-2.5 h-full border-0 border-r border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed cursor-pointer flex items-center justify-center text-xs font-medium transition-colors"
+                    title="Trang trước"
+                  >
+                    ‹
+                  </button>
+
+                  {getPageNumbers().map((p, idx) => {
+                    if (p === '...') {
+                      return (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          className="px-2.5 h-full flex items-center justify-center text-xs text-gray-400 border-r border-gray-200 bg-white select-none"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                    const pageNum = p as number;
+                    const isActive = pageNum === currentPage;
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`min-w-[32px] px-2 h-full border-0 border-r border-gray-200 text-xs font-semibold cursor-pointer flex items-center justify-center transition-colors ${
+                          isActive
+                            ? 'bg-gray-900 text-white font-bold'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className="px-2.5 h-full border-0 border-r border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed cursor-pointer flex items-center justify-center text-xs font-medium transition-colors"
+                    title="Trang sau"
+                  >
+                    ›
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(totalPages)}
+                    className="px-2.5 h-full border-0 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed cursor-pointer flex items-center justify-center text-xs font-medium transition-colors"
+                    title="Trang cuối"
+                  >
+                    »
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* FLOATING ACTION BAR DÀNH RIÊNG CHO DI ĐỘNG KHI ĐÃ CHỌN ĐƠN */}
           {selectedOrderCodes.length > 0 && (
             <div className="fixed sm:hidden bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] z-40 shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200">
               <div className="text-xs text-gray-700 font-medium pl-1">
-                Đã chọn: <strong className="text-indigo-600 font-bold text-sm">{selectedOrderCodes.length}</strong> đơn
+                Đã chọn: <strong className="text-emerald-700 font-bold text-sm">{selectedOrderCodes.length}</strong> đơn
               </div>
               <button
                 type="button"
                 disabled={isGeneratingBatch}
                 onClick={() => handleGenerateBatch()}
-                className="px-4 py-2.5 h-11 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-lg shadow-sm border-0 cursor-pointer transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 touch-manipulation"
+                className="px-4 py-2.5 h-11 text-xs font-bold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] rounded-lg shadow-sm border-0 cursor-pointer transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 touch-manipulation"
               >
                 <span>
                   {isGeneratingBatch

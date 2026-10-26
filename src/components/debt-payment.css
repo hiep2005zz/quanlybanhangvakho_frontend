@@ -530,11 +530,31 @@
 }
 
 .debt-modal-header {
-  padding: 14px 18px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+  color: #ffffff;
+}
+
+.debt-modal-header h2,
+.debt-modal-header h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+  color: #ffffff;
+}
+
+.debt-modal-header p,
+.debt-modal-header span,
+.debt-modal-header div {
+  color: #e2e8f0;
+}
+
+.debt-modal-header strong {
+  color: #ffffff;
 }
 
 .debt-modal-body {

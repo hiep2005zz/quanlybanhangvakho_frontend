@@ -3160,14 +3160,35 @@ export interface BatchPickingCompleteResponse {
   updated_at: string;
 }
 
+export interface EligiblePickingOrderPagination {
+  page: number;
+  page_size: number;
+  total_records: number;
+  total_pages: number;
+}
+
+export interface EligiblePickingOrderListResponse {
+  status: string;
+  data: EligiblePickingOrder[];
+  items?: EligiblePickingOrder[];
+  total: number;
+  pagination: EligiblePickingOrderPagination;
+}
+
 export async function getEligiblePickingOrdersApi(
   token: string,
   search?: string,
-  statusFilter?: string
-): Promise<EligiblePickingOrder[]> {
+  statusFilter?: string,
+  page?: number,
+  pageSize: number = 10
+): Promise<EligiblePickingOrderListResponse | EligiblePickingOrder[]> {
   const params = new URLSearchParams();
   if (search) params.set('search', search);
   if (statusFilter && statusFilter !== 'all') params.set('status_filter', statusFilter);
+  if (page !== undefined && page !== null) {
+    params.set('page', String(page));
+    params.set('page_size', String(pageSize));
+  }
 
   const url = `${API_BASE_URL}/warehouses/picking/eligible-orders${params.toString() ? `?${params.toString()}` : ''}`;
   const response = await authenticatedFetch(url, { method: 'GET' }, token);

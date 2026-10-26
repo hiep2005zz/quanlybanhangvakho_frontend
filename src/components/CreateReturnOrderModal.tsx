@@ -64,7 +64,15 @@ export const CreateReturnOrderModal: React.FC<CreateReturnOrderModalProps> = ({
   const [itemsState, setItemsState] = useState<SelectedReturnItemState[]>([]);
   const [generalNote, setGeneralNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const showErrorToast = (msg: string) => {
+    emitStatusToast({
+      title: 'Thông báo',
+      message: msg,
+      type: 'error',
+      durationMs: 3000,
+    });
+  };
 
   // Nạp danh sách đơn hàng đã giao/hoàn thành đủ điều kiện trả
   useEffect(() => {
@@ -73,7 +81,6 @@ export const CreateReturnOrderModal: React.FC<CreateReturnOrderModalProps> = ({
       setOrderDetails(null);
       setItemsState([]);
       setGeneralNote('');
-      setErrorMsg(null);
       return;
     }
 
@@ -83,7 +90,7 @@ export const CreateReturnOrderModal: React.FC<CreateReturnOrderModalProps> = ({
         const list = await getEligibleOrdersForReturnApi(token, orderSearch);
         setOrders(list);
       } catch (err: any) {
-        setErrorMsg(err.message || 'Không thể tải danh sách đơn hàng.');
+        showErrorToast(err.message || 'Không thể tải danh sách đơn hàng.');
       } finally {
         setIsLoadingOrders(false);
       }
@@ -96,7 +103,6 @@ export const CreateReturnOrderModal: React.FC<CreateReturnOrderModalProps> = ({
   const handleSelectOrder = async (orderId: number) => {
     setSelectedOrderId(orderId);
     setIsLoadingDetails(true);
-    setErrorMsg(null);
 
     try {
       const data = await getOrderReturnableItemsApi(token, orderId);
@@ -129,7 +135,7 @@ export const CreateReturnOrderModal: React.FC<CreateReturnOrderModalProps> = ({
 
       setItemsState(initItems);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi tải chi tiết dòng hàng của đơn.');
+      showErrorToast(err.message || 'Lỗi khi tải chi tiết dòng hàng của đơn.');
     } finally {
       setIsLoadingDetails(false);
     }
@@ -211,12 +217,11 @@ export const CreateReturnOrderModal: React.FC<CreateReturnOrderModalProps> = ({
     e.preventDefault();
     const validationError = validateForm();
     if (validationError) {
-      setErrorMsg(validationError);
+      showErrorToast(validationError);
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMsg(null);
 
     try {
       const payload = {
@@ -239,11 +244,12 @@ export const CreateReturnOrderModal: React.FC<CreateReturnOrderModalProps> = ({
       emitStatusToast({
         title: 'Lập phiếu trả hàng thành công',
         message: `Phiếu trả hàng ${res.code} đã được tạo ở trạng thái Chờ kho xác nhận.`,
+        durationMs: 3000,
       });
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi tạo phiếu trả hàng.');
+      showErrorToast(err.message || 'Lỗi khi tạo phiếu trả hàng.');
     } finally {
       setIsSubmitting(false);
     }
@@ -363,30 +369,6 @@ export const CreateReturnOrderModal: React.FC<CreateReturnOrderModalProps> = ({
               gap: '18px',
             }}
           >
-            {errorMsg && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  color: '#dc2626',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span>{errorMsg}</span>
-              </div>
-            )}
-
             {/* Bước 1: Chọn Đơn hàng gốc */}
             <div
               style={{

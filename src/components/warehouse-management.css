@@ -119,8 +119,45 @@
 }
 
 /* ==========================================================================
-   Selected Warehouse Information Card
+   Selected Warehouse Information Card & Unified Detail Card
    ========================================================================== */
+.wh-unified-card {
+  flex-shrink: 0;
+  background: #ffffff;
+  padding: 16px 20px;
+  border-radius: var(--wh-radius);
+  border: 1px solid var(--wh-slate-200);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wh-unified-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.wh-header-v-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--wh-slate-200);
+  flex-shrink: 0;
+}
+
+.wh-info-card-inner {
+  background: #f8fafc;
+  padding: 12px 16px;
+  border-radius: var(--wh-radius-sm);
+  border: 1px solid var(--wh-slate-200);
+  border-left: 4px solid var(--wh-brand);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .wh-info-card {
   flex-shrink: 0;
   background: #ffffff;
@@ -552,6 +589,132 @@
 
 .wh-action-btn-manage:hover svg {
   color: #ffffff;
+}
+
+/* 3-dots Action Menu (Menu Thao Tác Gọn Gàng Chuẩn ERP) */
+.wh-action-dropdown-container {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.wh-action-dots-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--wh-radius);
+  border: 1px solid var(--wh-slate-200);
+  background: #ffffff;
+  color: var(--wh-slate-500);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  padding: 0;
+}
+
+.wh-action-dots-btn:hover {
+  background: var(--wh-slate-100);
+  color: var(--wh-slate-900);
+  border-color: var(--wh-slate-300);
+}
+
+.wh-action-dots-btn.active {
+  background: var(--wh-primary-light);
+  color: var(--wh-primary);
+  border-color: var(--wh-primary);
+}
+
+.wh-action-dots-icon {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  pointer-events: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.wh-action-dots-icon span {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.wh-dropdown-menu {
+  position: absolute;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid var(--wh-slate-200);
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+  min-width: 185px;
+  z-index: 9999;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  animation: whFadeIn 0.12s ease-out;
+}
+
+.wh-dropdown-menu.open-down {
+  top: calc(100% + 6px);
+}
+
+.wh-dropdown-menu.open-up {
+  bottom: calc(100% + 6px);
+}
+
+.wh-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--wh-slate-700);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.wh-dropdown-item:hover {
+  background: var(--wh-slate-100);
+  color: var(--wh-slate-900);
+}
+
+.wh-dropdown-item-primary {
+  color: var(--wh-primary);
+  font-weight: 600;
+}
+
+.wh-dropdown-item-primary:hover {
+  background: var(--wh-primary-light);
+  color: var(--wh-primary-hover);
+}
+
+.wh-dropdown-item-danger {
+  color: var(--wh-danger);
+}
+
+.wh-dropdown-item-danger:hover {
+  background: var(--wh-danger-light);
+  color: var(--wh-danger-text);
+}
+
+.wh-dropdown-divider {
+  height: 1px;
+  background: var(--wh-slate-100);
+  margin: 3px 0;
 }
 
 /* Chuyển kệ & Thêm hàng - Buttons trong bảng */
@@ -1813,6 +1976,26 @@
 
   .wh-header-actions button {
     width: 100%;
+  }
+
+  .wh-unified-card {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .wh-unified-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .wh-unified-header button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .wh-header-v-divider {
+    display: none;
   }
 
   .wh-filter-group {
