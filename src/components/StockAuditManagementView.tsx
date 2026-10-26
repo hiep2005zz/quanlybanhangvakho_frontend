@@ -478,25 +478,27 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
   const handlePreConfirm = () => {
     if (!selectedAudit) return;
 
-    // Kiểm tra tất cả dòng đã nhập thực tế chưa
-    const missingActual = auditItemsState.filter((it) => it.actual_stock === null || it.actual_stock === undefined);
-    if (missingActual.length > 0) {
+    // Kiểm tra đã kiểm đếm ít nhất 1 sản phẩm chưa
+    const countedItems = auditItemsState.filter(
+      (it) => it.actual_stock !== null && it.actual_stock !== undefined
+    );
+    if (countedItems.length === 0) {
       emitStatusToast({
-        title: 'Chưa hoàn tất kiểm đếm',
-        message: `Còn ${missingActual.length} sản phẩm chưa được nhập số lượng thực tế. Vui lòng kiểm đếm đầy đủ!`,
+        title: 'Chưa có sản phẩm kiểm đếm',
+        message: 'Vui lòng nhập số lượng thực tế cho ít nhất 1 sản phẩm trước khi xác nhận!',
         type: 'warning',
       });
       return;
     }
 
-    // Kiểm tra các dòng có chênh lệch đã có lý do chưa
-    const missingReason = auditItemsState.filter(
+    // Kiểm tra các dòng có chênh lệch đã có lý do chưa (chỉ xét các sản phẩm ĐÃ KIỂM ĐẾM)
+    const missingReason = countedItems.filter(
       (it) => it.discrepancy !== null && it.discrepancy !== 0 && (!it.reason || !it.reason.trim())
     );
     if (missingReason.length > 0) {
       emitStatusToast({
         title: 'Thiếu lý do chênh lệch',
-        message: `Bắt buộc nhập lý do cho ${missingReason.length} sản phẩm có chênh lệch.`,
+        message: `Bắt buộc nhập lý do cho ${missingReason.length} sản phẩm có chênh lệch đã kiểm đếm.`,
         type: 'warning',
       });
       return;
@@ -512,7 +514,8 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
     try {
       const itemsPayload = auditItemsState.map((it) => ({
         product_id: it.product_id,
-        actual_stock: it.actual_stock ?? 0,
+        // Nếu chưa kiểm đếm, gửi đúng system_stock để giữ nguyên tồn kho hệ thống (không chênh lệch)
+        actual_stock: it.actual_stock !== null && it.actual_stock !== undefined ? it.actual_stock : it.system_stock,
         reason: it.reason || undefined,
       }));
 
@@ -631,12 +634,15 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
       }
     });
 
+    const countedCount = auditItemsState.length - pendingCount;
+
     return {
       total: auditItemsState.length,
       matchCount,
       deficitCount,
       surplusCount,
       pendingCount,
+      countedCount,
       totalDeficitQty,
       totalSurplusQty,
     };
@@ -1444,15 +1450,17 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
                       type="button"
                       id="btn-confirm-stock-audit-footer"
                       onClick={handlePreConfirm}
-                      disabled={detailStats.pendingCount > 0}
+                      disabled={detailStats.countedCount === 0}
                       className={`px-5 py-2 text-xs font-bold rounded-lg shadow-sm border-0 transition-all ${
-                        detailStats.pendingCount > 0
+                        detailStats.countedCount === 0
                           ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-60'
                           : 'bg-[#0fad89] hover:bg-[#0c8a6d] text-white cursor-pointer shadow-sm'
                       }`}
                       title={
-                        detailStats.pendingCount > 0
-                          ? `Còn ${detailStats.pendingCount} sản phẩm chưa nhập SL thực tế`
+                        detailStats.countedCount === 0
+                          ? 'Vui lòng nhập SL thực tế cho ít nhất 1 sản phẩm để xác nhận'
+                          : detailStats.pendingCount > 0
+                          ? `Đã kiểm đếm ${detailStats.countedCount}/${detailStats.total} SP (${detailStats.pendingCount} SP chưa đếm giữ nguyên tồn kho)`
                           : 'Xác nhận kiểm kê & Điều chỉnh kho'
                       }
                     >
@@ -1489,9 +1497,21 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
                 {/* Tóm tắt kết quả kiểm kê chi tiết theo từng sản phẩm */}
                 <div className="bg-gray-50 rounded-xl p-4 space-y-3 text-sm mb-4 border border-gray-200 overflow-y-auto flex-1">
                   <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-                    <span className="text-gray-600 font-medium">Tổng sản phẩm kiểm kê:</span>
+                    <span className="text-gray-600 font-medium">Tổng sản phẩm trong phiếu:</span>
                     <span className="font-bold text-gray-900">{detailStats.total} SP</span>
                   </div>
+
+                  <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                    <span className="text-blue-700 font-medium">Đã kiểm đếm thực tế:</span>
+                    <span className="font-bold text-blue-700">{detailStats.countedCount} SP</span>
+                  </div>
+
+                  {detailStats.pendingCount > 0 && (
+                    <div className="flex justify-between items-center pb-2 border-b border-gray-200 bg-amber-50/80 px-2.5 py-1.5 rounded-lg text-amber-800 text-xs">
+                      <span className="font-medium">Chưa kiểm đếm (giữ nguyên tồn kho):</span>
+                      <span className="font-bold">{detailStats.pendingCount} SP</span>
+                    </div>
+                  )}
 
                   <div className="flex justify-between items-center pb-2 border-b border-gray-200">
                     <span className="text-green-700 font-medium">Khớp số lượng:</span>
@@ -1556,9 +1576,13 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
                 </div>
 
                 <div className="p-3 bg-amber-50 text-amber-800 rounded-lg text-xs border border-amber-200 mb-5 leading-relaxed">
-                  <strong>Lưu ý quan trọng:</strong> Hệ thống sẽ tự động cập nhật số lượng tồn kho thực
-                  tế theo các chênh lệch đã kiểm đếm, ghi nhận lịch sử biến động kho và khóa phiếu kiểm
-                  kê. <strong>Thao tác này không thể hoàn tác!</strong>
+                  <strong>Lưu ý quan trọng:</strong> Hệ thống sẽ điều chỉnh tồn kho cho <strong>{detailStats.countedCount} sản phẩm</strong> đã kiểm đếm.{' '}
+                  {detailStats.pendingCount > 0 && (
+                    <span>
+                      Đối với <strong>{detailStats.pendingCount} sản phẩm chưa đếm</strong>, hệ thống sẽ <strong>giữ nguyên theo tồn kho hiện tại</strong> (không điều chỉnh).{' '}
+                    </span>
+                  )}
+                  Ghi nhận lịch sử biến động kho và khóa phiếu kiểm kê. <strong>Thao tác này không thể hoàn tác!</strong>
                 </div>
 
                 <div className="flex items-center justify-end gap-3">

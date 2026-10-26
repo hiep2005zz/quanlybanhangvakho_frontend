@@ -933,11 +933,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200 flex-col h-full flex-shrink-0 select-none shadow-[1px_0_4px_rgba(0,0,0,0.02)]">
-        {/* Header nhẹ nhàng trên thanh Menu */}
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center bg-slate-50/70">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-800">MENU HỆ THỐNG</span>
-        </div>
-
         {/* Danh sách mục điều hướng Sidebar */}
         {renderNavContent(false)}
 
