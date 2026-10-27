@@ -828,32 +828,6 @@ export default function DealerSearchView({
     const safePage = Math.min(Math.max(1, currentPage), totalPages);
     const paginatedDealers = dealers.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-    if (isAddPageOpen) {
-        return (
-            <CreateDealerPageView
-                token={token}
-                currentUser={currentUser}
-                regions={regions}
-                sales={sales}
-                customerGroups={customerGroups}
-                dealers={dealers}
-                onSuccess={(newDealer) => {
-                    setDealers((prev) => [newDealer, ...prev]);
-                    setIsAddPageOpen(false);
-                    try {
-                        window.history.pushState({}, '', '/dealers');
-                    } catch {}
-                }}
-                onBack={() => {
-                    setIsAddPageOpen(false);
-                    try {
-                        window.history.pushState({}, '', '/dealers');
-                    } catch {}
-                }}
-            />
-        );
-    }
-
     // Đồng bộ URL và sự kiện popstate cho trang Lịch sử biến động
     useEffect(() => {
         const handlePopState = () => {
@@ -886,6 +860,32 @@ export default function DealerSearchView({
             }
         }
     }, [dealers]);
+
+    if (isAddPageOpen) {
+        return (
+            <CreateDealerPageView
+                token={token}
+                currentUser={currentUser}
+                regions={regions}
+                sales={sales}
+                customerGroups={customerGroups}
+                dealers={dealers}
+                onSuccess={(newDealer) => {
+                    setDealers((prev) => [newDealer, ...prev]);
+                    setIsAddPageOpen(false);
+                    try {
+                        window.history.pushState({}, '', '/dealers');
+                    } catch {}
+                }}
+                onBack={() => {
+                    setIsAddPageOpen(false);
+                    try {
+                        window.history.pushState({}, '', '/dealers');
+                    } catch {}
+                }}
+            />
+        );
+    }
 
     // GIAO DIỆN 1 TRANG: LỊCH SỬ CHUYỂN GIAO & BIẾN ĐỘNG ĐẠI LÝ
     if (isHistoryModalOpen && historyTargetDealer) {
