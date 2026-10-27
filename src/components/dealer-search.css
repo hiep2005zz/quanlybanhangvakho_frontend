@@ -1050,19 +1050,23 @@
 }
 
 .dealer-btn-save {
-    background: linear-gradient(135deg, #0fba90, #0fad89);
+    background: #0fad89;
     border: none;
     color: #ffffff;
-    box-shadow: 0 2px 4px rgba(15, 186, 144, 0.25);
+    box-shadow: none;
+    animation: none;
+    transition: background-color 0.15s ease;
 }
 
 .dealer-btn-save:hover:not(:disabled) {
-    background: linear-gradient(135deg, #0fad89, #0a8f70);
+    background: #0c9576;
+    animation: none;
 }
 
 .dealer-btn-save:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    animation: none;
 }
 
 @media (max-width: 640px) {

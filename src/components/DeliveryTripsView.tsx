@@ -1074,6 +1074,8 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                     borderRadius: '8px',
                     padding: '8px 12px',
                     background: isDelivered ? '#f0fdf4' : isFailed ? '#fef2f2' : '#ffffff',
+                    position: 'relative',
+                    zIndex: activeDropdownStopId === st.id ? 50 : 1,
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '10px' }}>
@@ -1128,46 +1130,53 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                             </span>
                           </button>
 
-                          {activeDropdownStopId === st.id && (
-                            <div className="wh-dropdown-menu open-down" style={{ minWidth: '145px', zIndex: 100 }}>
+                          {activeDropdownStopId === st.id && (() => {
+                            const stopsList = selectedTrip.stops || [];
+                            const openUpward = stopsList.length > 2 && stopsList.findIndex((item: any) => item.id === st.id) >= stopsList.length - 2;
+                            return (
+                              <div
+                                className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`}
+                                style={{ minWidth: '150px', right: 0, zIndex: 1000 }}
+                              >
                                 <button
-                                type="button"
-                                className="wh-dropdown-item"
-                                style={{ color: '#16a34a', fontWeight: isDelivered ? 700 : 500 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveDropdownStopId(null);
-                                  handleUpdateStopResult(st.id, 'DELIVERED');
-                                }}
-                              >
-                                Đã giao xong
-                              </button>
-                              <button
-                                type="button"
-                                className="wh-dropdown-item"
-                                style={{ color: '#dc2626', fontWeight: isFailed ? 700 : 500 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveDropdownStopId(null);
-                                  setActiveFailureStopId(activeFailureStopId === st.id ? null : st.id);
-                                }}
-                              >
-                                Báo thất bại
-                              </button>
-                              <button
-                                type="button"
-                                className="wh-dropdown-item"
-                                style={{ color: '#d97706', fontWeight: isPending ? 700 : 500 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveDropdownStopId(null);
-                                  handleUpdateStopResult(st.id, 'PENDING');
-                                }}
-                              >
-                                Chờ giao hàng
-                              </button>
-                            </div>
-                          )}
+                                  type="button"
+                                  className="wh-dropdown-item"
+                                  style={{ color: '#16a34a', fontWeight: isDelivered ? 700 : 500 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdownStopId(null);
+                                    handleUpdateStopResult(st.id, 'DELIVERED');
+                                  }}
+                                >
+                                  Đã giao xong
+                                </button>
+                                <button
+                                  type="button"
+                                  className="wh-dropdown-item"
+                                  style={{ color: '#dc2626', fontWeight: isFailed ? 700 : 500 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdownStopId(null);
+                                    setActiveFailureStopId(activeFailureStopId === st.id ? null : st.id);
+                                  }}
+                                >
+                                  Báo thất bại
+                                </button>
+                                <button
+                                  type="button"
+                                  className="wh-dropdown-item"
+                                  style={{ color: '#d97706', fontWeight: isPending ? 700 : 500 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdownStopId(null);
+                                    handleUpdateStopResult(st.id, 'PENDING');
+                                  }}
+                                >
+                                  Chờ giao hàng
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -1228,6 +1237,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                 </div>
               );
             })}
+            <div style={{ height: '70px', flexShrink: 0 }} />
           </div>
         </div>
       </div>
@@ -2101,9 +2111,9 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                             </button>
 
                             {activeDropdownOuterTripId === t.id && (() => {
-                              const openUpward = paginatedTrips.length > 3 && idx >= paginatedTrips.length - 2;
+                              const openUpward = paginatedTrips.length > 2 && idx >= paginatedTrips.length - 2;
                               return (
-                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '175px' }}>
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '175px', right: 0 }}>
                                   <button
                                     type="button"
                                     className="wh-dropdown-item wh-dropdown-item-primary"
@@ -2197,6 +2207,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                 )}
               </tbody>
             </table>
+            <div style={{ height: '70px' }} />
           </div>
           {renderPaginationBar(tripPage, tripTotalPages, trips.length, setTripPage)}
         </div>

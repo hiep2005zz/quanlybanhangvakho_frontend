@@ -628,23 +628,18 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Lịch sử phê duyệt đơn hàng */}
-        <div className="mt-4 sm:mt-6">
-          <OrderApprovalHistory orderCode={order.order_code} token={token} />
+          {/* Lịch sử phê duyệt đơn hàng (được gộp chung vào 1 bảng duy nhất) */}
+          <div className="border-t border-slate-200">
+            <OrderApprovalHistory orderCode={order.order_code} token={token} embedded />
+          </div>
         </div>
       </div>
     </div>
 
       {/* Sticky Bottom Actions Bar */}
       <div className="sticky bottom-0 z-20 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 sm:px-6 lg:px-8 py-3.5 shadow-md w-full mt-auto">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xs sm:text-sm font-semibold text-slate-500 uppercase tracking-wider">Trạng thái:</span>
-            {getStatusBadge(order.status)}
-          </div>
-
+        <div className="max-w-7xl mx-auto flex items-center justify-end gap-4">
           <div className="flex items-center gap-2.5 flex-wrap justify-end">
             {/* Nút Đặt lại toàn bộ đơn */}
             <button

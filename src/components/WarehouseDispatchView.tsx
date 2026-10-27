@@ -1414,7 +1414,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                     <th style={{ padding: '9px 16px 9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '13%', textAlign: 'center' }}>Thao tác</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody style={{ paddingBottom: '60px' }}>
                   {filteredDispatchOrders.length === 0 ? (
                     <tr>
                       <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
@@ -1464,9 +1464,9 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                             </button>
 
                             {activeDropdownId === ord.order_code && (() => {
-                              const openUpward = paginatedDispatchOrders.length > 3 && idx >= paginatedDispatchOrders.length - 2;
+                              const openUpward = paginatedDispatchOrders.length > 2 && idx >= paginatedDispatchOrders.length - 2;
                               return (
-                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '155px' }}>
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '155px', right: 0 }}>
                                   <button
                                     type="button"
                                     className="wh-dropdown-item wh-dropdown-item-primary"
@@ -1488,6 +1488,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                   )}
                 </tbody>
               </table>
+              <div style={{ height: '70px' }} />
             </div>
             {renderPaginationBar(dispatchPage, dispatchTotalPages, filteredDispatchOrders.length, setDispatchPage)}
           </>
@@ -1563,9 +1564,9 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                             </button>
 
                             {activeDropdownId === ord.order_code && (() => {
-                              const openUpward = paginatedSuppOrders.length > 3 && idx >= paginatedSuppOrders.length - 2;
+                              const openUpward = paginatedSuppOrders.length > 2 && idx >= paginatedSuppOrders.length - 2;
                               return (
-                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '150px' }}>
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '150px', right: 0 }}>
                                   <button
                                     type="button"
                                     className="wh-dropdown-item"
@@ -1588,6 +1589,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                   )}
                 </tbody>
               </table>
+              <div style={{ height: '70px' }} />
             </div>
             {renderPaginationBar(suppPage, suppTotalPages, filteredSuppOrders.length, setSuppPage)}
           </>
@@ -1695,9 +1697,9 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                             </button>
 
                             {activeDropdownId === (dp.dispatch_code || String(dp.id)) && (() => {
-                              const openUpward = paginatedAllDispatches.length > 3 && idx >= paginatedAllDispatches.length - 2;
+                              const openUpward = paginatedAllDispatches.length > 2 && idx >= paginatedAllDispatches.length - 2;
                               return (
-                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '130px' }}>
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '130px', right: 0 }}>
                                   <button
                                     type="button"
                                     className="wh-dropdown-item wh-dropdown-item-primary"
@@ -1719,6 +1721,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                   )}
                 </tbody>
               </table>
+              <div style={{ height: '70px' }} />
             </div>
             {renderPaginationBar(historyPage, historyTotalPages, filteredAllDispatches.length, setHistoryPage)}
           </>
