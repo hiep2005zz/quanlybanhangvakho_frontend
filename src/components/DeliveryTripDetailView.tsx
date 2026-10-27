@@ -795,7 +795,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
 
                             {!isDelivered && !isFailed && (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                Đang vận chuyển
+                                Đang trên đường
                               </span>
                             )}
                           </td>

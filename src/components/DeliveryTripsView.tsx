@@ -925,13 +925,15 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
 
   // Lấy màu sắc badge trạng thái chuyến
   const getTripStatusBadge = (st: string) => {
-    switch (st) {
+    switch (st ? st.toUpperCase() : '') {
       case 'DRAFT':
         return { text: 'Nháp', bg: '#f1f5f9', color: '#475569' };
       case 'ASSIGNED':
         return { text: 'Đã phân công', bg: '#e0f2fe', color: '#0369a1' };
+      case 'IN_TRANSIT':
+      case 'DELIVERING':
       case 'IN_PROGRESS':
-        return { text: 'Đang giao hàng', bg: '#fef3c7', color: '#b45309' };
+        return { text: 'Đang trên đường', bg: '#fef3c7', color: '#b45309' };
       case 'COMPLETED':
         return { text: 'Hoàn thành', bg: '#dcfce7', color: '#166534' };
       case 'PARTIALLY_FAILED':
@@ -2015,7 +2017,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               <option value="ALL">Tất cả trạng thái</option>
               <option value="DRAFT">Nháp</option>
               <option value="ASSIGNED">Đã phân công</option>
-              <option value="IN_PROGRESS">Đang giao hàng</option>
+              <option value="IN_TRANSIT">Đang trên đường</option>
               <option value="COMPLETED">Hoàn thành</option>
               <option value="PARTIALLY_FAILED">Có điểm thất bại</option>
               <option value="CANCELLED">Đã hủy</option>
@@ -2338,14 +2340,14 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                   e.stopPropagation();
                   const tripId = tripDropdownMenu.trip.id;
                   setTripDropdownMenu(null);
-                  handleUpdateTripStatusById(tripId, 'IN_PROGRESS');
+                  handleUpdateTripStatusById(tripId, 'IN_TRANSIT');
                 }}
               >
-                <span>Bắt đầu giao hàng</span>
+                <span>Bắt đầu vận chuyển</span>
               </button>
             )}
 
-            {tripDropdownMenu.trip.status === 'IN_PROGRESS' && (
+            {(tripDropdownMenu.trip.status === 'IN_PROGRESS' || tripDropdownMenu.trip.status === 'IN_TRANSIT') && (
               <button
                 type="button"
                 className="wh-dropdown-item"
