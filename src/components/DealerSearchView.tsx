@@ -851,6 +851,9 @@ export default function DealerSearchView({
                     } catch {}
                 }}
             />
+        );
+    }
+
     // Đồng bộ URL và sự kiện popstate cho trang Lịch sử biến động
     useEffect(() => {
         const handlePopState = () => {
