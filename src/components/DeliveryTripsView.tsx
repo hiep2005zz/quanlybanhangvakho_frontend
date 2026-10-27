@@ -931,6 +931,8 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
       case 'ASSIGNED':
         return { text: 'Đã phân công', bg: '#e0f2fe', color: '#0369a1' };
       case 'IN_PROGRESS':
+      case 'IN_TRANSIT':
+      case 'DELIVERING':
         return { text: 'Đang giao hàng', bg: '#fef3c7', color: '#b45309' };
       case 'COMPLETED':
         return { text: 'Hoàn thành', bg: '#dcfce7', color: '#166534' };
@@ -1069,7 +1071,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               overflowX: 'auto',
             }}
           >
-            <div>Ngày giao: <strong style={{ color: '#0f172a' }}>{selectedTrip.delivery_date}</strong></div>
+            <div>Ngày giao: <strong style={{ color: '#0f172a' }}>{selectedTrip.delivery_date || (selectedTrip.created_at ? new Date(selectedTrip.created_at).toLocaleDateString('vi-VN') : '-')}</strong></div>
             <div>Tài xế: <strong style={{ color: '#0f172a' }}>{selectedTrip.driver_name || 'Chưa phân công'}</strong> {selectedTrip.driver_phone && `(${selectedTrip.driver_phone})`}</div>
             <div>Phương tiện: <strong style={{ color: '#0f172a' }}>{selectedTrip.vehicle_plate || 'Chưa gán xe'}</strong> {selectedTrip.vehicle_type && `- ${selectedTrip.vehicle_type}`}</div>
             <div>Kho xuất: <strong style={{ color: '#0f172a' }}>{selectedTrip.warehouse_name || 'Kho Tổng Hà Nội'}</strong></div>
@@ -2108,7 +2110,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                           {t.trip_code}
                         </td>
                         <td style={{ padding: '6px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                          {t.delivery_date}
+                          {t.delivery_date || (t.created_at ? new Date(t.created_at).toLocaleDateString('vi-VN') : '-')}
                         </td>
                         <td style={{ padding: '6px 12px', color: '#334155', whiteSpace: 'nowrap' }}>
                           <strong>{t.driver_name || 'Chưa phân công'}</strong>
@@ -2345,7 +2347,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               </button>
             )}
 
-            {tripDropdownMenu.trip.status === 'IN_PROGRESS' && (
+            {(tripDropdownMenu.trip.status === 'IN_PROGRESS' || tripDropdownMenu.trip.status === 'IN_TRANSIT') && (
               <button
                 type="button"
                 className="wh-dropdown-item"
