@@ -52,8 +52,8 @@ export interface CreateDealerPageViewProps {
 
 const DEFAULT_REGIONS = [
     'Hà Nội',
-    'TP. Hồ Chí Minh',
     'Đà Nẵng',
+    'TP. Hồ Chí Minh',
     'Hải Phòng',
     'Cần Thơ',
     'Bắc Ninh',
@@ -67,6 +67,20 @@ const DEFAULT_REGIONS = [
     'Khánh Hòa',
     'Lâm Đồng',
 ];
+
+const PRIORITY_REGIONS = ['Hà Nội', 'Đà Nẵng', 'TP. Hồ Chí Minh', 'Hải Phòng', 'Cần Thơ'];
+
+const getSortedRegions = (regions: string[]): string[] => {
+    const list = Array.from(new Set([...PRIORITY_REGIONS, ...DEFAULT_REGIONS, ...regions].filter(Boolean)));
+    return list.sort((a, b) => {
+        const ia = PRIORITY_REGIONS.indexOf(a);
+        const ib = PRIORITY_REGIONS.indexOf(b);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.localeCompare(b, 'vi');
+    });
+};
 
 export const CreateDealerPageView: React.FC<CreateDealerPageViewProps> = ({
     token,
@@ -89,14 +103,14 @@ export const CreateDealerPageView: React.FC<CreateDealerPageViewProps> = ({
 
     // 2. Dữ liệu bộ lọc (Khu vực, Sales, Nhóm khách hàng)
     const [localRegions, setLocalRegions] = useState<string[]>(() => {
-        return Array.from(new Set([...DEFAULT_REGIONS, ...initialRegions]));
+        return getSortedRegions(initialRegions);
     });
     const [localSales, setLocalSales] = useState<{ id: number; name: string }[]>(initialSales);
     const [localCustomerGroups, setLocalCustomerGroups] = useState<string[]>(initialCustomerGroups);
 
     useEffect(() => {
         if (initialRegions.length > 0) {
-            setLocalRegions(Array.from(new Set([...DEFAULT_REGIONS, ...initialRegions])));
+            setLocalRegions(getSortedRegions(initialRegions));
         }
         if (initialSales.length > 0) setLocalSales(initialSales);
         if (initialCustomerGroups.length > 0) setLocalCustomerGroups(initialCustomerGroups);
@@ -104,7 +118,7 @@ export const CreateDealerPageView: React.FC<CreateDealerPageViewProps> = ({
         getDealerFilters(token)
             .then((data) => {
                 if (data.regions && data.regions.length > 0) {
-                    setLocalRegions(Array.from(new Set([...DEFAULT_REGIONS, ...data.regions])));
+                    setLocalRegions(getSortedRegions(data.regions));
                 }
                 if (data.sales && data.sales.length > 0) {
                     setLocalSales(data.sales);
@@ -125,6 +139,7 @@ export const CreateDealerPageView: React.FC<CreateDealerPageViewProps> = ({
     const [status] = useState<string>('Đang hoạt động');
 
     // 4. Searchable Combobox: Khu vực
+    const [selectedRegion, setSelectedRegion] = useState<string>(() => initialRegions[0] || 'Hà Nội');
     const [regionInput, setRegionInput] = useState<string>(() => initialRegions[0] || 'Hà Nội');
     const [isRegionOpen, setIsRegionOpen] = useState<boolean>(false);
     const regionWrapperRef = useRef<HTMLDivElement>(null);
@@ -132,14 +147,18 @@ export const CreateDealerPageView: React.FC<CreateDealerPageViewProps> = ({
     useEffect(() => {
         if (!regionInput && localRegions.length > 0) {
             setRegionInput(localRegions[0]);
+            setSelectedRegion(localRegions[0]);
         }
     }, [localRegions, regionInput]);
 
     const filteredRegions = useMemo(() => {
         const query = regionInput.trim().toLowerCase();
-        if (!query) return localRegions;
+        // Nếu query rỗng hoặc đang bằng đúng giá trị đã chọn -> hiển thị toàn bộ danh sách để người dùng chọn khu vực khác
+        if (!query || query === selectedRegion.toLowerCase()) {
+            return localRegions;
+        }
         return localRegions.filter((reg) => reg.toLowerCase().includes(query));
-    }, [localRegions, regionInput]);
+    }, [localRegions, regionInput, selectedRegion]);
 
     // 5. Searchable Combobox: Nhân viên phụ trách
     const [assignedSaleId, setAssignedSaleId] = useState<string>('');
@@ -421,14 +440,17 @@ export const CreateDealerPageView: React.FC<CreateDealerPageViewProps> = ({
                                             setRegionInput(e.target.value);
                                             setIsRegionOpen(true);
                                         }}
-                                        onFocus={() => setIsRegionOpen(true)}
+                                        onFocus={(e) => {
+                                            setIsRegionOpen(true);
+                                            e.target.select();
+                                        }}
                                         placeholder="Nhập tìm kiếm hoặc chọn khu vực..."
                                         autoComplete="off"
                                     />
                                     <button
                                         type="button"
                                         className="dealer-combobox-toggle-btn"
-                                        onClick={() => setIsRegionOpen(!isRegionOpen)}
+                                        onClick={() => setIsRegionOpen((prev) => !prev)}
                                         tabIndex={-1}
                                         title="Mở danh sách khu vực"
                                     >
@@ -457,20 +479,25 @@ export const CreateDealerPageView: React.FC<CreateDealerPageViewProps> = ({
                                             filteredRegions.map((reg) => (
                                                 <div
                                                     key={reg}
-                                                    className={`dealer-combobox-item ${reg === regionInput ? 'selected' : ''}`}
+                                                    className={`dealer-combobox-item ${reg === selectedRegion ? 'selected' : ''}`}
                                                     onClick={() => {
+                                                        setSelectedRegion(reg);
                                                         setRegionInput(reg);
                                                         setIsRegionOpen(false);
                                                     }}
                                                     title={reg}
                                                 >
-                                                    {reg}
+                                                    <span>{reg}</span>
+                                                    {reg === selectedRegion && (
+                                                        <span style={{ marginLeft: 'auto', color: '#0fba90', fontSize: '13px', fontWeight: 700 }}>✓</span>
+                                                    )}
                                                 </div>
                                             ))
                                         ) : (
                                             <div
                                                 className="dealer-combobox-item custom-choice"
                                                 onClick={() => {
+                                                    setSelectedRegion(regionInput.trim());
                                                     setIsRegionOpen(false);
                                                 }}
                                                 title={`Sử dụng "${regionInput.trim()}"`}
@@ -584,10 +611,25 @@ export const CreateDealerPageView: React.FC<CreateDealerPageViewProps> = ({
                     <div className="dealer-create-footer">
                         <button
                             type="submit"
-                            className="dealer-btn-save"
+                            className="dealer-create-btn-save"
                             disabled={isSubmitting}
+                            title="Lưu thông tin đại lý & khách hàng mới"
                         >
-                            {isSubmitting ? 'Đang lưu...' : 'Lưu'}
+                            {isSubmitting ? (
+                                <>
+                                    <span className="dealer-btn-spinner" />
+                                    <span>Đang lưu...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                                        <polyline points="17 21 17 13 7 13 7 21" />
+                                        <polyline points="7 3 7 8 15 8" />
+                                    </svg>
+                                    <span>Lưu</span>
+                                </>
+                            )}
                         </button>
                     </div>
                 </form>

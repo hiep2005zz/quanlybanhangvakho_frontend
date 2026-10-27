@@ -36,8 +36,8 @@ const DEFAULT_CUSTOMER_GROUPS = [
 
 const DEFAULT_REGIONS = [
     'Hà Nội',
-    'TP. Hồ Chí Minh',
     'Đà Nẵng',
+    'TP. Hồ Chí Minh',
     'Hải Phòng',
     'Cần Thơ',
     'Bắc Ninh',

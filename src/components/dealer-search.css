@@ -1242,7 +1242,7 @@
     border-radius: 8px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
     z-index: 100;
-    max-height: 114px; /* 3 mục x 38px = 114px: hiển thị chính xác 3 mục / lượt cuộn */
+    max-height: 156px; /* Hiển thị rõ ràng 4 mục / lượt cuộn */
     overflow-y: auto;
     overflow-x: hidden;
     box-sizing: border-box;
@@ -1319,12 +1319,60 @@
 
 .dealer-create-footer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center; /* Căn nút Lưu ra chính giữa trang */
     align-items: center;
-    gap: 12px;
-    margin-top: 24px;
-    padding-top: 18px;
+    gap: 16px;
+    margin-top: 30px;
+    padding-top: 24px;
     border-top: 1px solid #e2e8f0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.dealer-create-btn-save,
+.dealer-create-footer .dealer-btn-save {
+    height: 48px;
+    min-height: 48px;
+    min-width: 240px; /* Nút Lưu to, rõ ràng, cân đối */
+    padding: 0 36px;
+    background: linear-gradient(135deg, #0fba90, #0fad89);
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(15, 186, 144, 0.35);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    letter-spacing: 0.01em;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.dealer-create-btn-save:hover:not(:disabled),
+.dealer-create-footer .dealer-btn-save:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0fad89, #0a8f70);
+    transform: translateY(-1.5px);
+    box-shadow: 0 6px 20px rgba(15, 186, 144, 0.45);
+}
+
+.dealer-create-btn-save:active:not(:disabled),
+.dealer-create-footer .dealer-btn-save:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(15, 186, 144, 0.3);
+}
+
+.dealer-create-btn-save:disabled,
+.dealer-create-footer .dealer-btn-save:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 @media (max-width: 768px) {
