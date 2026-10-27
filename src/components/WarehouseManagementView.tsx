@@ -2986,7 +2986,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
                               {/* Dropdown Menu */}
                               {activeDropdownWhId === wh.id && (() => {
-                                const openUpward = paginatedWarehouses.length > 3 && idx >= paginatedWarehouses.length - 2;
+                                const openUpward = idx > 0 && (idx >= paginatedWarehouses.length - 1 || (paginatedWarehouses.length >= 3 && idx >= paginatedWarehouses.length - 2));
                                 return (
                                   <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`}>
                                     {/* 1. Quản lý vị trí */}
@@ -3436,7 +3436,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
                                       {/* Dropdown Menu */}
                                       {activeDropdownLocId === loc.id && (() => {
-                                        const openUpward = paginatedLocations.length > 3 && idx >= paginatedLocations.length - 2;
+                                        const openUpward = idx > 0 && (idx >= paginatedLocations.length - 1 || (paginatedLocations.length >= 3 && idx >= paginatedLocations.length - 2));
                                         return (
                                           <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`}>
                                             {/* Sửa vị trí */}
@@ -3695,7 +3695,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
                                       {/* Dropdown Menu */}
                                       {activeDropdownZoneId === z.id && (() => {
-                                        const openUpward = filteredZones.length > 3 && idx >= filteredZones.length - 2;
+                                        const openUpward = idx > 0 && (idx >= filteredZones.length - 1 || (filteredZones.length >= 3 && idx >= filteredZones.length - 2));
                                         return (
                                           <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`}>
                                             {/* Sửa khu vực */}
@@ -3882,7 +3882,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
                                     {/* Dropdown Menu */}
                                     {activeDropdownRackId === r.id && (() => {
-                                      const openUpward = paginatedDetailRacks.length > 3 && idx >= paginatedDetailRacks.length - 2;
+                                      const openUpward = idx > 0 && (idx >= paginatedDetailRacks.length - 1 || (paginatedDetailRacks.length >= 3 && idx >= paginatedDetailRacks.length - 2));
                                       return (
                                         <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`}>
                                           {/* Sửa kệ */}
@@ -4112,7 +4112,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
                                     {/* Dropdown Menu */}
                                     {activeDropdownProdLocId === item.id && (() => {
-                                      const openUpward = paginatedLocationProducts.length > 3 && idx >= paginatedLocationProducts.length - 2;
+                                      const openUpward = idx > 0 && (idx >= paginatedLocationProducts.length - 1 || (paginatedLocationProducts.length >= 3 && idx >= paginatedLocationProducts.length - 2));
                                       return (
                                         <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`}>
                                           {/* Thêm hàng */}
