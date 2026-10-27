@@ -1129,3 +1129,113 @@
     background: #f1f5f9;
     color: #0f172a;
 }
+
+/* ==========================================================================
+   GIAO DIỆN LỊCH SỬ CHUYỂN GIAO & BIẾN ĐỘNG ĐẠI LÝ
+   ========================================================================== */
+
+.dealer-history-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.dealer-history-metric-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 16px;
+    min-width: 160px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.dealer-history-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 9px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.dealer-history-tab-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+.dealer-history-tab-btn.active {
+    background: #0f766e;
+    color: #ffffff;
+    border-color: #0f766e;
+    box-shadow: 0 2px 4px rgba(15, 118, 110, 0.2);
+}
+
+.dealer-history-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #475569;
+    line-height: 1;
+}
+
+.dealer-history-tab-btn.active .dealer-history-tab-count {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+}
+
+.dealer-history-table-wrap {
+    overflow-x: auto;
+    overflow-y: auto;
+    width: 100%;
+    flex: 1 1 auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+.dealer-history-table {
+    width: 100%;
+    min-width: 1050px;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    text-align: left;
+    table-layout: auto;
+}
+
+.dealer-history-table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 13px 18px;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.dealer-history-table tbody td {
+    padding: 13px 18px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    color: #1e293b;
+    line-height: 1.5;
+}
+
+.dealer-history-table tbody tr:hover td {
+    background: #f8fafc;
+}

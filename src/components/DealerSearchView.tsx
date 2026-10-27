@@ -1318,15 +1318,15 @@ export default function DealerSearchView({
                         </div>
                     ) : (
                         <>
-                            <div style={{ overflowX: 'auto', width: '100%', flex: '1 1 auto' }}>
+                            <div className="dealer-history-table-wrap">
                                 <table className="dealer-history-table">
                                     <thead>
                                         <tr>
-                                            <th style={{ width: '180px' }}>Thời gian</th>
-                                            <th style={{ width: '180px' }}>Người thực hiện</th>
-                                            <th style={{ width: '160px' }}>Hành động</th>
-                                            <th>Chi tiết biến động (Cũ &rarr; Mới)</th>
-                                            <th style={{ width: '250px' }}>Lý do / Ghi chú</th>
+                                            <th style={{ width: '160px', minWidth: '160px' }}>Thời gian</th>
+                                            <th style={{ width: '190px', minWidth: '190px' }}>Người thực hiện</th>
+                                            <th style={{ width: '140px', minWidth: '140px' }}>Hành động</th>
+                                            <th style={{ minWidth: '340px' }}>Chi tiết biến động (Cũ &rarr; Mới)</th>
+                                            <th style={{ minWidth: '220px' }}>Lý do / Ghi chú</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1340,32 +1340,22 @@ export default function DealerSearchView({
                                             let badgeBg = '#f1f5f9';
                                             let badgeColor = '#334155';
                                             let badgeBorder = '#cbd5e1';
-                                            let detail = '';
 
                                             if (log.action_type === 'DEALER_ASSIGNMENT') {
                                                 actionName = 'Chuyển giao NV';
                                                 badgeBg = '#dcfce7';
                                                 badgeColor = '#15803d';
                                                 badgeBorder = '#bbf7d0';
-                                                const oldSale = oldObj.assigned_sale_name || 'Chưa phân công';
-                                                const newSale = newObj.assigned_sale_name || 'Chưa phân công';
-                                                detail = `${oldSale} ➔ ${newSale}`;
                                             } else if (log.action_type === 'DEBT_LIMIT_CHANGE') {
                                                 actionName = 'Đổi hạn mức';
                                                 badgeBg = '#e0f2fe';
                                                 badgeColor = '#0369a1';
                                                 badgeBorder = '#bae6fd';
-                                                const oldL = oldObj.credit_limit != null ? `${new Intl.NumberFormat('vi-VN').format(oldObj.credit_limit)} đ` : '-';
-                                                const newL = newObj.credit_limit != null ? `${new Intl.NumberFormat('vi-VN').format(newObj.credit_limit)} đ` : '-';
-                                                const oldD = oldObj.max_debt_days != null ? `${oldObj.max_debt_days} ngày` : '-';
-                                                const newD = newObj.max_debt_days != null ? `${newObj.max_debt_days} ngày` : '-';
-                                                detail = `Hạn mức: ${oldL} ➔ ${newL} | Thời hạn: ${oldD} ➔ ${newD}`;
                                             } else if (log.action_type === 'DEALER_STATUS_CHANGE') {
                                                 actionName = 'Đổi trạng thái';
                                                 badgeBg = '#fef3c7';
                                                 badgeColor = '#b45309';
                                                 badgeBorder = '#fde68a';
-                                                detail = `${oldObj.status || '-'} ➔ ${newObj.status || '-'}`;
                                             }
 
                                             return (
@@ -1373,7 +1363,7 @@ export default function DealerSearchView({
                                                     <td style={{ whiteSpace: 'nowrap', color: '#475569', fontSize: '13px' }}>
                                                         {new Date(log.created_at).toLocaleString('vi-VN')}
                                                     </td>
-                                                    <td style={{ color: '#0f172a', fontWeight: '600' }}>
+                                                    <td>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                             <span style={{
                                                                 width: '26px',
@@ -1385,11 +1375,12 @@ export default function DealerSearchView({
                                                                 justifyContent: 'center',
                                                                 fontSize: '11px',
                                                                 fontWeight: '700',
-                                                                color: '#475569'
+                                                                color: '#475569',
+                                                                flexShrink: 0
                                                             }}>
                                                                 {(log.user_name || 'H')[0].toUpperCase()}
                                                             </span>
-                                                            <span>{log.user_name || 'Hệ thống'}</span>
+                                                            <span style={{ color: '#0f172a', fontWeight: '600' }}>{log.user_name || 'Hệ thống'}</span>
                                                         </div>
                                                     </td>
                                                     <td style={{ whiteSpace: 'nowrap' }}>
@@ -1406,11 +1397,84 @@ export default function DealerSearchView({
                                                             {actionName}
                                                         </span>
                                                     </td>
-                                                    <td style={{ color: '#1e293b', fontWeight: log.action_type === 'DEALER_ASSIGNMENT' ? '600' : 'normal' }}>
-                                                        {detail}
+                                                    <td>
+                                                        {log.action_type === 'DEALER_ASSIGNMENT' ? (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                <span style={{
+                                                                    color: '#475569',
+                                                                    fontWeight: 500,
+                                                                    padding: '2px 8px',
+                                                                    background: '#f1f5f9',
+                                                                    borderRadius: '5px',
+                                                                    border: '1px solid #e2e8f0',
+                                                                    fontSize: '13px'
+                                                                }}>
+                                                                    {oldObj.assigned_sale_name || 'Chưa phân công'}
+                                                                </span>
+                                                                <span style={{ color: '#0f766e', fontWeight: 700, fontSize: '14px' }}>➔</span>
+                                                                <span style={{
+                                                                    color: '#0f766e',
+                                                                    fontWeight: 700,
+                                                                    padding: '2px 8px',
+                                                                    background: '#f0fdf4',
+                                                                    borderRadius: '5px',
+                                                                    border: '1px solid #bbf7d0',
+                                                                    fontSize: '13px'
+                                                                }}>
+                                                                    {newObj.assigned_sale_name || 'Chưa phân công'}
+                                                                </span>
+                                                            </div>
+                                                        ) : log.action_type === 'DEALER_STATUS_CHANGE' ? (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                <span style={{
+                                                                    fontSize: '12px',
+                                                                    padding: '2px 9px',
+                                                                    borderRadius: '12px',
+                                                                    background: (oldObj.status === 'ACTIVE' || oldObj.status === 'Đang hoạt động') ? '#dcfce7' : '#fee2e2',
+                                                                    color: (oldObj.status === 'ACTIVE' || oldObj.status === 'Đang hoạt động') ? '#15803d' : '#dc2626',
+                                                                    fontWeight: 600,
+                                                                    border: `1px solid ${(oldObj.status === 'ACTIVE' || oldObj.status === 'Đang hoạt động') ? '#bbf7d0' : '#fecaca'}`
+                                                                }}>
+                                                                    {oldObj.status || '-'}
+                                                                </span>
+                                                                <span style={{ color: '#94a3b8', fontWeight: 700 }}>➔</span>
+                                                                <span style={{
+                                                                    fontSize: '12px',
+                                                                    padding: '2px 9px',
+                                                                    borderRadius: '12px',
+                                                                    background: (newObj.status === 'ACTIVE' || newObj.status === 'Đang hoạt động') ? '#dcfce7' : '#fee2e2',
+                                                                    color: (newObj.status === 'ACTIVE' || newObj.status === 'Đang hoạt động') ? '#15803d' : '#dc2626',
+                                                                    fontWeight: 600,
+                                                                    border: `1px solid ${(newObj.status === 'ACTIVE' || newObj.status === 'Đang hoạt động') ? '#bbf7d0' : '#fecaca'}`
+                                                                }}>
+                                                                    {newObj.status || '-'}
+                                                                </span>
+                                                            </div>
+                                                        ) : log.action_type === 'DEBT_LIMIT_CHANGE' ? (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                                                                    <span style={{ color: '#64748b' }}>Hạn mức:</span>
+                                                                    <span style={{ color: '#475569' }}>{oldObj.credit_limit != null ? `${new Intl.NumberFormat('vi-VN').format(oldObj.credit_limit)} đ` : '-'}</span>
+                                                                    <span style={{ color: '#0369a1', fontWeight: 700 }}>➔</span>
+                                                                    <strong style={{ color: '#0f766e' }}>{newObj.credit_limit != null ? `${new Intl.NumberFormat('vi-VN').format(newObj.credit_limit)} đ` : '-'}</strong>
+                                                                </div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#64748b' }}>
+                                                                    <span>Thời hạn:</span>
+                                                                    <span>{oldObj.max_debt_days != null ? `${oldObj.max_debt_days} ngày` : '-'}</span>
+                                                                    <span>➔</span>
+                                                                    <strong>{newObj.max_debt_days != null ? `${newObj.max_debt_days} ngày` : '-'}</strong>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span style={{ color: '#1e293b' }}>-</span>
+                                                        )}
                                                     </td>
-                                                    <td style={{ color: '#64748b', fontStyle: 'italic', fontSize: '13px' }}>
-                                                        {log.reason || '-'}
+                                                    <td style={{ color: '#475569', fontSize: '13px', lineHeight: 1.45 }}>
+                                                        {log.reason ? (
+                                                            <span style={{ fontStyle: 'italic' }}>{log.reason}</span>
+                                                        ) : (
+                                                            <span style={{ color: '#94a3b8' }}>-</span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             );

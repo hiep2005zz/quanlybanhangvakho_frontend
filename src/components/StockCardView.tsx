@@ -138,7 +138,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
       const ref = (item.reference_code || item.voucher_info?.voucher_code || '').toLowerCase();
       const note = (item.note || '').toLowerCase();
       const label = (item.transaction_label || '').toLowerCase();
-      const user = (item.created_by_name || '').toLowerCase();
+      const user = ((item as any).created_by_name || '').toLowerCase();
       return ref.includes(term) || note.includes(term) || label.includes(term) || user.includes(term);
     });
   }, [rawEntries, searchDocTerm]);
