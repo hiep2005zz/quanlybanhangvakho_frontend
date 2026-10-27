@@ -1050,19 +1050,23 @@
 }
 
 .dealer-btn-save {
-    background: linear-gradient(135deg, #0fba90, #0fad89);
+    background: #0fad89;
     border: none;
     color: #ffffff;
-    box-shadow: 0 2px 4px rgba(15, 186, 144, 0.25);
+    box-shadow: none;
+    animation: none;
+    transition: background-color 0.15s ease;
 }
 
 .dealer-btn-save:hover:not(:disabled) {
-    background: linear-gradient(135deg, #0fad89, #0a8f70);
+    background: #0c9576;
+    animation: none;
 }
 
 .dealer-btn-save:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    animation: none;
 }
 
 @media (max-width: 640px) {
@@ -1124,4 +1128,382 @@
 .dealer-dropdown-item:hover {
     background: #f1f5f9;
     color: #0f172a;
+}
+
+
+/* =========================================================
+   Trang Thêm Đại Lý & Khách Hàng Mới (Dedicated Page View)
+   ========================================================= */
+.dealer-create-page-wrap {
+    overflow-y: auto !important;
+    height: 100%;
+    padding: 0 0 24px 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+}
+
+.dealer-create-header {
+    margin-bottom: 16px;
+    flex-shrink: 0;
+}
+
+.dealer-create-header h2 {
+    margin: 0;
+    font-family: 'Outfit', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+}
+
+.dealer-create-header p {
+    margin: 4px 0 0 0;
+    color: #64748b;
+    font-size: 13.5px;
+}
+
+.dealer-create-card-container {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    padding-bottom: 24px;
+    box-sizing: border-box;
+}
+
+.dealer-create-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 100%;
+    padding: 24px 28px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    box-sizing: border-box;
+}
+
+.dealer-create-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 24px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Searchable Comboboxes */
+.dealer-combobox-wrapper {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.dealer-combobox-input-wrap {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.dealer-combobox-input-wrap input {
+    width: 100%;
+    padding-right: 36px !important;
+    box-sizing: border-box;
+}
+
+.dealer-combobox-toggle-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #64748b;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.dealer-combobox-toggle-btn:hover {
+    color: #0f172a;
+    background: #f1f5f9;
+}
+
+/* Danh sách chọn: Hiện đúng 3 mục / lượt cuộn, không bị tràn viền */
+.dealer-combobox-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    z-index: 100;
+    max-height: 156px; /* Hiển thị rõ ràng 4 mục / lượt cuộn */
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    scroll-snap-type: y mandatory;
+}
+
+.dealer-combobox-menu::-webkit-scrollbar {
+    width: 5px;
+}
+
+.dealer-combobox-menu::-webkit-scrollbar-track {
+    background: #f8fafc;
+}
+
+.dealer-combobox-menu::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+}
+
+.dealer-combobox-menu::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+}
+
+.dealer-combobox-item {
+    height: 38px;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 13.5px;
+    color: #1e293b;
+    cursor: pointer;
+    scroll-snap-align: start;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    box-sizing: border-box;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    user-select: none;
+}
+
+.dealer-combobox-item:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+.dealer-combobox-item.selected {
+    background-color: #ecfdf5;
+    color: #065f46;
+    font-weight: 600;
+}
+
+.dealer-combobox-item.custom-choice {
+    color: #2563eb;
+    background-color: #eff6ff;
+}
+
+.dealer-combobox-item.custom-choice:hover {
+    background-color: #dbeafe;
+}
+
+.dealer-combobox-empty {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #64748b;
+    text-align: center;
+    background: #f8fafc;
+    box-sizing: border-box;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dealer-create-footer {
+    display: flex;
+    justify-content: center; /* Căn nút Lưu ra chính giữa trang */
+    align-items: center;
+    gap: 16px;
+    margin-top: 30px;
+    padding-top: 24px;
+    border-top: 1px solid #e2e8f0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.dealer-create-btn-save,
+.dealer-create-footer .dealer-btn-save {
+    height: 48px;
+    min-height: 48px;
+    min-width: 240px; /* Nút Lưu to, rõ ràng, cân đối */
+    padding: 0 36px;
+    background: linear-gradient(135deg, #0fba90, #0fad89);
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(15, 186, 144, 0.35);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    letter-spacing: 0.01em;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.dealer-create-btn-save:hover:not(:disabled),
+.dealer-create-footer .dealer-btn-save:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0fad89, #0a8f70);
+    transform: translateY(-1.5px);
+    box-shadow: 0 6px 20px rgba(15, 186, 144, 0.45);
+}
+
+.dealer-create-btn-save:active:not(:disabled),
+.dealer-create-footer .dealer-btn-save:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(15, 186, 144, 0.3);
+}
+
+.dealer-create-btn-save:disabled,
+.dealer-create-footer .dealer-btn-save:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+@media (max-width: 768px) {
+    .dealer-create-page-wrap {
+        padding: 14px;
+    }
+
+    .dealer-create-card {
+        padding: 20px 16px;
+    }
+
+    .dealer-create-form-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .dealer-modal-field.dealer-form-full {
+        grid-column: span 1;
+    }
+}
+/* ==========================================================================
+   GIAO DIỆN LỊCH SỬ CHUYỂN GIAO & BIẾN ĐỘNG ĐẠI LÝ
+   ========================================================================== */
+
+.dealer-history-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.dealer-history-metric-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 16px;
+    min-width: 160px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.dealer-history-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 9px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.dealer-history-tab-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+.dealer-history-tab-btn.active {
+    background: #0f766e;
+    color: #ffffff;
+    border-color: #0f766e;
+    box-shadow: 0 2px 4px rgba(15, 118, 110, 0.2);
+}
+
+.dealer-history-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #475569;
+    line-height: 1;
+}
+
+.dealer-history-tab-btn.active .dealer-history-tab-count {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+}
+
+.dealer-history-table-wrap {
+    overflow-x: auto;
+    overflow-y: auto;
+    width: 100%;
+    flex: 1 1 auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+.dealer-history-table {
+    width: 100%;
+    min-width: 1050px;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    text-align: left;
+    table-layout: auto;
+}
+
+.dealer-history-table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 13px 18px;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.dealer-history-table tbody td {
+    padding: 13px 18px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    color: #1e293b;
+    line-height: 1.5;
+}
+
+.dealer-history-table tbody tr:hover td {
+    background: #f8fafc;
 }

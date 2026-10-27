@@ -8,6 +8,7 @@ import {
 } from '../services/api';
 import { StockCardModal } from './StockCardModal';
 import { StockCardView } from './StockCardView';
+import { WarehouseSelectDropdown } from './WarehouseSelectDropdown';
 
 interface WarehouseStockBookViewProps {
   token: string;
@@ -615,34 +616,23 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
           </div>
 
           {/* 2. Lọc theo Kho */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '180px', flex: '1 1 180px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '190px', flex: '1 1 190px' }}>
             <label style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
               Kho lưu trữ
             </label>
-            <select
-              value={selectedWarehouse}
-              onChange={(e) => {
-                setSelectedWarehouse(e.target.value);
+            <WarehouseSelectDropdown
+              warehouses={warehouses}
+              selectedId={selectedWarehouse}
+              onSelect={(whId) => {
+                setSelectedWarehouse(whId);
                 setCurrentPage(1);
               }}
-              style={{
-                padding: '7px 10px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                color: '#1e293b',
-                backgroundColor: '#f8fafc',
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="all">Tất cả các kho</option>
-              {warehouses.map((w) => (
-                <option key={w.warehouse_id} value={w.warehouse_id}>
-                  {w.warehouse_name} ({w.warehouse_id})
-                </option>
-              ))}
-            </select>
+              allowAll={true}
+              allLabel="Tất cả kho"
+              compact={true}
+              placeholder="Tất cả kho"
+              id="warehouse-stock-book-select"
+            />
           </div>
 
           {/* 3. Lọc theo Nhóm ngành hàng */}
@@ -838,21 +828,21 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
           )}
         </div>
 
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: '1060px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px', tableLayout: 'auto' }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #cbd5e1', color: '#334155' }}>
-                <th style={{ padding: '10px 14px', fontWeight: '700', width: '80px', minWidth: '75px', backgroundColor: '#f1f5f9' }}>Mã SKU</th>
-                <th style={{ padding: '10px 14px', fontWeight: '700', minWidth: '250px', backgroundColor: '#f1f5f9' }}>Tên sản phẩm</th>
-                <th style={{ padding: '10px 14px', fontWeight: '700', width: '160px', minWidth: '150px', backgroundColor: '#f1f5f9' }}>Kho lưu trữ</th>
-                <th style={{ padding: '10px 12px', fontWeight: '700', width: '105px', minWidth: '95px', backgroundColor: '#f1f5f9' }}>Ngành hàng</th>
+                <th style={{ padding: '10px 10px', fontWeight: '700', width: '8%', whiteSpace: 'nowrap', backgroundColor: '#f1f5f9' }}>Mã SKU</th>
+                <th style={{ padding: '10px 10px', fontWeight: '700', width: '22%', backgroundColor: '#f1f5f9' }}>Tên sản phẩm</th>
+                <th style={{ padding: '10px 10px', fontWeight: '700', width: '18%', backgroundColor: '#f1f5f9' }}>Kho lưu trữ</th>
+                <th style={{ padding: '10px 8px', fontWeight: '700', width: '9%', whiteSpace: 'nowrap', backgroundColor: '#f1f5f9' }}>Ngành hàng</th>
                 <th
                   style={{
-                    padding: '10px 12px',
+                    padding: '10px 8px',
                     fontWeight: '700',
-                    width: '105px',
-                    minWidth: '95px',
+                    width: '8%',
                     textAlign: 'right',
+                    whiteSpace: 'nowrap',
                     backgroundColor: '#f1f5f9',
                     color: '#334155',
                   }}
@@ -861,10 +851,9 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                 </th>
                 <th
                   style={{
-                    padding: '10px 12px',
+                    padding: '10px 8px',
                     fontWeight: '700',
-                    width: '125px',
-                    minWidth: '115px',
+                    width: '8%',
                     textAlign: 'right',
                     backgroundColor: '#f1f5f9',
                     color: '#334155',
@@ -875,22 +864,22 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                 </th>
                 <th
                   style={{
-                    padding: '10px 14px',
+                    padding: '10px 8px',
                     fontWeight: '700',
-                    width: '135px',
-                    minWidth: '125px',
+                    width: '9%',
                     textAlign: 'right',
+                    whiteSpace: 'nowrap',
                     backgroundColor: '#f1f5f9',
                     color: '#334155',
                   }}
                 >
                   Tồn khả dụng
                 </th>
-                <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '105px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
+                <th style={{ padding: '10px 8px', fontWeight: '700', width: '9%', textAlign: 'center', whiteSpace: 'nowrap', backgroundColor: '#f1f5f9' }}>
                   Trạng thái
                 </th>
                 {canAccessStockCard && (
-                  <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '100px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
+                  <th style={{ padding: '10px 10px', fontWeight: '700', width: '9%', textAlign: 'center', whiteSpace: 'nowrap', backgroundColor: '#f1f5f9' }}>
                     Thao tác
                   </th>
                 )}
@@ -931,34 +920,35 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                       }}
                     >
                       {/* Mã SKU */}
-                      <td style={{ padding: '10px 14px', fontWeight: '700', color: '#2563eb', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 10px', fontWeight: '700', color: '#2563eb', whiteSpace: 'nowrap' }}>
                         {it.product_code}
                       </td>
 
                       {/* Tên SP */}
-                      <td style={{ padding: '10px 14px', fontWeight: '600', color: '#1e293b', minWidth: '250px', lineHeight: 1.35 }}>
+                      <td style={{ padding: '10px 10px', fontWeight: '600', color: '#1e293b', lineHeight: 1.35 }}>
                         {it.product_name}
                       </td>
 
                       {/* Kho */}
-                      <td style={{ padding: '10px 14px', color: '#475569' }}>
+                      <td style={{ padding: '10px 10px', color: '#475569' }}>
                         <span style={{ fontWeight: '600' }}>{it.warehouse_name}</span>
                         <div style={{ fontSize: '11px', color: '#94a3b8' }}>Mã: {it.warehouse_id}</div>
                       </td>
 
                       {/* Ngành hàng */}
-                      <td style={{ padding: '10px 12px', color: '#64748b' }}>
+                      <td style={{ padding: '10px 8px', color: '#64748b', whiteSpace: 'nowrap' }}>
                         {it.category || '—'}
                       </td>
 
                       {/* 1. TỒN THỰC TẾ */}
                       <td
                         style={{
-                          padding: '10px 12px',
+                          padding: '10px 8px',
                           textAlign: 'right',
                           fontWeight: '700',
                           color: '#0284c7',
                           fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {formatNumber(it.actual_stock)}
@@ -967,11 +957,12 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                       {/* 2. ĐANG GIỮ CHỖ */}
                       <td
                         style={{
-                          padding: '10px 12px',
+                          padding: '10px 8px',
                           textAlign: 'right',
                           fontWeight: '700',
                           color: it.reserved_stock > 0 ? '#d97706' : '#94a3b8',
                           fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {formatNumber(it.reserved_stock)}
@@ -980,19 +971,20 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                       {/* 3. TỒN KHẢ DỤNG (BÁN ĐƯỢC) */}
                       <td
                         style={{
-                          padding: '10px 14px',
+                          padding: '10px 8px',
                           textAlign: 'right',
                           fontWeight: '800',
-                          fontSize: '14.5px',
+                          fontSize: '14px',
                           color: isAvailableZero ? '#dc2626' : '#15803d',
                           fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {formatNumber(it.available_stock)}
                       </td>
 
                       {/* Trạng thái */}
-                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <td style={{ padding: '10px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {isAvailableZero ? (
                           <span
                             style={{

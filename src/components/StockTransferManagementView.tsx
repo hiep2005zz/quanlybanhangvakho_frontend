@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   StockTransfer,
   getStockTransfersApi,
@@ -93,6 +94,7 @@ export function StockTransferManagementView({
   const [fromWarehouseId, setFromWarehouseId] = useState<string>('WH01');
   const [toWarehouseId, setToWarehouseId] = useState<string>('WH02');
   const [transferItems, setTransferItems] = useState<TransferItemDraft[]>([]);
+  const [createItemPage, setCreateItemPage] = useState(1);
   const [availableProducts, setAvailableProducts] = useState<
     {
       product_id: number;
@@ -129,6 +131,14 @@ export function StockTransferManagementView({
   >([]);
   const initialTotalCountRef = useRef<number>(0);
   const prevProductDropdownOpenRef = useRef<boolean>(productDropdownOpen);
+  const transferItemsTableRef = useRef<HTMLDivElement | null>(null);
+
+  // Cuộn bảng lên đầu khi chuyển trang phân trang của bảng sản phẩm đã chọn
+  useEffect(() => {
+    if (transferItemsTableRef.current) {
+      transferItemsTableRef.current.scrollTop = 0;
+    }
+  }, [createItemPage]);
 
   // Debounce 300ms khi người dùng gõ từ khóa tìm kiếm
   useEffect(() => {
@@ -295,17 +305,44 @@ export function StockTransferManagementView({
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [receivingTransfer, setReceivingTransfer] = useState<StockTransfer | null>(null);
   const [receiveItems, setReceiveItems] = useState<ReceiveItemDraft[]>([]);
+  const [receiveItemPage, setReceiveItemPage] = useState(1);
+  const receiveItemsTableRef = useRef<HTMLDivElement | null>(null);
+
+  // Cuộn bảng kiểm đếm nhận hàng lên đầu khi chuyển trang
+  useEffect(() => {
+    if (receiveItemsTableRef.current) {
+      receiveItemsTableRef.current.scrollTop = 0;
+    }
+  }, [receiveItemPage]);
   const [discrepancyReason, setDiscrepancyReason] = useState('');
   const [submittingReceive, setSubmittingReceive] = useState(false);
 
   // Modal chi tiết phiếu
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailTransfer, setDetailTransfer] = useState<StockTransfer | null>(null);
+  const [detailItemPage, setDetailItemPage] = useState(1);
+  const detailItemsTableRef = useRef<HTMLDivElement | null>(null);
+
+  // Cuộn bảng chi tiết lên đầu khi chuyển trang
+  useEffect(() => {
+    if (detailItemsTableRef.current) {
+      detailItemsTableRef.current.scrollTop = 0;
+    }
+  }, [detailItemPage]);
 
   // Modal giao bù hàng thiếu
   const [showCompensateModal, setShowCompensateModal] = useState(false);
   const [compensatingTransfer, setCompensatingTransfer] = useState<StockTransfer | null>(null);
   const [compensateItems, setCompensateItems] = useState<CompensateItemDraft[]>([]);
+  const [compensateItemPage, setCompensateItemPage] = useState(1);
+  const compensateItemsTableRef = useRef<HTMLDivElement | null>(null);
+
+  // Cuộn bảng giao bù lên đầu khi chuyển trang
+  useEffect(() => {
+    if (compensateItemsTableRef.current) {
+      compensateItemsTableRef.current.scrollTop = 0;
+    }
+  }, [compensateItemPage]);
   const [compensateNote, setCompensateNote] = useState('');
   const [loadingCompensateStock, setLoadingCompensateStock] = useState(false);
   const [submittingCompensate, setSubmittingCompensate] = useState(false);
@@ -314,6 +351,31 @@ export function StockTransferManagementView({
   const [cancellingCode, setCancellingCode] = useState<string | null>(null);
   const [cancelReasonInput, setCancelReasonInput] = useState('');
   const [cancelling, setCancelling] = useState(false);
+
+  // Dropdown menu 3 chấm Thao tác trên từng dòng phiếu (dùng Portal để không bị che khuất)
+  const [activeDropdown, setActiveDropdown] = useState<{
+    transfer: StockTransfer;
+    rect: DOMRect;
+    openUpward: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const handleCloseActionDropdown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.transfer-action-dropdown-container') && !target.closest('.transfer-action-menu-portal')) {
+        setActiveDropdown(null);
+      }
+    };
+    const handleScroll = () => {
+      setActiveDropdown(null);
+    };
+    document.addEventListener('click', handleCloseActionDropdown);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      document.removeEventListener('click', handleCloseActionDropdown);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, []);
 
   // Tải danh sách kho
   const fetchWarehouses = useCallback(async () => {
@@ -560,6 +622,7 @@ export function StockTransferManagementView({
     setFromWarehouseId(defaultFrom);
     setToWarehouseId(defaultTo);
     setTransferItems([]);
+    setCreateItemPage(1);
     setTransferNote('');
     setProductDropdownOpen(false);
     setProductSearchTerm('');
@@ -597,24 +660,28 @@ export function StockTransferManagementView({
       return;
     }
 
-    setTransferItems((prev) => [
-      ...prev,
-      {
-        product_id: found.product_id,
-        product_code: found.product_code,
-        product_name: found.product_name,
-        category: found.category_name,
-        unit: found.base_unit || 'Cái',
-        available_stock: found.available_stock,
-        transfer_qty: Math.min(1, found.available_stock),
-      },
-    ]);
+    setTransferItems((prev) => {
+      const next = [
+        ...prev,
+        {
+          product_id: found.product_id,
+          product_code: found.product_code,
+          product_name: found.product_name,
+          category: found.category_name,
+          unit: found.base_unit || 'Cái',
+          available_stock: found.available_stock,
+          transfer_qty: Math.min(1, found.available_stock),
+        },
+      ];
+      setCreateItemPage(Math.ceil(next.length / 10));
+      return next;
+    });
   };
 
   const handleUpdateTransferQty = (index: number, qty: number) => {
     setTransferItems((prev) => {
       const next = [...prev];
-      next[index].transfer_qty = Math.max(1, qty);
+      next[index].transfer_qty = Math.max(0, qty);
       return next;
     });
   };
@@ -691,6 +758,7 @@ export function StockTransferManagementView({
 
   // Mở modal nhận hàng (Kho đích)
   const handleOpenReceiveModal = (transfer: StockTransfer) => {
+    setReceiveItemPage(1);
     setReceivingTransfer(transfer);
     setReceiveItems(
       (transfer.items || []).map((it) => ({
@@ -787,6 +855,7 @@ export function StockTransferManagementView({
   // Mở modal xem chi tiết phiếu
   const handleOpenDetailModal = async (code: string) => {
     try {
+      setDetailItemPage(1);
       const data = await getStockTransferDetailApi(token, code);
       setDetailTransfer(data);
       setShowDetailModal(true);
@@ -819,15 +888,6 @@ export function StockTransferManagementView({
     }, 0);
   }, [detailShortages]);
 
-  const detailTotalSurplus = useMemo(() => {
-    if (!detailTransfer || !detailTransfer.items) return 0;
-    return detailTransfer.items.reduce((acc, it) => {
-      if (it.received_qty !== null && it.received_qty !== undefined && it.received_qty > it.transfer_qty) {
-        return acc + (it.received_qty - it.transfer_qty);
-      }
-      return acc;
-    }, 0);
-  }, [detailTransfer]);
 
   // Khởi tạo modal giao bù hàng thiếu đúng số lượng thiếu
   const handleOpenCompensateModal = async (transfer: StockTransfer) => {
@@ -849,17 +909,9 @@ export function StockTransferManagementView({
       return;
     }
 
-    const totalShort = shortages.reduce((acc, it) => {
-      const shortage = it.discrepancy_qty > 0
-        ? it.discrepancy_qty
-        : (it.received_qty !== null && it.received_qty !== undefined && it.transfer_qty > it.received_qty
-            ? it.transfer_qty - it.received_qty
-            : 0);
-      return acc + shortage;
-    }, 0);
-
     setCompensatingTransfer(transfer);
-    setCompensateNote(`Giao bù hàng thiếu cho phiếu ${transfer.code} (${totalShort} SP)`);
+    setCompensateItemPage(1);
+    setCompensateNote('');
     setShowCompensateModal(true);
     setLoadingCompensateStock(true);
 
@@ -912,13 +964,6 @@ export function StockTransferManagementView({
     }
   };
 
-  const handleUpdateCompensateQty = (index: number, qty: number) => {
-    setCompensateItems((prev) => {
-      const next = [...prev];
-      next[index].compensate_qty = Math.max(1, qty);
-      return next;
-    });
-  };
 
   const handleSubmitCompensateTransfer = async () => {
     if (!compensatingTransfer) return;
@@ -934,6 +979,14 @@ export function StockTransferManagementView({
     }
 
     for (const it of validItems) {
+      if (it.compensate_qty < it.shortage_qty) {
+        emitStatusToast({
+          title: 'Số lượng không hợp lệ',
+          message: `Sản phẩm '${it.product_name}' có số lượng giao bù (${it.compensate_qty}) nhỏ hơn số lượng thiếu (${it.shortage_qty}). Vui lòng giao bù tối thiểu bằng số lượng thiếu.`,
+          type: 'error',
+        });
+        return;
+      }
       if (it.compensate_qty > it.available_stock) {
         emitStatusToast({
           title: 'Vượt tồn khả dụng',
@@ -942,6 +995,16 @@ export function StockTransferManagementView({
         });
         return;
       }
+    }
+
+    const hasAnySurplus = validItems.some((it) => it.compensate_qty > it.shortage_qty);
+    if (hasAnySurplus && !compensateNote.trim()) {
+      emitStatusToast({
+        title: 'Bắt buộc nhập ghi chú',
+        message: 'Bạn đang giao bù vượt số lượng thiếu (giao dư). Quy định yêu cầu phải nhập lý do giao dư vào ô Ghi chú.',
+        type: 'warning',
+      });
+      return;
     }
 
     setSubmittingCompensate(true);
@@ -1022,6 +1085,16 @@ export function StockTransferManagementView({
     const totalQty = transferItems.reduce((acc, it) => acc + (it.transfer_qty || 0), 0);
     const hasAnyOverStock = transferItems.some((it) => it.transfer_qty > it.available_stock);
 
+    const createItemPageSize = 10;
+    const totalCreateItemPages = Math.max(1, Math.ceil(transferItems.length / createItemPageSize));
+    const safeCreateItemPage = Math.min(Math.max(1, createItemPage), totalCreateItemPages);
+    const paginatedTransferItems = transferItems
+      .slice((safeCreateItemPage - 1) * createItemPageSize, safeCreateItemPage * createItemPageSize)
+      .map((it, localIdx) => ({
+        ...it,
+        globalIdx: (safeCreateItemPage - 1) * createItemPageSize + localIdx,
+      }));
+
     return (
       <div className="w-full min-h-full flex-1 flex flex-col p-4 md:p-6 bg-slate-100/60 overflow-y-auto">
         {/* ======================================================== */}
@@ -1030,7 +1103,18 @@ export function StockTransferManagementView({
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col">
           {/* HEADER NẰM TRÊN CÙNG CỦA KHUNG */}
           <div className="px-6 py-4.5 border-b border-slate-200/80 bg-gradient-to-r from-slate-50/90 via-white to-blue-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
+            <div className="flex items-center gap-3.5 flex-wrap">
+              <button
+                type="button"
+                onClick={handleCloseCreatePage}
+                className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-full shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>Quay lại</span>
+              </button>
+              <span className="text-slate-300 text-lg">/</span>
               <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#0fad89] to-[#0F8A5F] text-white shadow-xs shrink-0">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -1044,19 +1128,6 @@ export function StockTransferManagementView({
                   Điều chuyển hàng hóa giữa các kho • Người lập: <strong className="text-slate-700">{currentUser?.full_name || currentUser?.username || 'admin'}</strong> • Ngày lập: <strong className="text-slate-700">{new Date().toLocaleDateString('vi-VN')}</strong>
                 </p>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleCloseCreatePage}
-                className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5"
-              >
-                <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-                </svg>
-                <span>Quay lại</span>
-              </button>
             </div>
           </div>
 
@@ -1209,19 +1280,19 @@ export function StockTransferManagementView({
                     <div
                       className="w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl flex flex-col animate-in fade-in duration-150"
                     >
-                      {/* Ô tìm kiếm nhanh với thông tin số lượng sản phẩm */}
-                      <div className="p-3 border-b border-slate-200/80 bg-slate-50/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0 rounded-t-xl">
-                        <div className="relative flex-1 flex items-center">
-                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 z-10 text-slate-400">
+                      {/* Ô tìm kiếm nhanh mở rộng chiều dài toàn khung */}
+                      <div className="p-2.5 border-b border-slate-200/80 bg-slate-50/90 flex items-center shrink-0 rounded-t-xl">
+                        <div className="relative w-full flex items-center">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 z-10 text-slate-400">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                           </div>
                           <input
                             type="text"
-                            style={{ paddingLeft: '38px', paddingRight: '32px' }}
-                            className="w-full py-2 text-xs sm:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 placeholder-slate-400 font-medium"
-                            placeholder="Tìm nhanh theo mã SKU hoặc tên sản phẩm..."
+                            style={{ paddingLeft: '34px', paddingRight: '28px', height: '36px', fontSize: '13px' }}
+                            className="w-full bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 placeholder-slate-400 font-medium transition-all"
+                            placeholder="Tìm theo mã SKU hoặc tên sản phẩm..."
                             value={productSearchTerm}
                             onChange={(e) => {
                               setProductSearchTerm(e.target.value);
@@ -1242,19 +1313,6 @@ export function StockTransferManagementView({
                               ✕
                             </button>
                           )}
-                        </div>
-
-                        <div className="flex items-center justify-between sm:justify-end gap-2 text-[11px] text-slate-600 font-medium px-1">
-                          <span>
-                            Khả dụng: <b className="text-blue-700 font-bold">{totalProductsCount}</b> mặt hàng
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setProductDropdownOpen(false)}
-                            className="text-xs text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded-lg cursor-pointer transition-colors"
-                          >
-                            Đóng lại ✕
-                          </button>
                         </div>
                       </div>
 
@@ -1319,10 +1377,11 @@ export function StockTransferManagementView({
                                     });
                                     return;
                                   }
-                                  handleAddProductToTransfer(String(p.product_id));
-                                  setProductDropdownOpen(false);
-                                  setProductSearchTerm('');
-                                  setDebouncedSearchTerm('');
+                                  if (isAlreadyAdded) {
+                                    setTransferItems((prev) => prev.filter((it) => it.product_id !== p.product_id));
+                                  } else {
+                                    handleAddProductToTransfer(String(p.product_id));
+                                  }
                                 }}
                               >
                                 <div className="flex flex-col min-w-0 pr-2">
@@ -1366,11 +1425,20 @@ export function StockTransferManagementView({
                                     <button
                                       type="button"
                                       tabIndex={-1}
-                                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs ${
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isAlreadyAdded) {
+                                          setTransferItems((prev) => prev.filter((it) => it.product_id !== p.product_id));
+                                        } else {
+                                          handleAddProductToTransfer(String(p.product_id));
+                                        }
+                                      }}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer ${
                                         isAlreadyAdded
-                                          ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                          ? 'bg-blue-100 text-blue-700 hover:bg-rose-100 hover:text-rose-700'
                                           : 'bg-blue-600 text-white hover:bg-blue-700 group-hover:scale-105'
                                       }`}
+                                      title={isAlreadyAdded ? 'Bấm để bỏ sản phẩm khỏi phiếu' : 'Thêm vào phiếu'}
                                     >
                                       {isAlreadyAdded ? 'Đã thêm' : '+ Thêm'}
                                     </button>
@@ -1380,41 +1448,11 @@ export function StockTransferManagementView({
                             );
                           })
                         )}
-                      </div>
-
-                      {/* Thanh đếm số lượng & nút tải thêm */}
-                      <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-600 shrink-0 rounded-b-xl">
-                        <span>
-                          Đang hiển thị <b className="text-slate-800 font-bold">{availableProducts.length}</b> / <b className="text-slate-800 font-bold">{totalProductsCount}</b> sản phẩm
-                        </span>
-                        {availableProducts.length < totalProductsCount ? (
-                          <button
-                            type="button"
-                            disabled={loadingMoreProducts}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleLoadMoreProducts();
-                            }}
-                            className="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1.5 hover:underline cursor-pointer bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                          >
-                            {loadingMoreProducts ? (
-                              <>
-                                <span className="w-3.5 h-3.5 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
-                                <span>Đang tải thêm sản phẩm...</span>
-                              </>
-                            ) : (
-                              <>
-                                <span>Tải thêm sản phẩm</span>
-                                <svg className="w-3.5 h-3.5 inline animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                                </svg>
-                              </>
-                            )}
-                          </button>
-                        ) : (
-                          <span className="text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded text-[11px]">
-                            ✓ Đã hiển thị toàn bộ {totalProductsCount} sản phẩm
-                          </span>
+                        {loadingMoreProducts && (
+                          <div className="py-2.5 flex items-center justify-center text-xs text-blue-600 gap-2 bg-slate-50/70 border-t border-slate-100">
+                            <span className="w-3.5 h-3.5 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                            <span>Đang tải thêm sản phẩm...</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1430,21 +1468,22 @@ export function StockTransferManagementView({
                   </div>
                 ) : (
                   <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
-                    <div className="overflow-x-auto">
+                    <div ref={transferItemsTableRef} className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '350px' }}>
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-50/90 text-xs font-semibold text-slate-600 border-b border-slate-200">
+                        <thead className="bg-slate-50 text-xs font-semibold text-slate-600 border-b border-slate-200 sticky top-0 z-10 shadow-2xs">
                           <tr>
-                            <th className="py-3 px-3.5 text-center w-12">#</th>
-                            <th className="py-3 px-3.5 text-left">Sản phẩm</th>
-                            <th className="py-3 px-3 text-center w-24">Đơn vị</th>
-                            <th className="py-3 px-3 text-center w-28">Tồn khả dụng</th>
-                            <th className="py-3 px-3 text-center w-36">SL chuyển</th>
-                            <th className="py-3 px-3 text-center w-28">Tồn còn lại</th>
-                            <th className="py-3 px-3 text-center w-16">Xóa</th>
+                            <th className="py-3 px-3.5 text-center w-12 bg-slate-50">#</th>
+                            <th className="py-3 px-3.5 text-left bg-slate-50">Sản phẩm</th>
+                            <th className="py-3 px-3 text-center w-24 bg-slate-50">Đơn vị</th>
+                            <th className="py-3 px-3 text-center w-28 bg-slate-50">Tồn khả dụng</th>
+                            <th className="py-3 px-3 text-center w-36 bg-slate-50">SL chuyển</th>
+                            <th className="py-3 px-3 text-center w-28 bg-slate-50">Tồn còn lại</th>
+                            <th className="py-3 px-3 text-center w-16 bg-slate-50">Xóa</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {transferItems.map((it, idx) => {
+                          {paginatedTransferItems.map((it) => {
+                            const idx = it.globalIdx;
                             const isOver = it.transfer_qty > it.available_stock;
                             const remainingStock = Math.max(0, it.available_stock - it.transfer_qty);
                             return (
@@ -1476,35 +1515,35 @@ export function StockTransferManagementView({
                                   </span>
                                 </td>
                                 <td className="py-3 px-3 text-center">
-                                  <div className="inline-flex items-center gap-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUpdateTransferQty(idx, Math.max(1, it.transfer_qty - 1))}
-                                      className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-sm transition-colors cursor-pointer"
-                                    >
-                                      -
-                                    </button>
+                                  <div className="flex items-center justify-center">
                                     <input
                                       type="number"
                                       min="1"
                                       max={it.available_stock}
-                                      value={it.transfer_qty}
-                                      onChange={(e) =>
-                                        handleUpdateTransferQty(idx, parseInt(e.target.value, 10) || 1)
-                                      }
-                                      className={`w-20 text-center px-2 py-1.5 text-sm border rounded-lg font-bold focus:outline-none focus:ring-2 ${
+                                      value={it.transfer_qty === 0 ? '' : it.transfer_qty}
+                                      onFocus={(e) => e.target.select()}
+                                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        if (raw === '') {
+                                          handleUpdateTransferQty(idx, 0);
+                                          return;
+                                        }
+                                        const val = parseInt(raw, 10);
+                                        handleUpdateTransferQty(idx, isNaN(val) ? 0 : val);
+                                      }}
+                                      onBlur={() => {
+                                        if (it.transfer_qty <= 0) {
+                                          handleUpdateTransferQty(idx, 1);
+                                        }
+                                      }}
+                                      style={{ width: '64px', height: '32px', fontSize: '13px' }}
+                                      className={`text-center font-bold border rounded-lg focus:outline-none focus:ring-2 transition-all ${
                                         isOver
                                           ? 'border-rose-400 text-rose-600 bg-rose-50 ring-rose-200'
-                                          : 'border-slate-300 focus:ring-blue-500 text-slate-900'
+                                          : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/20 text-slate-900 bg-white'
                                       }`}
                                     />
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUpdateTransferQty(idx, it.transfer_qty + 1)}
-                                      className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-sm transition-colors cursor-pointer"
-                                    >
-                                      +
-                                    </button>
                                   </div>
                                   {isOver && (
                                     <div className="text-[11px] text-rose-600 font-bold mt-1">
@@ -1535,6 +1574,107 @@ export function StockTransferManagementView({
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Chân trang bảng: Khối phân trang liền thanh chuẩn theo thiết kế thu nhỏ giống hình 2 */}
+                    {totalCreateItemPages > 1 && (
+                      <div
+                        style={{
+                          padding: '8px 18px',
+                          backgroundColor: '#ffffff',
+                          borderTop: '1px solid #e2e8f0',
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          alignItems: 'center',
+                          fontSize: '12px',
+                          color: '#64748b',
+                          flexShrink: 0,
+                          flexWrap: 'wrap',
+                          gap: '12px',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'stretch',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '5px',
+                            overflow: 'hidden',
+                            background: '#ffffff',
+                            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                            height: '24px',
+                          }}
+                        >
+                          {/* Danh sách các số trang */}
+                          {Array.from({ length: totalCreateItemPages }, (_, i) => i + 1)
+                            .filter((p) => p === 1 || p === totalCreateItemPages || Math.abs(p - safeCreateItemPage) <= 1)
+                            .reduce<(number | string)[]>((acc, p, i, arr) => {
+                              if (i > 0 && typeof arr[i - 1] === 'number' && (p as number) - (arr[i - 1] as number) > 1) {
+                                acc.push('...');
+                              }
+                              acc.push(p);
+                              return acc;
+                            }, [])
+                            .map((p, i, arr) => {
+                              const isLastItem = i === arr.length - 1;
+                              if (typeof p === 'string') {
+                                return (
+                                  <span
+                                    key={`ellipsis-${i}`}
+                                    style={{
+                                      minWidth: '22px',
+                                      height: '100%',
+                                      padding: '0 4px',
+                                      borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                                      background: '#ffffff',
+                                      color: '#6b7280',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '11px',
+                                      userSelect: 'none',
+                                    }}
+                                  >
+                                    ...
+                                  </span>
+                                );
+                              }
+
+                              const isActive = p === safeCreateItemPage;
+                              return (
+                                <button
+                                  key={p}
+                                  type="button"
+                                  onClick={() => setCreateItemPage(p)}
+                                  style={{
+                                    minWidth: '24px',
+                                    height: '100%',
+                                    padding: '0 7px',
+                                    border: 'none',
+                                    borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                                    background: isActive ? '#0fad89' : '#ffffff',
+                                    color: isActive ? '#ffffff' : '#374151',
+                                    cursor: isActive ? 'default' : 'pointer',
+                                    fontSize: '11.5px',
+                                    fontWeight: isActive ? '700' : '500',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'background-color 0.15s ease',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                                  }}
+                                >
+                                  {p}
+                                </button>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1650,6 +1790,1157 @@ export function StockTransferManagementView({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // TRANG LẬP PHIẾU CHUYỂN KHO GIAO BÙ (FULL PAGE VIEW THAY CHO POPUP MODAL)
+  // =========================================================================
+  if (showCompensateModal && compensatingTransfer) {
+    const totalShortageCompensating = compensateItems.reduce((acc, it) => acc + it.shortage_qty, 0);
+    const hasOverStock = compensateItems.some((it) => it.compensate_qty > it.available_stock);
+    const hasAnySurplus = compensateItems.some((it) => it.compensate_qty > it.shortage_qty);
+    const hasAnyUnderShortage = compensateItems.some((it) => it.compensate_qty < it.shortage_qty);
+    const totalSurplusQty = compensateItems.reduce((acc, it) => acc + Math.max(0, it.compensate_qty - it.shortage_qty), 0);
+
+    const compensateItemPageSize = 10;
+    const totalCompensateItemPages = Math.max(1, Math.ceil(compensateItems.length / compensateItemPageSize));
+    const safeCompensateItemPage = Math.min(Math.max(1, compensateItemPage), totalCompensateItemPages);
+    const paginatedCompensateItems = compensateItems
+      .slice((safeCompensateItemPage - 1) * compensateItemPageSize, safeCompensateItemPage * compensateItemPageSize)
+      .map((it, localIdx) => ({
+        ...it,
+        globalIdx: (safeCompensateItemPage - 1) * compensateItemPageSize + localIdx,
+      }));
+
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          maxHeight: '100%',
+          overflowY: 'auto',
+          boxSizing: 'border-box',
+        }}
+        className="flex-1 flex flex-col p-4 md:p-6 bg-slate-100/60 font-sans"
+      >
+        {/* Khung chính của trang giao bù */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col max-w-[1600px] w-full mx-auto shrink-0 mb-12">
+          {/* Header Bar */}
+          <div className="px-6 py-4.5 border-b border-slate-200/80 bg-gradient-to-r from-slate-50/90 via-white to-blue-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowCompensateModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-full shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>Quay lại</span>
+              </button>
+              <span className="text-slate-300 text-lg">/</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                  Lập phiếu chuyển kho giao bù
+                </h1>
+                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+                  Giao bù hàng thiếu cho phiếu: <b>{compensatingTransfer.code}</b>
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={loadingCompensateStock || submittingCompensate || hasOverStock || hasAnyUnderShortage || (hasAnySurplus && !compensateNote.trim())}
+                onClick={handleSubmitCompensateTransfer}
+                className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] disabled:opacity-50 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer border-0"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+                <span>{submittingCompensate ? 'Đang xuất chuyển bù...' : 'Xác nhận xuất giao bù'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Body Content */}
+          <div className="p-6 md:p-8 space-y-6">
+            {/* Thông tin tuyến điều chuyển giao bù & Ghi chú (Gộp chung trong 1 khung duy nhất) */}
+            <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Kho gửi (Xuất bù)
+                    </span>
+                  </div>
+                  <span className="text-base font-bold text-slate-900 mt-0.5">
+                    {compensatingTransfer.from_warehouse_name}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    Tồn kho thực tế tại kho này sẽ bị trừ ngay khi xuất chuyển giao bù.
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Kho nhận (Đang thiếu hàng)
+                    </span>
+                  </div>
+                  <span className="text-base font-bold text-slate-900 mt-0.5">
+                    {compensatingTransfer.to_warehouse_name}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    Kho đích sẽ tiếp nhận số lượng bù sau khi hàng tới nơi.
+                  </span>
+                </div>
+              </div>
+
+              {/* Ghi chú xuất bù trong cùng 1 khung */}
+              <div className="pt-3.5 border-t border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider">
+                    <span className={hasAnySurplus ? 'text-blue-800' : 'text-slate-700'}>
+                      Ghi chú phiếu giao bù
+                    </span>
+                    {hasAnySurplus ? (
+                      <span className="ml-1.5 text-rose-600 font-bold text-xs lowercase">
+                        *(bắt buộc ghi chú thích vì có hàng giao bù dư)
+                      </span>
+                    ) : (
+                      <span className="ml-1.5 text-slate-400 font-normal lowercase">
+                        (không bắt buộc khi giao đúng số lượng thiếu)
+                      </span>
+                    )}
+                  </label>
+                  {hasAnySurplus && (
+                    <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                      Tổng giao bù dư: +{totalSurplusQty} SP
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={compensateNote}
+                  onChange={(e) => setCompensateNote(e.target.value)}
+                  placeholder={
+                    hasAnySurplus
+                      ? "* BẮT BUỘC: Nhập lý do giao bù dư cho các sản phẩm vượt số lượng thiếu..."
+                      : "Nhập ghi chú giao bù (tùy chọn, để trống sẽ tự động lưu nội dung mặc định)..."
+                  }
+                  className={`w-full px-4 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 font-medium transition-all shadow-2xs ${
+                    hasAnySurplus && !compensateNote.trim()
+                      ? 'border-amber-400 ring-2 ring-amber-200/60 text-slate-900 placeholder:text-amber-500'
+                      : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/20 text-slate-800'
+                  }`}
+                />
+                {hasAnySurplus && !compensateNote.trim() && (
+                  <p className="text-xs text-amber-700 font-medium">
+                    ⚠️ Có sản phẩm được điều chỉnh số lượng giao bù lớn hơn số lượng thiếu. Vui lòng ghi chú thích lý do trước khi xuất bù.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Bảng Danh Sách Sản Phẩm Giao Bù */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <span>Danh sách sản phẩm giao bù</span>
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                    {compensateItems.length} mặt hàng • Thiếu {totalShortageCompensating} SP
+                  </span>
+                </h3>
+                {loadingCompensateStock && (
+                  <span className="text-xs text-blue-600 flex items-center gap-1.5 font-medium">
+                    <span className="w-3 h-3 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                    Đang kiểm tra tồn khả dụng tại kho xuất...
+                  </span>
+                )}
+              </div>
+
+              <div className="border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs bg-white">
+                <div
+                  ref={compensateItemsTableRef}
+                  className="overflow-x-auto overflow-y-auto"
+                  style={{ maxHeight: '380px' }}
+                >
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 text-xs font-bold text-slate-600 border-b border-slate-200 uppercase tracking-wider sticky top-0 z-10 shadow-2xs">
+                      <tr>
+                        <th className="py-3.5 px-4 text-left bg-slate-50">Mặt hàng</th>
+                        <th className="py-3.5 px-4 text-center w-36 bg-slate-50">SL thiếu</th>
+                        <th className="py-3.5 px-4 text-center w-48 bg-slate-50">Tồn khả dụng kho gửi</th>
+                        <th className="py-3.5 px-4 text-center w-44 bg-slate-50">SL giao bù</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedCompensateItems.map((it) => {
+                        const isOver = it.compensate_qty > it.available_stock;
+                        return (
+                          <tr key={it.product_id} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold text-slate-900 text-sm">{it.product_name}</div>
+                              <div className="text-xs text-slate-500 font-mono mt-0.5">
+                                {it.product_code} • ĐVT: {it.unit}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="inline-flex items-center font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-lg border border-rose-200 text-xs">
+                                {it.shortage_qty}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className={`inline-flex items-center font-bold text-xs px-2.5 py-1 rounded-md ${
+                                it.available_stock < it.compensate_qty
+                                  ? 'text-rose-700 bg-rose-100 border border-rose-200'
+                                  : 'text-blue-700 bg-blue-50 border border-blue-200'
+                              }`}>
+                                {loadingCompensateStock ? '...' : `${it.available_stock} SP`}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <div className="inline-flex flex-col items-center">
+                                {(() => {
+                                  const idx = it.globalIdx;
+                                  return (
+                                    <input
+                                      type="text"
+                                      inputMode="numeric"
+                                      value={it.compensate_qty === 0 ? '' : it.compensate_qty}
+                                      onFocus={(e) => e.target.select()}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        if (raw === '') {
+                                          setCompensateItems((prev) => {
+                                            const next = [...prev];
+                                            next[idx] = { ...next[idx], compensate_qty: 0 };
+                                            return next;
+                                          });
+                                          return;
+                                        }
+                                        let clean = raw.replace(/\D/g, '');
+                                        if (clean.length > 1 && clean.startsWith('0')) {
+                                          clean = clean.replace(/^0+/, '') || '0';
+                                        }
+                                        const val = parseInt(clean, 10);
+                                        setCompensateItems((prev) => {
+                                          const next = [...prev];
+                                          next[idx] = { ...next[idx], compensate_qty: isNaN(val) ? 0 : val };
+                                          return next;
+                                        });
+                                      }}
+                                      onBlur={() => {
+                                        setCompensateItems((prev) => {
+                                          const next = [...prev];
+                                          if (next[idx].compensate_qty < it.shortage_qty) {
+                                            next[idx] = { ...next[idx], compensate_qty: it.shortage_qty };
+                                          }
+                                          return next;
+                                        });
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'ArrowUp') {
+                                          e.preventDefault();
+                                          setCompensateItems((prev) => {
+                                            const next = [...prev];
+                                            next[idx] = { ...next[idx], compensate_qty: (next[idx].compensate_qty || 0) + 1 };
+                                            return next;
+                                          });
+                                        } else if (e.key === 'ArrowDown') {
+                                          e.preventDefault();
+                                          setCompensateItems((prev) => {
+                                            const next = [...prev];
+                                            next[idx] = { ...next[idx], compensate_qty: Math.max(it.shortage_qty, (next[idx].compensate_qty || 0) - 1) };
+                                            return next;
+                                          });
+                                        }
+                                      }}
+                                      style={{ width: '84px', height: '36px' }}
+                                      className={`text-center text-sm font-bold border rounded-lg focus:outline-none focus:ring-2 transition-all shadow-2xs ${
+                                        isOver
+                                          ? 'border-rose-400 text-rose-600 bg-rose-50 focus:ring-rose-200'
+                                          : it.compensate_qty > it.shortage_qty
+                                          ? 'border-blue-400 text-blue-700 bg-blue-50/50 focus:ring-blue-300'
+                                          : 'border-slate-300 text-slate-800 bg-white focus:ring-emerald-500'
+                                      }`}
+                                    />
+                                  );
+                                })()}
+                                {isOver ? (
+                                  <span className="text-[10px] text-rose-600 font-bold mt-1">
+                                    Vượt tồn kho ({it.available_stock})!
+                                  </span>
+                                ) : it.compensate_qty > it.shortage_qty ? (
+                                  <span className="text-[10px] text-blue-600 font-bold mt-1">
+                                    Dư +{it.compensate_qty - it.shortage_qty}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-emerald-600 font-semibold mt-1">
+                                    Đúng lượng thiếu
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Chân trang bảng: Khối phân trang */}
+                {totalCompensateItemPages > 1 && (
+                  <div
+                    style={{
+                      padding: '8px 18px',
+                      backgroundColor: '#ffffff',
+                      borderTop: '1px solid #e2e8f0',
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      alignItems: 'center',
+                      fontSize: '12px',
+                      color: '#64748b',
+                      flexShrink: 0,
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'stretch',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '5px',
+                        overflow: 'hidden',
+                        background: '#ffffff',
+                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                        height: '24px',
+                      }}
+                    >
+                      {/* Danh sách các số trang */}
+                      {Array.from({ length: totalCompensateItemPages }, (_, i) => i + 1)
+                        .filter((p) => p === 1 || p === totalCompensateItemPages || Math.abs(p - safeCompensateItemPage) <= 1)
+                        .reduce<(number | string)[]>((acc, p, i, arr) => {
+                          if (i > 0 && typeof arr[i - 1] === 'number' && (p as number) - (arr[i - 1] as number) > 1) {
+                            acc.push('...');
+                          }
+                          acc.push(p);
+                          return acc;
+                        }, [])
+                        .map((p, i, arr) => {
+                          const isLastItem = i === arr.length - 1;
+                          if (typeof p === 'string') {
+                            return (
+                              <span
+                                key={`ellipsis-${i}`}
+                                style={{
+                                  minWidth: '22px',
+                                  height: '100%',
+                                  padding: '0 4px',
+                                  borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                                  background: '#ffffff',
+                                  color: '#6b7280',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '11px',
+                                  userSelect: 'none',
+                                }}
+                              >
+                                ...
+                              </span>
+                            );
+                          }
+
+                          const isActive = p === safeCompensateItemPage;
+                          return (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => setCompensateItemPage(p)}
+                              style={{
+                                minWidth: '24px',
+                                height: '100%',
+                                padding: '0 7px',
+                                border: 'none',
+                                borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                                background: isActive ? '#0fad89' : '#ffffff',
+                                color: isActive ? '#ffffff' : '#374151',
+                                cursor: isActive ? 'default' : 'pointer',
+                                fontSize: '11.5px',
+                                fontWeight: isActive ? '700' : '500',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'background-color 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                              }}
+                            >
+                              {p}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+            </div>
+          </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // NẾU ĐANG Ở CHẾ ĐỘ XEM CHI TIẾT PHIẾU CHUYỂN KHO NỘI BỘ (FULL PAGE VIEW THAY CHO POPUP MODAL)
+  if (showDetailModal && detailTransfer) {
+    const comp = getTransferCompensationStatus(detailTransfer);
+    const allDetailItems = detailTransfer.items || [];
+    const detailItemPageSize = 10;
+    const totalDetailItemPages = Math.max(1, Math.ceil(allDetailItems.length / detailItemPageSize));
+    const safeDetailItemPage = Math.min(Math.max(1, detailItemPage), totalDetailItemPages);
+    const paginatedDetailItems = allDetailItems.slice(
+      (safeDetailItemPage - 1) * detailItemPageSize,
+      safeDetailItemPage * detailItemPageSize
+    );
+
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          maxHeight: '100%',
+          overflowY: 'auto',
+          boxSizing: 'border-box',
+        }}
+        className="flex-1 flex flex-col p-4 md:p-6 bg-slate-100/60 font-sans"
+      >
+        {/* Khối khung chính của trang chi tiết */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col max-w-[1600px] w-full mx-auto shrink-0 mb-12">
+          {/* Header Bar */}
+          <div className="px-6 py-4.5 border-b border-slate-200/80 bg-gradient-to-r from-slate-50/90 via-white to-blue-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowDetailModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-full shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>Quay lại</span>
+              </button>
+              <span className="text-slate-300 text-lg">/</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                  Phiếu chuyển kho: {detailTransfer.code}
+                </h1>
+                {renderStatusBadge(detailTransfer.status)}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {canWriteInventory &&
+                detailTransfer.status === 'COMPLETED' &&
+                detailTotalShortage > 0 &&
+                !comp.isFullyCompensated && (
+                  <button
+                    onClick={() => handleOpenCompensateModal(detailTransfer)}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer border-0"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14" />
+                      <path d="M12 5l7 7-7 7" />
+                    </svg>
+                    Giao bù hàng thiếu ({detailTotalShortage} SP)
+                  </button>
+                )}
+            </div>
+          </div>
+
+          {/* Body Content */}
+          <div className="p-6 md:p-8 space-y-6">
+            {/* Khối Thông tin tổng quan */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 text-sm">
+              <div>
+                <span className="text-slate-400 text-xs block mb-1">Kho xuất:</span>
+                <span className="font-bold text-slate-800 text-base">
+                  {detailTransfer.from_warehouse_name}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs block mb-1">Kho nhận:</span>
+                <span className="font-bold text-slate-800 text-base">
+                  {detailTransfer.to_warehouse_name}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs block mb-1">Người tạo phiếu:</span>
+                <span className="font-bold text-slate-800 text-base">
+                  {detailTransfer.created_by}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs block mb-1">Ngày tạo:</span>
+                <span className="font-bold text-slate-800 text-base">
+                  {new Date(detailTransfer.created_at).toLocaleString('vi-VN')}
+                </span>
+              </div>
+              {detailTransfer.received_by && (
+                <div>
+                  <span className="text-slate-400 text-xs block mb-1">Người tiếp nhận:</span>
+                  <span className="font-bold text-slate-800 text-base">
+                    {detailTransfer.received_by}
+                  </span>
+                </div>
+              )}
+              {detailTransfer.received_at && (
+                <div>
+                  <span className="text-slate-400 text-xs block mb-1">Thời gian nhận:</span>
+                  <span className="font-bold text-slate-800 text-base">
+                    {new Date(detailTransfer.received_at).toLocaleString('vi-VN')}
+                  </span>
+                </div>
+              )}
+              {detailTransfer.note && (
+                <div className="col-span-2 md:col-span-4 mt-1">
+                  <span className="text-slate-400 text-xs block mb-1">Ghi chú xuất:</span>
+                  <span className="text-slate-700 italic bg-white px-3 py-1.5 rounded-lg border border-slate-200 block">{detailTransfer.note}</span>
+                </div>
+              )}
+              {detailTransfer.discrepancy_reason && (
+                <div className="col-span-2 md:col-span-4 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 break-words text-sm mt-1">
+                  <b>Lý do chênh lệch khi nhận:</b> "{detailTransfer.discrepancy_reason}"
+                </div>
+              )}
+              {detailTransfer.status === 'CANCELLED' && (
+                <div className="col-span-2 md:col-span-4 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 break-words text-sm mt-1">
+                  <b>Trạng thái:</b> Phiếu chuyển kho đã hủy
+                  {(() => {
+                    const cancelReason =
+                      (detailTransfer as any).cancel_reason ||
+                      (detailTransfer.note?.includes('[Hủy:')
+                        ? detailTransfer.note.split('[Hủy:')[1]?.replace(/\]$/, '').trim()
+                        : null);
+                    return cancelReason ? (
+                      <span> — <b>Lý do hủy:</b> "{cancelReason}"</span>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Bảng danh sách mặt hàng có thanh cuộn riêng và phân trang */}
+            <div className="border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs bg-white">
+              <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 font-bold text-slate-700 text-sm flex items-center justify-between">
+                <span>Danh sách mặt hàng điều chuyển ({allDetailItems.length})</span>
+                {allDetailItems.length > 0 && (
+                  <span className="text-xs font-normal text-slate-500">
+                    Trang {safeDetailItemPage} / {totalDetailItemPages}
+                  </span>
+                )}
+              </div>
+
+              {/* Vùng cuộn riêng cho bảng không cuộn cả trang */}
+              <div
+                ref={detailItemsTableRef}
+                className="overflow-x-auto overflow-y-auto"
+                style={{ maxHeight: '380px' }}
+              >
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200 sticky top-0 z-10 shadow-2xs">
+                    <tr>
+                      <th className="py-3 px-4 text-left bg-slate-50">Mặt hàng</th>
+                      <th className="py-3 px-4 text-center bg-slate-50">SL gửi đi</th>
+                      <th className="py-3 px-4 text-center bg-slate-50">SL thực nhận</th>
+                      <th className="py-3 px-4 text-center bg-slate-50">Chênh lệch</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedDetailItems.map((it) => (
+                      <tr key={it.product_id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-slate-800 text-[14px]">{it.product_name}</div>
+                          <div className="text-xs text-slate-400 font-mono mt-0.5">
+                            {it.product_code} ({it.unit})
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-bold text-slate-700 text-base">
+                          {it.transfer_qty}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          {it.received_qty !== null && it.received_qty !== undefined ? (
+                            <span className="font-bold text-emerald-700 text-base">
+                              {it.received_qty}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Chưa nhận</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          {(() => {
+                            if (detailTransfer.status === 'CANCELLED') {
+                              return <span className="text-xs text-rose-600 font-medium whitespace-nowrap">Đã hủy</span>;
+                            }
+                            if (it.received_qty === null || it.received_qty === undefined) {
+                              return <span className="text-slate-400">-</span>;
+                            }
+                            const diff = it.received_qty - it.transfer_qty;
+                            if (diff > 0) {
+                              return (
+                                <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">
+                                  +{diff} (Dư)
+                                </span>
+                              );
+                            }
+                            if (diff < 0) {
+                              const shortageQty = Math.abs(diff);
+                              return getTransferCompensationStatus(detailTransfer).isFullyCompensated ? (
+                                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                                  Đã bù {shortageQty}
+                                </span>
+                              ) : (
+                                <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">
+                                  -{shortageQty} (Hụt)
+                                </span>
+                              );
+                            }
+                            return <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">✓ Đủ</span>;
+                          })()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Chân trang bảng: Khối phân trang liền thanh chuẩn theo thiết kế thu nhỏ giống hình 2 */}
+              {totalDetailItemPages > 1 && (
+                <div
+                  style={{
+                    padding: '8px 18px',
+                    backgroundColor: '#ffffff',
+                    borderTop: '1px solid #e2e8f0',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    fontSize: '12px',
+                    color: '#64748b',
+                    flexShrink: 0,
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'stretch',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '5px',
+                      overflow: 'hidden',
+                      background: '#ffffff',
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                      height: '24px',
+                    }}
+                  >
+                    {/* Danh sách các số trang */}
+                    {Array.from({ length: totalDetailItemPages }, (_, i) => i + 1)
+                      .filter((p) => p === 1 || p === totalDetailItemPages || Math.abs(p - safeDetailItemPage) <= 1)
+                      .reduce<(number | string)[]>((acc, p, i, arr) => {
+                        if (i > 0 && typeof arr[i - 1] === 'number' && (p as number) - (arr[i - 1] as number) > 1) {
+                          acc.push('...');
+                        }
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, i, arr) => {
+                        const isLastItem = i === arr.length - 1;
+                        if (typeof p === 'string') {
+                          return (
+                            <span
+                              key={`ellipsis-${i}`}
+                              style={{
+                                minWidth: '22px',
+                                height: '100%',
+                                padding: '0 4px',
+                                borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                                background: '#ffffff',
+                                color: '#6b7280',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '11px',
+                                userSelect: 'none',
+                              }}
+                            >
+                              ...
+                            </span>
+                          );
+                        }
+
+                        const isActive = p === safeDetailItemPage;
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setDetailItemPage(p)}
+                            style={{
+                              minWidth: '24px',
+                              height: '100%',
+                              padding: '0 7px',
+                              border: 'none',
+                              borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                              background: isActive ? '#0fad89' : '#ffffff',
+                              color: isActive ? '#ffffff' : '#374151',
+                              cursor: isActive ? 'default' : 'pointer',
+                              fontSize: '11.5px',
+                              fontWeight: isActive ? '700' : '500',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                            }}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+
+          </div>
+        </div>
+
+
+      </div>
+    );
+  }
+
+  // NẾU ĐANG Ở CHẾ ĐỘ XÁC NHẬN NHẬN HÀNG CHUYỂN KHO (FULL PAGE VIEW THAY CHO POPUP MODAL)
+  if (showReceiveModal && receivingTransfer) {
+    const totalSendQty = receiveItems.reduce((acc, it) => acc + (it.transfer_qty || 0), 0);
+    const totalReceivedQty = receiveItems.reduce((acc, it) => {
+      const numReceived = typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0);
+      return acc + numReceived;
+    }, 0);
+
+    const receiveItemPageSize = 10;
+    const totalReceiveItemPages = Math.max(1, Math.ceil(receiveItems.length / receiveItemPageSize));
+    const safeReceiveItemPage = Math.min(Math.max(1, receiveItemPage), totalReceiveItemPages);
+    const paginatedReceiveItems = receiveItems
+      .slice((safeReceiveItemPage - 1) * receiveItemPageSize, safeReceiveItemPage * receiveItemPageSize)
+      .map((it, localIdx) => ({
+        ...it,
+        globalIdx: (safeReceiveItemPage - 1) * receiveItemPageSize + localIdx,
+      }));
+
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          maxHeight: '100%',
+          overflowY: 'auto',
+          boxSizing: 'border-box',
+        }}
+        className="flex-1 flex flex-col p-4 md:p-6 bg-slate-100/60 font-sans"
+      >
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col max-w-[1600px] w-full mx-auto shrink-0 mb-12">
+          {/* Header Bar */}
+          <div className="px-6 py-4.5 border-b border-slate-200/80 bg-gradient-to-r from-slate-50/90 via-white to-emerald-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowReceiveModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-full shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>Quay lại</span>
+              </button>
+              <span className="text-slate-300 text-lg">/</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                  Xác nhận nhận hàng chuyển kho: {receivingTransfer.code}
+                </h1>
+                {renderStatusBadge(receivingTransfer.status)}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowReceiveModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-xs"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitReceiveTransfer}
+                disabled={
+                  submittingReceive ||
+                  (totalReceiveDiscrepancy > 0 && !discrepancyReason.trim())
+                }
+                className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 disabled:opacity-50 rounded-xl transition-all shadow-sm hover:shadow-md cursor-pointer flex items-center gap-2"
+              >
+                {submittingReceive ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Đang lưu...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Xác nhận nhập kho</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* THẺ TỔNG QUAN TUYẾN ĐIỀU CHUYỂN & THÔNG TIN */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Tuyến điều chuyển */}
+              <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  Tuyến điều chuyển
+                </div>
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                  <span className="text-blue-700">{receivingTransfer.from_warehouse_name}</span>
+                  <span className="text-slate-400">➔</span>
+                  <span className="text-emerald-700">{receivingTransfer.to_warehouse_name}</span>
+                </div>
+                <div className="text-xs text-slate-500 mt-1.5">
+                  Kho nhận hàng: <b className="text-slate-700">{receivingTransfer.to_warehouse_name}</b>
+                </div>
+              </div>
+
+              {/* Thông tin phiếu */}
+              <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  Thông tin tạo phiếu
+                </div>
+                <div className="text-sm font-medium text-slate-800">
+                  Người lập: <b className="text-slate-700">{receivingTransfer.created_by}</b>
+                </div>
+                <div className="text-xs text-slate-500 mt-1">
+                  Ngày lập: {new Date(receivingTransfer.created_at).toLocaleString('vi-VN')}
+                </div>
+                {receivingTransfer.note && (
+                  <div className="text-xs text-slate-500 mt-1 italic">
+                    Ghi chú: "{receivingTransfer.note}"
+                  </div>
+                )}
+              </div>
+
+              {/* Thống kê kiểm đếm */}
+              <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  Tổng kiểm đếm
+                </div>
+                <div className="flex items-center justify-between text-xs py-0.5">
+                  <span className="text-slate-600">Tổng SL gửi đi:</span>
+                  <b className="text-slate-800 text-sm">{totalSendQty} SP</b>
+                </div>
+                <div className="flex items-center justify-between text-xs py-0.5">
+                  <span className="text-slate-600">Tổng SL thực nhận:</span>
+                  <b className="text-emerald-700 text-sm">{totalReceivedQty} SP</b>
+                </div>
+                <div className="flex items-center justify-between text-xs py-0.5 border-t border-slate-200/60 mt-1 pt-1">
+                  <span className="text-slate-600">Chênh lệch:</span>
+                  {totalReceiveDiscrepancy === 0 ? (
+                    <span className="text-emerald-600 font-bold">Khớp 100%</span>
+                  ) : (
+                    <span className="text-rose-600 font-bold">Lệch {totalReceiveDiscrepancy} SP</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* BẢNG KIỂM ĐẾM SỐ LƯỢNG CÓ VÙNG CUỘN RIÊNG VÀ PHÂN TRANG */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs bg-white">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Danh sách sản phẩm kiểm đếm tiếp nhận ({receiveItems.length} sản phẩm)
+                </div>
+                <div className="text-xs text-slate-500">
+                  Nhập số lượng thực tế nhận được tại kho đích
+                </div>
+              </div>
+
+              {/* Vùng cuộn riêng cho bảng không cuộn cả trang */}
+              <div
+                ref={receiveItemsTableRef}
+                className="overflow-x-auto overflow-y-auto"
+                style={{ maxHeight: '380px' }}
+              >
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-xs font-semibold text-slate-600 border-b border-slate-200 sticky top-0 z-10 shadow-2xs">
+                    <tr>
+                      <th className="py-3 px-4 text-center w-12 bg-slate-50">#</th>
+                      <th className="py-3 px-4 text-left bg-slate-50">Sản phẩm</th>
+                      <th className="py-3 px-4 text-center w-28 bg-slate-50">Đơn vị</th>
+                      <th className="py-3 px-4 text-center w-36 bg-slate-50">SL gửi đi</th>
+                      <th className="py-3 px-4 text-center w-44 bg-slate-50">SL thực nhận</th>
+                      <th className="py-3 px-4 text-center w-36 bg-slate-50">Chênh lệch</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedReceiveItems.map((it) => {
+                      const idx = it.globalIdx;
+                      const numReceived = typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0);
+                      const diff = numReceived - it.transfer_qty;
+                      return (
+                        <tr key={it.product_id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3 px-4 text-center text-xs text-slate-400 font-mono">
+                            {idx + 1}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="font-semibold text-slate-800">
+                              {it.product_name}
+                            </div>
+                            <div className="text-xs text-slate-400 font-mono">
+                              Mã SP: {it.product_code}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-center text-xs text-slate-600 font-medium">
+                            {it.unit}
+                          </td>
+                          <td className="py-3 px-4 text-center font-bold text-slate-700 text-sm">
+                            {it.transfer_qty}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="inline-flex items-center justify-center">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={it.received_qty}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  if (raw === '') {
+                                    setReceiveItems((prev) => {
+                                      const next = [...prev];
+                                      next[idx].received_qty = '';
+                                      return next;
+                                    });
+                                    return;
+                                  }
+                                  let clean = raw.replace(/\D/g, '');
+                                  if (clean.length > 1 && clean.startsWith('0')) {
+                                    clean = clean.replace(/^0+/, '') || '0';
+                                  }
+                                  setReceiveItems((prev) => {
+                                    const next = [...prev];
+                                    next[idx].received_qty = clean;
+                                    return next;
+                                  });
+                                }}
+                                onBlur={() => {
+                                  setReceiveItems((prev) => {
+                                    const next = [...prev];
+                                    if (next[idx].received_qty === '') {
+                                      next[idx].received_qty = 0;
+                                    }
+                                    return next;
+                                  });
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'ArrowUp') {
+                                    e.preventDefault();
+                                    const current = typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0);
+                                    setReceiveItems((prev) => {
+                                      const next = [...prev];
+                                      next[idx].received_qty = current + 1;
+                                      return next;
+                                    });
+                                  } else if (e.key === 'ArrowDown') {
+                                    e.preventDefault();
+                                    const current = typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0);
+                                    setReceiveItems((prev) => {
+                                      const next = [...prev];
+                                      next[idx].received_qty = Math.max(0, current - 1);
+                                      return next;
+                                    });
+                                  }
+                                }}
+                                style={{ width: '84px', height: '36px' }}
+                                className="text-center text-sm font-bold text-slate-800 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
+                              />
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            {diff === 0 ? (
+                              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                                Đủ
+                              </span>
+                            ) : diff < 0 ? (
+                              <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">
+                                Hụt {Math.abs(diff)}
+                              </span>
+                            ) : (
+                              <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">
+                                Dư +{diff}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Chân trang bảng: Khối phân trang */}
+              {totalReceiveItemPages > 1 && (
+                <div
+                  style={{
+                    padding: '8px 18px',
+                    backgroundColor: '#ffffff',
+                    borderTop: '1px solid #e2e8f0',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    fontSize: '12px',
+                    color: '#64748b',
+                    flexShrink: 0,
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'stretch',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '5px',
+                      overflow: 'hidden',
+                      background: '#ffffff',
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                      height: '24px',
+                    }}
+                  >
+                    {/* Danh sách các số trang */}
+                    {Array.from({ length: totalReceiveItemPages }, (_, i) => i + 1)
+                      .filter((p) => p === 1 || p === totalReceiveItemPages || Math.abs(p - safeReceiveItemPage) <= 1)
+                      .reduce<(number | string)[]>((acc, p, i, arr) => {
+                        if (i > 0 && typeof arr[i - 1] === 'number' && (p as number) - (arr[i - 1] as number) > 1) {
+                          acc.push('...');
+                        }
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, i, arr) => {
+                        const isLastItem = i === arr.length - 1;
+                        if (typeof p === 'string') {
+                          return (
+                            <span
+                              key={`ellipsis-${i}`}
+                              style={{
+                                minWidth: '22px',
+                                height: '100%',
+                                padding: '0 4px',
+                                borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                                background: '#ffffff',
+                                color: '#6b7280',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '11px',
+                                userSelect: 'none',
+                              }}
+                            >
+                              ...
+                            </span>
+                          );
+                        }
+
+                        const isActive = p === safeReceiveItemPage;
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setReceiveItemPage(p)}
+                            style={{
+                              minWidth: '24px',
+                              height: '100%',
+                              padding: '0 7px',
+                              border: 'none',
+                              borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                              background: isActive ? '#0fad89' : '#ffffff',
+                              color: isActive ? '#ffffff' : '#374151',
+                              cursor: isActive ? 'default' : 'pointer',
+                              fontSize: '11.5px',
+                              fontWeight: isActive ? '700' : '500',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                            }}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* CẢNH BÁO VÀ Ô NHẬP LÝ DO CHÊNH LỆCH */}
+            {totalReceiveDiscrepancy > 0 && (
+              <div className="p-5 bg-rose-50 border-2 border-rose-200/90 rounded-2xl space-y-2.5 shadow-2xs">
+                <div className="flex items-center gap-2 text-rose-800 font-bold text-sm">
+                  <span className="text-base">⚠️</span> Phát hiện chênh lệch {totalReceiveDiscrepancy} sản phẩm!
+                </div>
+                <p className="text-xs text-rose-700">
+                  Theo quy định kế toán & kho, bạn <b>bắt buộc phải giải trình lý do chênh lệch</b> (ví dụ: bị vỡ hỏng trong lúc chở, xe giao thiếu...) mới có thể hoàn tất nhận hàng.
+                </p>
+                <textarea
+                  rows={3}
+                  required
+                  value={discrepancyReason}
+                  onChange={(e) => setDiscrepancyReason(e.target.value)}
+                  placeholder="* Nhập lý do chênh lệch chi tiết tại đây (BẮT BUỘC)..."
+                  className="w-full px-3.5 py-2.5 text-sm border-2 border-rose-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium"
+                />
+              </div>
+            )}
+
+
           </div>
         </div>
       </div>
@@ -1774,6 +3065,20 @@ export function StockTransferManagementView({
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto shrink-0">
+            <div style={{ minWidth: '190px' }}>
+              <WarehouseSelectDropdown
+                warehouses={warehouses}
+                selectedId={warehouseFilter}
+                onSelect={(whId) => setWarehouseFilter(whId)}
+                allowAll={true}
+                allLabel="Tất cả kho"
+                allValue="ALL"
+                compact={true}
+                placeholder="Tất cả kho"
+                id="stock-transfer-warehouse-filter-select"
+              />
+            </div>
+
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -1797,45 +3102,19 @@ export function StockTransferManagementView({
               <option value="COMPLETED">Hoàn tất</option>
               <option value="CANCELLED">Đã hủy</option>
             </select>
-
-            <select
-              value={warehouseFilter}
-              onChange={(e) => setWarehouseFilter(e.target.value)}
-              style={{
-                minWidth: '170px',
-                height: '34px',
-                fontSize: '12px',
-                fontFamily: 'inherit',
-                color: '#334155',
-                backgroundColor: '#ffffff',
-                borderColor: '#e2e8f0',
-                borderRadius: '8px',
-                padding: '0 12px',
-                boxSizing: 'border-box',
-                outline: 'none',
-              }}
-              className="border focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-            >
-              <option value="ALL">Tất cả các kho</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
           </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
           <table className="w-full table-fixed text-left text-xs">
             <colgroup>
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '19%' }} />
-              <col style={{ width: '11%' }} />
-              <col style={{ width: '13%' }} />
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '14%' }} />
               <col style={{ width: '15%' }} />
+              <col style={{ width: '22%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '17%' }} />
+              <col style={{ width: '8%' }} />
             </colgroup>
             <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider sticky top-0 z-10 shadow-sm">
               <tr>
@@ -1845,7 +3124,7 @@ export function StockTransferManagementView({
                 <th className="py-2.5 px-2 bg-slate-50 text-center">Trạng thái</th>
                 <th className="py-2.5 px-2.5 bg-slate-50">Người tạo & Ngày</th>
                 <th className="py-2.5 px-2.5 bg-slate-50">Chênh lệch</th>
-                <th className="py-2.5 px-2.5 bg-slate-50 text-right">Thao tác</th>
+                <th className="py-2.5 px-2.5 bg-slate-50 text-center">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -1985,31 +3264,36 @@ export function StockTransferManagementView({
                         <span className="text-xs text-slate-400">-</span>
                       )}
                     </td>
-                    <td className="py-2.5 px-2.5 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center justify-end gap-1">
+                    <td className="py-2.5 px-2.5 text-center whitespace-nowrap">
+                      <div className="relative inline-block text-left transfer-action-dropdown-container">
                         <button
-                          onClick={() => handleOpenDetailModal(t.code)}
-                          className="px-2 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (activeDropdown?.transfer.code === t.code) {
+                              setActiveDropdown(null);
+                            } else {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const spaceBelow = window.innerHeight - rect.bottom;
+                              const openUpward = spaceBelow < 150;
+                              setActiveDropdown({
+                                transfer: t,
+                                rect,
+                                openUpward,
+                              });
+                            }
+                          }}
+                          className={`w-7 h-7 inline-flex items-center justify-center rounded-lg border transition-all cursor-pointer ${
+                            activeDropdown?.transfer.code === t.code
+                              ? 'bg-slate-100 border-slate-300 text-slate-800 shadow-xs'
+                              : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-500 hover:text-slate-700'
+                          }`}
+                          title="Thao tác"
                         >
-                          Chi tiết
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                          </svg>
                         </button>
-
-                        {canWriteInventory && t.status === 'IN_TRANSIT' && (
-                          <>
-                            <button
-                              onClick={() => handleOpenReceiveModal(t)}
-                              className="px-2 py-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm"
-                            >
-                              Nhận hàng
-                            </button>
-                            <button
-                              onClick={() => setCancellingCode(t.code)}
-                              className="px-2 py-1 text-xs font-medium text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
-                            >
-                              Hủy
-                            </button>
-                          </>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -2121,563 +3405,9 @@ export function StockTransferManagementView({
 
 
 
-      {/* ============================================================== */}
-      {/* MODAL 2: TIẾP NHẬN & XÁC NHẬN HÀNG (KHO ĐẾN)                  */}
-      {/* ============================================================== */}
-      {showReceiveModal && receivingTransfer && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">
-                    Xác nhận nhận hàng chuyển kho: {receivingTransfer.code}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Tuyến: <b>{receivingTransfer.from_warehouse_name}</b> ➔{' '}
-                    <b>{receivingTransfer.to_warehouse_name}</b>
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowReceiveModal(false)}
-                  className="text-slate-400 hover:text-slate-600 text-lg p-1"
-                >
-                  ✕
-                </button>
-              </div>
 
-              <div className="overflow-y-auto py-4 space-y-4 flex-1">
 
-                {/* BẢNG KIỂM ĐẾM SỐ LƯỢNG */}
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
-                      <tr>
-                        <th className="py-2.5 px-3 text-left">Sản phẩm</th>
-                        <th className="py-2.5 px-3 text-center">SL gửi đi</th>
-                        <th className="py-2.5 px-3 text-center w-36">SL thực nhận</th>
-                        <th className="py-2.5 px-3 text-center">Chênh lệch</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {receiveItems.map((it, idx) => {
-                        const numReceived = typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0);
-                        const diff = numReceived - it.transfer_qty;
-                        return (
-                          <tr key={it.product_id} className="hover:bg-slate-50">
-                            <td className="py-2.5 px-3">
-                              <div className="font-semibold text-slate-800">
-                                {it.product_name}
-                              </div>
-                              <div className="text-xs text-slate-400 font-mono">
-                                {it.product_code} ({it.unit})
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-3 text-center font-semibold text-slate-700">
-                              {it.transfer_qty}
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                value={it.received_qty}
-                                onFocus={(e) => e.target.select()}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  if (raw === '') {
-                                    setReceiveItems((prev) => {
-                                      const next = [...prev];
-                                      next[idx].received_qty = '';
-                                      return next;
-                                    });
-                                    return;
-                                  }
-                                  let clean = raw.replace(/\D/g, '');
-                                  if (clean.length > 1 && clean.startsWith('0')) {
-                                    clean = clean.replace(/^0+/, '') || '0';
-                                  }
-                                  setReceiveItems((prev) => {
-                                    const next = [...prev];
-                                    next[idx].received_qty = clean;
-                                    return next;
-                                  });
-                                }}
-                                onBlur={() => {
-                                  setReceiveItems((prev) => {
-                                    const next = [...prev];
-                                    if (next[idx].received_qty === '') {
-                                      next[idx].received_qty = 0;
-                                    }
-                                    return next;
-                                  });
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'ArrowUp') {
-                                    e.preventDefault();
-                                    const current = typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0);
-                                    setReceiveItems((prev) => {
-                                      const next = [...prev];
-                                      next[idx].received_qty = current + 1;
-                                      return next;
-                                    });
-                                  } else if (e.key === 'ArrowDown') {
-                                    e.preventDefault();
-                                    const current = typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0);
-                                    setReceiveItems((prev) => {
-                                      const next = [...prev];
-                                      next[idx].received_qty = Math.max(0, current - 1);
-                                      return next;
-                                    });
-                                  }
-                                }}
-                                className="w-24 text-center px-2 py-1 text-sm border border-slate-200 rounded-lg font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                              />
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              {diff === 0 ? (
-                                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                                  Đủ
-                                </span>
-                              ) : diff < 0 ? (
-                                <span className="text-xs font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                                  Hụt {Math.abs(diff)}
-                                </span>
-                              ) : (
-                                <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                                  Dư +{diff}
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
 
-                {/* CẢNH BÁO VÀ Ô NHẬP LÝ DO CHÊNH LỆCH */}
-                {totalReceiveDiscrepancy > 0 && (
-                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-2">
-                    <div className="flex items-center gap-2 text-rose-800 font-bold text-sm">
-                      <span>⚠️</span> Phát hiện chênh lệch {totalReceiveDiscrepancy} sản phẩm!
-                    </div>
-                    <p className="text-xs text-rose-600">
-                      Theo quy định kế toán & kho, bạn <b>bắt buộc phải giải trình lý do chênh lệch</b> (ví dụ: bị vỡ hỏng trong lúc chở, xe giao thiếu...) mới có thể hoàn tất nhận hàng.
-                    </p>
-                    <textarea
-                      rows={2}
-                      required
-                      value={discrepancyReason}
-                      onChange={(e) => setDiscrepancyReason(e.target.value)}
-                      placeholder="* Nhập lý do chênh lệch chi tiết tại đây (BẮT BUỘC)..."
-                      className="w-full px-3 py-2 text-sm border-2 border-rose-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <div className="text-xs text-slate-500">
-                  Tồn kho sẽ được cộng chính xác bằng số lượng thực nhận vào{' '}
-                  <b>{receivingTransfer.to_warehouse_name}</b>.
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setShowReceiveModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                  >
-                    Hủy bỏ
-                  </button>
-                  <button
-                    onClick={handleSubmitReceiveTransfer}
-                    disabled={
-                      submittingReceive ||
-                      (totalReceiveDiscrepancy > 0 && !discrepancyReason.trim())
-                    }
-                    className="px-5 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl transition-all shadow-md"
-                  >
-                    {submittingReceive ? 'Đang lưu...' : '✓ Xác nhận nhập kho'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
-
-      {/* ============================================================== */}
-      {/* MODAL 3: XEM CHI TIẾT PHIẾU CHUYỂN KHO                        */}
-      {/* ============================================================== */}
-      {showDetailModal && detailTransfer && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-bold text-slate-800">
-                    Phiếu chuyển kho: {detailTransfer.code}
-                  </h3>
-                  {renderStatusBadge(detailTransfer.status)}
-                </div>
-                <button
-                  onClick={() => setShowDetailModal(false)}
-                  className="text-slate-400 hover:text-slate-600 text-lg p-1"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="overflow-y-auto py-4 space-y-4 flex-1">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200/80 text-xs">
-                  <div>
-                    <span className="text-slate-400 block">Kho xuất:</span>
-                    <span className="font-semibold text-slate-800">
-                      {detailTransfer.from_warehouse_name}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block">Kho nhận:</span>
-                    <span className="font-semibold text-slate-800">
-                      {detailTransfer.to_warehouse_name}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block">Người tạo phiếu:</span>
-                    <span className="font-semibold text-slate-800">
-                      {detailTransfer.created_by}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block">Ngày tạo:</span>
-                    <span className="font-semibold text-slate-800">
-                      {new Date(detailTransfer.created_at).toLocaleString('vi-VN')}
-                    </span>
-                  </div>
-                  {detailTransfer.received_by && (
-                    <div>
-                      <span className="text-slate-400 block">Người tiếp nhận:</span>
-                      <span className="font-semibold text-slate-800">
-                        {detailTransfer.received_by}
-                      </span>
-                    </div>
-                  )}
-                  {detailTransfer.received_at && (
-                    <div>
-                      <span className="text-slate-400 block">Thời gian nhận:</span>
-                      <span className="font-semibold text-slate-800">
-                        {new Date(detailTransfer.received_at).toLocaleString('vi-VN')}
-                      </span>
-                    </div>
-                  )}
-                  {detailTransfer.note && (
-                    <div className="col-span-2 md:col-span-4">
-                      <span className="text-slate-400 block">Ghi chú xuất:</span>
-                      <span className="text-slate-700 italic">{detailTransfer.note}</span>
-                    </div>
-                  )}
-                  {detailTransfer.discrepancy_reason && (
-                    <div className="col-span-2 md:col-span-4 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 break-words">
-                      <b>Lý do chênh lệch khi nhận:</b> "{detailTransfer.discrepancy_reason}"
-                    </div>
-                  )}
-                  {detailTransfer.status === 'CANCELLED' && (
-                    <div className="col-span-2 md:col-span-4 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 break-words">
-                      <b>Trạng thái:</b> Phiếu chuyển kho đã hủy
-                      {(() => {
-                        const cancelReason =
-                          (detailTransfer as any).cancel_reason ||
-                          (detailTransfer.note?.includes('[Hủy:')
-                            ? detailTransfer.note.split('[Hủy:')[1]?.replace(/\]$/, '').trim()
-                            : null);
-                        return cancelReason ? (
-                          <span> — <b>Lý do hủy:</b> "{cancelReason}"</span>
-                        ) : null;
-                      })()}
-                    </div>
-                  )}
-
-                </div>
-
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
-                      <tr>
-                        <th className="py-2.5 px-3 text-left">Mặt hàng</th>
-                        <th className="py-2.5 px-3 text-center">SL gửi đi</th>
-                        <th className="py-2.5 px-3 text-center">SL thực nhận</th>
-                        <th className="py-2.5 px-3 text-center">Chênh lệch</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {(detailTransfer.items || []).map((it) => (
-                        <tr key={it.product_id} className="hover:bg-slate-50">
-                          <td className="py-2.5 px-3">
-                            <div className="font-semibold text-slate-800">{it.product_name}</div>
-                            <div className="text-xs text-slate-400 font-mono">
-                              {it.product_code} ({it.unit})
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-center font-semibold">
-                            {it.transfer_qty}
-                          </td>
-                          <td className="py-2.5 px-3 text-center">
-                            {it.received_qty !== null && it.received_qty !== undefined ? (
-                              <span className="font-semibold text-emerald-700">
-                                {it.received_qty}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic">Chưa nhận</span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 text-center">
-                            {(() => {
-                              if (detailTransfer.status === 'CANCELLED') {
-                                return <span className="text-xs text-rose-600 font-medium whitespace-nowrap">Đã hủy</span>;
-                              }
-                              if (it.received_qty === null || it.received_qty === undefined) {
-                                return <span className="text-slate-400">-</span>;
-                              }
-                              const diff = it.received_qty - it.transfer_qty;
-                              if (diff > 0) {
-                                return (
-                                  <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                                    +{diff} (Dư)
-                                  </span>
-                                );
-                              }
-                              if (diff < 0) {
-                                const shortageQty = Math.abs(diff);
-                                return getTransferCompensationStatus(detailTransfer).isFullyCompensated ? (
-                                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                    Đã bù {shortageQty}
-                                  </span>
-                                ) : (
-                                  <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                                    -{shortageQty} (Hụt)
-                                  </span>
-                                );
-                              }
-                              return <span className="text-xs text-emerald-600 font-medium">✓ Đủ</span>;
-                            })()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {(() => {
-                const comp = getTransferCompensationStatus(detailTransfer);
-                return (
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {comp.isFullyCompensated ? (
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-                          ✓ Đã giao bù đủ {detailTotalShortage} sản phẩm
-                        </span>
-                      ) : comp.isCompensating ? (
-                        <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
-                          Đang giao bù {comp.inTransitCompensateQty} sản phẩm
-                        </span>
-                      ) : detailTotalShortage > 0 ? (
-                        <span className="text-xs font-medium text-rose-600 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">
-                          Thiếu {detailTotalShortage} sản phẩm
-                        </span>
-                      ) : null}
-
-                      {detailTotalSurplus > 0 && (
-                        <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">
-                          Dư {detailTotalSurplus} sản phẩm
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setShowDetailModal(false)}
-                        className="px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                      >
-                        Đóng
-                      </button>
-                      {canWriteInventory &&
-                        detailTransfer.status === 'COMPLETED' &&
-                        detailTotalShortage > 0 &&
-                        !comp.isFullyCompensated && (
-                          <button
-                            onClick={() => handleOpenCompensateModal(detailTransfer)}
-                            className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer border-0"
-                          >
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M5 12h14" />
-                              <path d="M12 5l7 7-7 7" />
-                            </svg>
-                            Giao bù hàng thiếu ({detailTotalShortage} SP)
-                          </button>
-                        )}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        </ModalPortal>
-      )}
-
-      {/* ============================================================== */}
-      {/* MODAL 5: GIAO BÙ HÀNG THIẾU                                  */}
-      {/* ============================================================== */}
-      {showCompensateModal && compensatingTransfer && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
-            <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200/80 p-6 max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">
-                    Lập phiếu chuyển kho giao bù
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Giao bù hàng thiếu cho phiếu <b>{compensatingTransfer.code}</b>
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowCompensateModal(false)}
-                  className="text-slate-400 hover:text-slate-600 text-lg p-1"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="overflow-y-auto py-4 space-y-4 flex-1">
-                {/* TUYẾN GIAO BÙ */}
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
-                  <div>
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Kho gửi (Xuất bù)
-                    </span>
-                    <span className="text-sm font-semibold text-slate-800">
-                      {compensatingTransfer.from_warehouse_name}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Kho nhận (Đang thiếu hàng)
-                    </span>
-                    <span className="text-sm font-semibold text-slate-800">
-                      {compensatingTransfer.to_warehouse_name}
-                    </span>
-                  </div>
-                </div>
-
-                {/* BẢNG SẢN PHẨM GIAO BÙ */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Danh sách sản phẩm giao bù
-                    </label>
-                    {loadingCompensateStock && (
-                      <span className="text-xs text-blue-600">Đang kiểm tra tồn kho xuất...</span>
-                    )}
-                  </div>
-
-                  <div className="border border-slate-200 rounded-xl overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
-                        <tr>
-                          <th className="py-2.5 px-3 text-left">Mặt hàng</th>
-                          <th className="py-2.5 px-3 text-center">SL thiếu</th>
-                          <th className="py-2.5 px-3 text-center">Tồn khả dụng kho gửi</th>
-                          <th className="py-2.5 px-3 text-center w-32">SL giao bù</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {compensateItems.map((it, idx) => {
-                          const isOver = it.compensate_qty > it.available_stock;
-                          return (
-                            <tr key={it.product_id} className="hover:bg-slate-50">
-                              <td className="py-2.5 px-3">
-                                <div className="font-semibold text-slate-800">{it.product_name}</div>
-                                <div className="text-xs text-slate-400 font-mono">
-                                  {it.product_code} ({it.unit})
-                                </div>
-                              </td>
-                              <td className="py-2.5 px-3 text-center">
-                                <span className="font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 text-xs">
-                                  {it.shortage_qty}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-3 text-center">
-                                <span className={`font-semibold ${it.available_stock < it.compensate_qty ? 'text-rose-600' : 'text-blue-600'}`}>
-                                  {loadingCompensateStock ? '...' : it.available_stock}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-3 text-center">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max={it.available_stock}
-                                  value={it.compensate_qty}
-                                  onFocus={(e) => e.target.select()}
-                                  onChange={(e) =>
-                                    handleUpdateCompensateQty(idx, parseInt(e.target.value, 10) || 1)
-                                  }
-                                  className={`w-24 text-center px-2 py-1 text-sm border rounded-lg font-semibold focus:outline-none focus:ring-2 ${
-                                    isOver
-                                      ? 'border-rose-400 text-rose-600 bg-rose-50 ring-rose-200'
-                                      : 'border-slate-200 focus:ring-blue-500'
-                                  }`}
-                                />
-                                {isOver && (
-                                  <div className="text-[10px] text-rose-600 font-medium mt-0.5">
-                                    Vượt tồn kho!
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* GHI CHÚ XUẤT BÙ */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Ghi chú phiếu giao bù
-                  </label>
-                  <input
-                    type="text"
-                    value={compensateNote}
-                    onChange={(e) => setCompensateNote(e.target.value)}
-                    placeholder="Nhập ghi chú giao bù..."
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* FOOTER */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCompensateModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  disabled={loadingCompensateStock || submittingCompensate}
-                  onClick={handleSubmitCompensateTransfer}
-                  className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] disabled:opacity-50 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border-0"
-                >
-                  {submittingCompensate ? 'Đang xuất chuyển bù...' : 'Xác nhận xuất giao bù'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
 
       {/* ============================================================== */}
       {/* MODAL 4: XÁC NHẬN HỦY PHIẾU CHUYỂN KHO                        */}
@@ -2724,6 +3454,80 @@ export function StockTransferManagementView({
           </div>
         </ModalPortal>
       )}
+
+      {/* Dropdown Menu Portal gắn vào document.body tránh bị che khuất bởi thanh cuộn/bảng */}
+      {activeDropdown &&
+        createPortal(
+          <div
+            className="transfer-action-menu-portal"
+            style={{
+              position: 'fixed',
+              ...(activeDropdown.openUpward
+                ? { bottom: `${Math.max(10, window.innerHeight - activeDropdown.rect.top + 4)}px` }
+                : { top: `${activeDropdown.rect.bottom + 4}px` }),
+              right: `${Math.max(12, window.innerWidth - activeDropdown.rect.right)}px`,
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.16), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+              minWidth: '120px',
+              zIndex: 99999,
+              padding: '4px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+              textAlign: 'left',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Nút Chi tiết */}
+            <button
+              type="button"
+              onClick={() => {
+                const code = activeDropdown.transfer.code;
+                setActiveDropdown(null);
+                handleOpenDetailModal(code);
+              }}
+              className="w-full flex items-center px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer text-left"
+            >
+              <span>Chi tiết</span>
+            </button>
+
+            {/* Nút Nhận hàng */}
+            {canWriteInventory && activeDropdown.transfer.status === 'IN_TRANSIT' && (
+              <button
+                type="button"
+                onClick={() => {
+                  const tr = activeDropdown.transfer;
+                  setActiveDropdown(null);
+                  handleOpenReceiveModal(tr);
+                }}
+                className="w-full flex items-center px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer text-left"
+              >
+                <span>Nhận hàng</span>
+              </button>
+            )}
+
+            {/* Nút Hủy */}
+            {canWriteInventory && activeDropdown.transfer.status === 'IN_TRANSIT' && (
+              <>
+                <div className="h-px bg-slate-100 my-0.5" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = activeDropdown.transfer.code;
+                    setActiveDropdown(null);
+                    setCancellingCode(code);
+                  }}
+                  className="w-full flex items-center px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer text-left"
+                >
+                  <span>Hủy</span>
+                </button>
+              </>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

@@ -424,7 +424,8 @@ export const DealerSelectDropdown: React.FC<DealerSelectDropdownProps> = ({
             position: 'absolute',
             top: '100%',
             left: 0,
-            right: 0,
+            minWidth: 'max(100%, 360px)',
+            maxWidth: 'min(92vw, 480px)',
             marginTop: '4px',
             background: '#ffffff',
             border: '1px solid #cbd5e1',
@@ -628,13 +629,13 @@ export const DealerSelectDropdown: React.FC<DealerSelectDropdownProps> = ({
                     key={d.id}
                     onClick={() => handleSelectOption(opt)}
                     style={{
-                      padding: '10px 14px',
+                      padding: '9px 14px',
                       cursor: 'pointer',
                       borderBottom: '1px solid #f1f5f9',
                       background: isSelected ? '#eff6ff' : '#ffffff',
                       display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
+                      flexDirection: 'column',
+                      gap: '4px',
                       transition: 'background 0.15s ease',
                     }}
                     onMouseEnter={(e) => {
@@ -644,39 +645,72 @@ export const DealerSelectDropdown: React.FC<DealerSelectDropdownProps> = ({
                       e.currentTarget.style.background = isSelected ? '#eff6ff' : '#ffffff';
                     }}
                   >
-                    <div style={{ minWidth: 0, paddingRight: '8px' }}>
+                    {/* Hàng 1: Tên đại lý và nhóm khách hàng */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                      }}
+                    >
                       <div
                         style={{
                           fontSize: '13.5px',
                           fontWeight: '700',
                           color: isSelected ? '#1d4ed8' : '#0f172a',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                         }}
+                        title={d.name}
                       >
                         {d.name}
                       </div>
-                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          background: isSelected ? '#dbeafe' : '#f1f5f9',
+                          color: isSelected ? '#1e40af' : '#475569',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {customerGroup}
+                      </span>
+                    </div>
+
+                    {/* Hàng 2: Mã đại lý, SĐT, Vùng nằm trọn vẹn trên 1 dòng */}
+                    <div
+                      style={{
+                        fontSize: '11.5px',
+                        color: '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      <span>
                         Mã:{' '}
                         <span style={{ fontFamily: 'monospace', fontWeight: '700', color: '#334155' }}>
                           {d.code}
-                        </span>{' '}
-                        | SĐT: {d.phone || '—'}
-                        {region && <span> | Vùng: {region}</span>}
-                      </div>
+                        </span>
+                      </span>
+                      <span style={{ color: '#cbd5e1' }}>|</span>
+                      <span>SĐT: {d.phone || '—'}</span>
+                      {region && (
+                        <>
+                          <span style={{ color: '#cbd5e1' }}>|</span>
+                          <span>Vùng: {region}</span>
+                        </>
+                      )}
                     </div>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        background: '#f1f5f9',
-                        color: '#475569',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {customerGroup}
-                    </span>
                   </div>
                 );
               })

@@ -1325,7 +1325,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
                             {/* Dropdown Menu */}
                             {activeDropdownUserId === u.id && (() => {
-                              const openUpward = paginatedUsers.length > 3 && idx >= paginatedUsers.length - 2;
+                              const openUpward = idx > 0 && (idx >= paginatedUsers.length - 1 || (paginatedUsers.length >= 3 && idx >= paginatedUsers.length - 2));
                               return (
                                 <div
                                   style={{

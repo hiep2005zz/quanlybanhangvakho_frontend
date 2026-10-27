@@ -94,8 +94,8 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
   const [canManage, setCanManage] = useState<boolean>(false);
   const [myProgress, setMyProgress] = useState<MyProgressResponse | null>(null);
 
-  // Modals state
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  // Modals / Page state
+  const [isCreatingPage, setIsCreatingPage] = useState<boolean>(false);
   const [editingTarget, setEditingTarget] = useState<SalesTargetItem | null>(null);
   const [viewingLogsTarget, setViewingLogsTarget] = useState<SalesTargetItem | null>(null);
   const [targetToDelete, setTargetToDelete] = useState<SalesTargetItem | null>(null);
@@ -401,7 +401,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
         message: 'Đã thiết lập chỉ tiêu mới thành công.',
         type: 'success',
       });
-      setIsCreateModalOpen(false);
+      setIsCreatingPage(false);
       loadData();
     } catch (err: any) {
       emitStatusToast({
@@ -419,6 +419,288 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
     if (pct >= 40) return '#f59e0b';  // Vàng
     return '#ef4444';                 // Đỏ
   };
+
+  // NẾU ĐANG Ở CHẾ ĐỘ THIẾT LẬP CHỈ TIÊU MỚI (CHUYỂN THÀNH TRANG RIÊNG BIỆT THAY VÌ CỬA SỔ POPUP)
+  if (isCreatingPage) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          maxHeight: '100%',
+          overflowY: 'auto',
+          boxSizing: 'border-box',
+        }}
+        className="flex-1 flex flex-col p-3 sm:p-4 md:p-6 bg-slate-100/60 font-sans"
+      >
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col w-full shrink-0 mb-12">
+          {/* Header Bar */}
+          <div className="px-6 py-4.5 border-b border-slate-200/80 bg-gradient-to-r from-slate-50/90 via-white to-emerald-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setIsCreatingPage(false)}
+                className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-full shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>Quay lại</span>
+              </button>
+              <span className="text-slate-300 text-lg">/</span>
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xs shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight">
+                  Thiết lập chỉ tiêu doanh số mới
+                </h1>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Khai báo chỉ tiêu kinh doanh theo nhân sự hoặc khu vực thị trường • Người lập: <strong className="text-slate-700">{currentUser?.full_name || currentUser?.username || 'admin'}</strong> • Ngày lập: <strong className="text-slate-700">{new Date().toLocaleDateString('vi-VN')}</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Content */}
+          <form onSubmit={handleCreateSubmit} className="p-6 md:p-8 space-y-6">
+            {/* 1. ĐỐI TƯỢNG ÁP DỤNG */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-extrabold">1</span>
+                <h2 className="text-sm font-bold text-slate-800">Đối tượng áp dụng chỉ tiêu</h2>
+              </div>
+
+              {/* 2 Card chọn loại chỉ tiêu */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div
+                  onClick={() => setCreateForm({ ...createForm, target_type: 'salesperson' })}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                    createForm.target_type === 'salesperson'
+                      ? 'border-emerald-500 bg-emerald-50/40 shadow-xs'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg shrink-0 ${createForm.target_type === 'salesperson' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-800">Theo nhân viên</h3>
+                      <input
+                        type="radio"
+                        name="page_target_type"
+                        checked={createForm.target_type === 'salesperson'}
+                        onChange={() => setCreateForm({ ...createForm, target_type: 'salesperson' })}
+                        className="text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Giao chỉ tiêu doanh số trực tiếp cho từng nhân viên bán hàng
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => setCreateForm({ ...createForm, target_type: 'region' })}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                    createForm.target_type === 'region'
+                      ? 'border-emerald-500 bg-emerald-50/40 shadow-xs'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg shrink-0 ${createForm.target_type === 'region' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-800">Theo khu vực</h3>
+                      <input
+                        type="radio"
+                        name="page_target_type"
+                        checked={createForm.target_type === 'region'}
+                        onChange={() => setCreateForm({ ...createForm, target_type: 'region' })}
+                        className="text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Giao chỉ tiêu doanh số tổng theo địa bàn, khu vực hoặc chi nhánh
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chi tiết đối tượng */}
+              <div className="bg-slate-50/80 p-5 rounded-xl border border-slate-200/80">
+                {createForm.target_type === 'salesperson' ? (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                      Nhân viên kinh doanh <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="max-w-xl">
+                      <SalespersonSelectDropdown
+                        options={availableSalespersons}
+                        selectedId={createForm.employee_id || (availableSalespersons[0]?.id ?? 3)}
+                        onSelect={(sp) => {
+                          setCreateForm({
+                            ...createForm,
+                            employee_id: sp.id,
+                            employee_name: sp.full_name,
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                      Tên khu vực thị trường <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="max-w-xl">
+                      <RegionSelectDropdown
+                        regions={availableRegions}
+                        selectedRegion={createForm.region || (availableRegions[0] ?? 'Hà Nội')}
+                        onSelect={(reg) => {
+                          setCreateForm({ ...createForm, region: reg });
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 2. THỜI GIAN & MỨC CHỈ TIÊU */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-extrabold">2</span>
+                <h2 className="text-sm font-bold text-slate-800">Thời gian & Mức chỉ tiêu</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Kỳ áp dụng */}
+                <div className="bg-slate-50/80 p-5 rounded-xl border border-slate-200/80 flex flex-col justify-between">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                      Kỳ áp dụng (Tháng / Năm) <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <select
+                          value={createFormMonth}
+                          onChange={(e) =>
+                            setCreateForm({ ...createForm, month_year: `${createFormYear}-${e.target.value}` })
+                          }
+                          className="w-full h-10 px-3 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium cursor-pointer"
+                        >
+                          {SELECTABLE_MONTHS.map((m) => (
+                            <option key={m} value={m}>
+                              Tháng {m}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <span className="text-slate-400 font-bold text-xl">/</span>
+                      <div className="flex-1">
+                        <select
+                          value={createFormYear}
+                          onChange={(e) =>
+                            setCreateForm({ ...createForm, month_year: `${e.target.value}-${createFormMonth}` })
+                          }
+                          className="w-full h-10 px-3 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium cursor-pointer"
+                        >
+                          {SELECTABLE_YEARS.map((y) => (
+                            <option key={y} value={y.toString()}>
+                              Năm {y}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mức chỉ tiêu */}
+                <div className="bg-slate-50/80 p-5 rounded-xl border border-slate-200/80 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-bold text-slate-700 uppercase">
+                        Chỉ tiêu doanh số (VNĐ) <span className="text-rose-500">*</span>
+                      </label>
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded border border-emerald-200">
+                        {formatCurrency(createForm.target_amount)}
+                      </span>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1000000"
+                      required
+                      value={createForm.target_amount}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === '') {
+                          setCreateForm({ ...createForm, target_amount: 0 });
+                          return;
+                        }
+                        const cleaned = raw.replace(/^0+(?=\d)/, '');
+                        e.target.value = cleaned;
+                        setCreateForm({ ...createForm, target_amount: Number(cleaned) });
+                      }}
+                      className="w-full h-10 px-3 text-sm font-semibold text-slate-800 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      placeholder="Nhập số tiền chỉ tiêu..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Ghi chú */}
+              <div className="bg-slate-50/80 p-5 rounded-xl border border-slate-200/80">
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                  Ghi chú kế hoạch & định hướng (tùy chọn)
+                </label>
+                <textarea
+                  rows={3}
+                  value={createForm.note || ''}
+                  onChange={(e) => setCreateForm({ ...createForm, note: e.target.value })}
+                  placeholder="Ghi chú kế hoạch, mục tiêu, chỉ dẫn bán hàng..."
+                  className="w-full p-3 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* ACTION FOOTER */}
+            <div className="pt-4 border-t border-slate-200/80 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsCreatingPage(false)}
+                className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
+              >
+                Hủy / Quay lại
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer border-0"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Lưu chỉ tiêu</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full flex flex-col -mt-3 sm:-mt-4 md:-mt-6 pt-2 md:pt-2.5 pb-6 bg-gray-50 min-h-screen text-slate-800">
@@ -521,7 +803,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
           </div>
 
           <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đạt mục tiêu (≥ 100%)</div>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đạt mục tiêu</div>
             <div className="text-2xl font-bold text-slate-900 mt-1">
               {summary.completed_count} / {summary.total_count}
             </div>
@@ -542,7 +824,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
             className="flex items-center gap-3.5 shrink-0"
             style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
           >
-            {/* Ô tìm kiếm tự động khi nhập - Đặt trước chữ Tháng */}
+            {/* Ô tìm kiếm tự động khi nhập - Đặt trước chữ Tháng (mở rộng chiều dài) */}
             <div
               className="relative flex items-center shrink-0"
               style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
@@ -552,8 +834,8 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                 placeholder="Tìm nhân viên, khu vực..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ paddingLeft: '34px' }}
-                className="h-8 pr-3 text-xs border border-slate-300 rounded-lg bg-white text-slate-800 w-60 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                style={{ paddingLeft: '34px', paddingRight: searchTerm ? '28px' : '12px' }}
+                className="h-8 text-xs border border-slate-300 rounded-lg bg-white text-slate-800 w-80 md:w-96 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all"
               />
               <svg
                 className="w-4 h-4 text-slate-400 absolute left-2.5 pointer-events-none"
@@ -563,6 +845,16 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer font-bold px-1"
+                  title="Xóa tìm kiếm"
+                >
+                  ✕
+                </button>
+              )}
             </div>
 
             {/* Chọn tháng & năm */}
@@ -666,7 +958,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                       availableSalespersons.find((s) => s.id === prev.employee_id)?.full_name ||
                       (firstSp?.full_name ?? 'Trần Bán Hàng'),
                   }));
-                  setIsCreateModalOpen(true);
+                  setIsCreatingPage(true);
                 }}
                 className="h-8 inline-flex items-center px-3 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors cursor-pointer whitespace-nowrap"
               >
@@ -712,7 +1004,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                     item.target_type === 'salesperson'
                       ? item.employee_name || `Nhân viên #${item.employee_id}`
                       : item.region || 'Chưa đặt khu vực';
-                  const openUpward = pageItems.length > 3 && index >= pageItems.length - 2;
+                  const openUpward = index > 0 && (index >= pageItems.length - 1 || (pageItems.length >= 3 && index >= pageItems.length - 2));
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50 transition-colors">
@@ -858,10 +1150,10 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                                   ...(openUpward
                                     ? { bottom: 'calc(100% + 4px)' }
                                     : { top: 'calc(100% + 4px)' }),
-                                  minWidth: '155px',
+                                  minWidth: '110px',
                                   zIndex: 50,
                                 }}
-                                className="bg-white border border-slate-200 rounded-xl shadow-lg p-1 text-left"
+                                className="bg-white border border-slate-200 rounded shadow-lg p-1 text-left"
                               >
                                 {/* Nút Sửa */}
                                 <button
@@ -870,11 +1162,8 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                                     setActiveDropdownTargetId(null);
                                     handleOpenEdit(item);
                                   }}
-                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                  className="w-full flex items-center px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
                                 >
-                                  <svg className="w-3.5 h-3.5 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
                                   <span>Sửa</span>
                                 </button>
 
@@ -886,15 +1175,12 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                                       setActiveDropdownTargetId(null);
                                       handleDelete(item);
                                     }}
-                                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                    className="w-full flex items-center px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
                                   >
-                                    <svg className="w-3.5 h-3.5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
                                     <span>Xóa</span>
                                   </button>
                                 ) : (
-                                  <div className="px-2.5 py-1 text-[11px] text-slate-400 italic">
+                                  <div className="px-3 py-1 text-[11px] text-slate-400 italic">
                                     Đã khóa (không thể xóa)
                                   </div>
                                 )}
@@ -909,12 +1195,9 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                                         setActiveDropdownTargetId(null);
                                         setViewingLogsTarget(item);
                                       }}
-                                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                                      className="w-full flex items-center px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded transition-colors cursor-pointer"
                                       title="Xem nhật ký điều chỉnh"
                                     >
-                                      <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                      </svg>
                                       <span>Nhật ký ({item.audit_logs.length})</span>
                                     </button>
                                   </>
@@ -1093,163 +1376,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
         )}
       </div>
 
-      {/* Modal Thiết lập Chỉ Tiêu Mới */}
-      {isCreateModalOpen && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fadeIn">
-              <div className="px-6 py-4 border-b border-slate-100 rounded-t-2xl">
-                <h3 className="font-bold text-slate-900 text-base">Thiết lập chỉ tiêu doanh số mới</h3>
-              </div>
 
-            <form onSubmit={handleCreateSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Loại chỉ tiêu
-                </label>
-                <select
-                  value={createForm.target_type}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, target_type: e.target.value as any })
-                  }
-                  className="w-full h-9 px-3 text-sm border border-slate-300 rounded-lg bg-white"
-                >
-                  <option value="salesperson">Theo nhân viên</option>
-                  <option value="region">Theo khu vực</option>
-                </select>
-              </div>
-
-              {createForm.target_type === 'salesperson' ? (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Nhân viên kinh doanh
-                  </label>
-                  <SalespersonSelectDropdown
-                    options={availableSalespersons}
-                    selectedId={createForm.employee_id || (availableSalespersons[0]?.id ?? 3)}
-                    onSelect={(sp) => {
-                      setCreateForm({
-                        ...createForm,
-                        employee_id: sp.id,
-                        employee_name: sp.full_name,
-                      });
-                    }}
-                  />
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Tên khu vực
-                  </label>
-                  <RegionSelectDropdown
-                    regions={availableRegions}
-                    selectedRegion={createForm.region || (availableRegions[0] ?? 'Hà Nội')}
-                    onSelect={(reg) => {
-                      setCreateForm({ ...createForm, region: reg });
-                    }}
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Kỳ áp dụng (Tháng / Năm)
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <select
-                      value={createFormMonth}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, month_year: `${createFormYear}-${e.target.value}` })
-                      }
-                      className="w-full h-9 px-3 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium cursor-pointer"
-                    >
-                      {SELECTABLE_MONTHS.map((m) => (
-                        <option key={m} value={m}>
-                          Tháng {m}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <span className="text-slate-400 font-bold">/</span>
-                  <div className="flex-1">
-                    <select
-                      value={createFormYear}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, month_year: `${e.target.value}-${createFormMonth}` })
-                      }
-                      className="w-full h-9 px-3 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium cursor-pointer"
-                    >
-                      {SELECTABLE_YEARS.map((y) => (
-                        <option key={y} value={y.toString()}>
-                          Năm {y}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Chỉ tiêu doanh số (VNĐ)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1000000"
-                  required
-                  value={createForm.target_amount}
-                  onFocus={(e) => {
-                    e.target.select();
-                  }}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    if (raw === '') {
-                      setCreateForm({ ...createForm, target_amount: 0 });
-                      return;
-                    }
-                    const cleaned = raw.replace(/^0+(?=\d)/, '');
-                    e.target.value = cleaned;
-                    setCreateForm({ ...createForm, target_amount: Number(cleaned) });
-                  }}
-                  className="w-full h-9 px-3 text-sm border border-slate-300 rounded-lg"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Ghi chú
-                </label>
-                <textarea
-                  rows={2}
-                  value={createForm.note || ''}
-                  onChange={(e) => setCreateForm({ ...createForm, note: e.target.value })}
-                  placeholder="Ghi chú kế hoạch, mục tiêu..."
-                  className="w-full p-2.5 text-sm border border-slate-300 rounded-lg"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-                >
-                  Lưu chỉ tiêu
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </ModalPortal>
-      )}
 
       {/* Modal Sửa Chỉ Tiêu (Kèm Ràng Buộc Khóa Kỳ & Lý Do) */}
       {editingTarget && (

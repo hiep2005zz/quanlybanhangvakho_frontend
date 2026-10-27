@@ -709,7 +709,7 @@ export function PriceBookManagementView({
                             </button>
 
                             {activeDropdownId === pb.id && (() => {
-                              const openUpward = paginatedBooks.length > 2 && idx >= paginatedBooks.length - 2;
+                              const openUpward = idx > 0 && (idx >= paginatedBooks.length - 1 || (paginatedBooks.length >= 3 && idx >= paginatedBooks.length - 2));
                               return (
                                 <div
                                   style={{

@@ -9,6 +9,7 @@ import {
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { ModalPortal } from './ModalPortal';
+import { WarehouseSelectDropdown } from './WarehouseSelectDropdown';
 
 interface StockThresholdManagementViewProps {
   token: string;
@@ -555,120 +556,137 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {/* Chọn kho */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>Chọn kho:</span>
-            <select
-              value={selectedWarehouseId}
-              onChange={(e) => {
-                setSelectedWarehouseId(e.target.value);
-                setCurrentPage(1);
-              }}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', flex: 1 }}>
+          {/* 1. Tìm kiếm */}
+          <div style={{ position: 'relative', minWidth: '260px', flex: '1 1 260px', maxWidth: '360px' }}>
+            <svg
               style={{
-                padding: '7px 12px',
+                position: 'absolute',
+                left: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#94a3b8',
+                pointerEvents: 'none',
+              }}
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Tìm theo mã SKU, tên SP, kho..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                height: '35px',
+                paddingLeft: '34px',
+                paddingRight: searchTerm ? '30px' : '12px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
                 fontSize: '13px',
-                fontWeight: '600',
-                color: '#1e293b',
-                background: '#f8fafc',
-                cursor: 'pointer',
+                boxSizing: 'border-box',
                 outline: 'none',
+                backgroundColor: '#ffffff',
               }}
-            >
-              <option value="ALL">Tất cả các kho</option>
-              {warehouses.map((w) => (
-                <option key={w.warehouse_id} value={w.warehouse_id}>
-                  {w.warehouse_name} ({w.warehouse_id})
-                </option>
-              ))}
-            </select>
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  padding: '2px 4px',
+                }}
+                title="Xóa tìm kiếm"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
-          {/* Tabs chuyển đổi bộ lọc */}
-          <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
-            <button
-              type="button"
-              onClick={() => {
-                setFilterMode('ALL');
-                setCurrentPage(1);
-              }}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '6px',
-                border: 'none',
-                background: filterMode === 'ALL' ? '#ffffff' : 'transparent',
-                color: filterMode === 'ALL' ? '#0f172a' : '#64748b',
-                fontWeight: filterMode === 'ALL' ? '700' : '500',
-                fontSize: '12.5px',
-                cursor: 'pointer',
-                boxShadow: filterMode === 'ALL' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Tất cả ({stats.totalCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setFilterMode('LOW_ONLY');
-                setCurrentPage(1);
-              }}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '6px',
-                border: 'none',
-                background: filterMode === 'LOW_ONLY' ? '#fee2e2' : 'transparent',
-                color: filterMode === 'LOW_ONLY' ? '#b91c1c' : '#64748b',
-                fontWeight: filterMode === 'LOW_ONLY' ? '700' : '500',
-                fontSize: '12.5px',
-                cursor: 'pointer',
-                boxShadow: filterMode === 'LOW_ONLY' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Dưới định mức ({stats.lowCount})
-            </button>
+          {/* 2. Chọn kho */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>Chọn kho:</span>
+            <div style={{ minWidth: '190px' }}>
+              <WarehouseSelectDropdown
+                warehouses={warehouses}
+                selectedId={selectedWarehouseId}
+                onSelect={(whId) => {
+                  setSelectedWarehouseId(whId);
+                  setCurrentPage(1);
+                }}
+                allowAll={true}
+                allLabel="Tất cả kho"
+                allValue="ALL"
+                compact={true}
+                placeholder="Tất cả kho"
+                id="threshold-warehouse-select"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Tìm kiếm */}
-        <div style={{ position: 'relative', minWidth: '280px' }}>
-          <input
-            type="text"
-            placeholder="Tìm theo mã SKU, tên SP, kho..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              fontSize: '13px',
-              boxSizing: 'border-box',
-              outline: 'none',
+        {/* 3. Tabs chuyển đổi bộ lọc */}
+        <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => {
+              setFilterMode('ALL');
+              setCurrentPage(1);
             }}
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => setSearchTerm('')}
-              style={{
-                position: 'absolute',
-                right: '8px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                color: '#94a3b8',
-                cursor: 'pointer',
-                fontSize: '14px',
-              }}
-            >
-              ✕
-            </button>
-          )}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '6px',
+              border: 'none',
+              background: filterMode === 'ALL' ? '#ffffff' : 'transparent',
+              color: filterMode === 'ALL' ? '#0f172a' : '#64748b',
+              fontWeight: filterMode === 'ALL' ? '700' : '500',
+              fontSize: '12.5px',
+              cursor: 'pointer',
+              boxShadow: filterMode === 'ALL' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Tất cả ({stats.totalCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setFilterMode('LOW_ONLY');
+              setCurrentPage(1);
+            }}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '6px',
+              border: 'none',
+              background: filterMode === 'LOW_ONLY' ? '#fee2e2' : 'transparent',
+              color: filterMode === 'LOW_ONLY' ? '#b91c1c' : '#64748b',
+              fontWeight: filterMode === 'LOW_ONLY' ? '700' : '500',
+              fontSize: '12.5px',
+              cursor: 'pointer',
+              boxShadow: filterMode === 'LOW_ONLY' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Dưới định mức ({stats.lowCount})
+          </button>
         </div>
       </div>
 
@@ -994,9 +1012,9 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
       {isBulkModalOpen && (
         <ModalPortal>
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-fadeIn">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-scaleUp">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-visible animate-scaleUp">
               {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-2xl">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1007,9 +1025,6 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
                     <h3 className="font-bold text-slate-900 text-base">
                       Áp dụng định mức cho tất cả sản phẩm
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Cài đặt nhanh mức tồn an toàn đồng loạt cho toàn bộ danh mục SKU
-                    </p>
                   </div>
                 </div>
                 <button
@@ -1029,19 +1044,18 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Phạm vi áp dụng kho
                   </label>
-                  <select
-                    value={bulkWarehouseId}
-                    onChange={(e) => setBulkWarehouseId(e.target.value)}
+                  <WarehouseSelectDropdown
+                    warehouses={warehouses}
+                    selectedId={bulkWarehouseId}
+                    onSelect={(whId) => setBulkWarehouseId(whId)}
                     disabled={isApplyingBulk}
-                    className="w-full h-10 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer font-medium text-slate-800"
-                  >
-                    <option value="ALL">Tất cả các kho (Kho Tổng Hà Nội, TP.HCM, Đà Nẵng)</option>
-                    {warehouses.map((wh) => (
-                      <option key={wh.warehouse_id} value={wh.warehouse_id}>
-                        {wh.warehouse_name} ({wh.warehouse_id})
-                      </option>
-                    ))}
-                  </select>
+                    allowAll={true}
+                    allLabel="Tất cả kho"
+                    allValue="ALL"
+                    compact={false}
+                    placeholder="Tất cả kho"
+                    id="bulk-apply-warehouse-select"
+                  />
                 </div>
 
                 {/* Nhập mức định mức mới */}

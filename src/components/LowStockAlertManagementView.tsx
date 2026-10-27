@@ -5,6 +5,7 @@ import {
   getInventoryWarehousesApi,
   getLowStockAlertsApi,
 } from '../services/api';
+import { WarehouseSelectDropdown } from './WarehouseSelectDropdown';
 
 interface LowStockAlertManagementViewProps {
   token: string;
@@ -346,28 +347,20 @@ export const LowStockAlertManagementView: React.FC<LowStockAlertManagementViewPr
 
           {/* Chọn Kho */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '13px', color: '#475569', fontWeight: '600' }}>Kho:</span>
-            <select
-              value={selectedWarehouseId}
-              onChange={(e) => handleWarehouseChange(e.target.value)}
-              style={{
-                padding: '8px 12px',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                fontSize: '13px',
-                background: '#ffffff',
-                color: '#1e293b',
-                outline: 'none',
-                fontWeight: '500',
-              }}
-            >
-              <option value="ALL">Tất cả các kho ({warehouses.length})</option>
-              {warehouses.map((wh) => (
-                <option key={wh.warehouse_id} value={wh.warehouse_id}>
-                  {wh.warehouse_name}
-                </option>
-              ))}
-            </select>
+            <span style={{ fontSize: '13px', color: '#475569', fontWeight: '600', whiteSpace: 'nowrap' }}>Kho:</span>
+            <div style={{ minWidth: '190px' }}>
+              <WarehouseSelectDropdown
+                warehouses={warehouses}
+                selectedId={selectedWarehouseId}
+                onSelect={(whId) => handleWarehouseChange(whId)}
+                allowAll={true}
+                allLabel="Tất cả kho"
+                allValue="ALL"
+                compact={true}
+                placeholder="Tất cả kho"
+                id="low-stock-warehouse-select"
+              />
+            </div>
           </div>
 
           {/* Bộ lọc mức độ khẩn */}
