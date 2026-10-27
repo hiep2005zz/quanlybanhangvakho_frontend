@@ -615,21 +615,7 @@ export const CreateDealerPageView: React.FC<CreateDealerPageViewProps> = ({
                             disabled={isSubmitting}
                             title="Lưu thông tin đại lý & khách hàng mới"
                         >
-                            {isSubmitting ? (
-                                <>
-                                    <span className="dealer-btn-spinner" />
-                                    <span>Đang lưu...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                                        <polyline points="17 21 17 13 7 13 7 21" />
-                                        <polyline points="7 3 7 8 15 8" />
-                                    </svg>
-                                    <span>Lưu</span>
-                                </>
-                            )}
+                            {isSubmitting ? 'Đang lưu...' : 'Lưu'}
                         </button>
                     </div>
                 </form>
