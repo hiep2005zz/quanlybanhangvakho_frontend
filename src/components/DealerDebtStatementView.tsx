@@ -6,14 +6,11 @@ import {
   DebtStatementItem,
   getDealerDebtStatementApi,
   exportDealerDebtStatementExcelApi,
-  ReceiptVoucherData,
   resyncAllDealerDebts,
 } from '../services/dealerSearchApi';
 import { User } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { DebtStatementPrintModal } from './DebtStatementPrintModal';
-import { CreateReceiptVoucherModal } from './CreateReceiptVoucherModal';
-import { ReceiptVoucherPrintModal } from './ReceiptVoucherPrintModal';
 import { downloadBlobFile } from '../utils/downloadHelper';
 import './dealer-debt-statement.css';
 
@@ -87,11 +84,17 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
 
   // Modals
   const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
-  const [isCreateReceiptOpen, setIsCreateReceiptOpen] = useState<boolean>(false);
-  const [createdVoucher, setCreatedVoucher] = useState<ReceiptVoucherData | null>(null);
-  const [isPrintVoucherOpen, setIsPrintVoucherOpen] = useState<boolean>(false);
 
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
+  // Phân trang danh sách nghiệp vụ phát sinh (mặc định 10 nghiệp vụ / trang)
+  const [statementPage, setStatementPage] = useState<number>(1);
+  const [statementPageSize, setStatementPageSize] = useState<number>(10);
+
+  // Reset về trang 1 khi đổi đại lý hoặc khoảng thời gian
+  useEffect(() => {
+    setStatementPage(1);
+  }, [selectedDealerId, fromDate, toDate]);
 
   // 1. Tải danh sách đại lý
   const fetchDealers = useCallback(async () => {
@@ -272,6 +275,14 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
   const summary = statementData?.summary;
   const transactions = statementData?.transactions || [];
 
+  // Tính toán phân trang cho danh sách nghiệp vụ phát sinh
+  const totalTransactions = transactions.length;
+  const totalPages = Math.max(1, Math.ceil(totalTransactions / statementPageSize));
+  const safePage = Math.min(Math.max(1, statementPage), totalPages);
+  const startIndex = (safePage - 1) * statementPageSize;
+  const endIndex = Math.min(startIndex + statementPageSize, totalTransactions);
+  const paginatedTransactions = transactions.slice(startIndex, endIndex);
+
   // Lọc danh sách đại lý theo từ khóa tìm kiếm (mã, tên, SĐT, địa chỉ)
   const filteredDealers = useMemo(() => {
     if (!dealerSearchQuery.trim()) return dealers;
@@ -363,21 +374,6 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                 {isExportingExcel ? 'Đang xuất Excel...' : 'Xuất Excel (.xlsx)'}
               </button>
             </>
-          )}
-
-          {currentDealer && (
-            <button
-              type="button"
-              onClick={() => setIsCreateReceiptOpen(true)}
-              className="stmt-btn stmt-btn-receipt"
-              title="Lập phiếu thu tiền thanh toán nợ cho đại lý này"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              Lập phiếu thu
-            </button>
           )}
 
           <button
@@ -718,7 +714,7 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
           <div>
             <h3 className="stmt-table-title">Bảng Kê Chi Tiết Toàn Bộ Nghiệp Vụ Phát Sinh</h3>
             <span className="stmt-table-count">
-              Hiển thị {transactions.length} nghiệp vụ phát sinh theo trình tự thời gian kèm số dư luỹ kế
+              Hiển thị {totalTransactions === 0 ? 0 : `${startIndex + 1} - ${endIndex}`} trong tổng số {totalTransactions} nghiệp vụ phát sinh theo trình tự thời gian kèm số dư luỹ kế
             </span>
           </div>
 
@@ -760,39 +756,73 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Dòng Số dư đầu kỳ - Bắt đầu STT là 1, bỏ dấu gạch, để trống */}
-                  <tr className="stmt-tr-opening">
-                    <td style={{ textAlign: 'center' }}>1</td>
-                    <td style={{ textAlign: 'center' }}></td>
-                    <td style={{ textAlign: 'center' }}></td>
-                    <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      <span
-                        style={{
-                          fontSize: '10.5px',
-                          fontWeight: 700,
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          background: '#e2e8f0',
-                          color: '#334155',
-                          whiteSpace: 'nowrap',
-                          display: 'inline-block',
-                        }}
-                      >
-                        ĐẦU KỲ
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'left', paddingLeft: '8px' }}>
-                      <strong>Số dư công nợ phải thu chuyển sang từ kỳ trước</strong>
-                    </td>
-                    <td style={{ textAlign: 'right' }}></td>
-                    <td style={{ textAlign: 'right' }}></td>
-                    <td className="stmt-num-bal" style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
-                      {formatCurrency(summary?.opening_balance)}
-                    </td>
-                    <td style={{ textAlign: 'center', fontSize: '11.5px', color: '#64748b', whiteSpace: 'nowrap' }}>Đầu kỳ</td>
-                  </tr>
+                  {/* Dòng Số dư đầu kỳ - Trên trang 1 hiển thị Số dư đầu kỳ, trên trang > 1 hiển thị Dòng chuyển tiếp từ trang trước */}
+                  {safePage === 1 ? (
+                    <tr className="stmt-tr-opening">
+                      <td style={{ textAlign: 'center' }}>1</td>
+                      <td style={{ textAlign: 'center' }}></td>
+                      <td style={{ textAlign: 'center' }}></td>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <span
+                          style={{
+                            fontSize: '10.5px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: '#e2e8f0',
+                            color: '#334155',
+                            whiteSpace: 'nowrap',
+                            display: 'inline-block',
+                          }}
+                        >
+                          ĐẦU KỲ
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'left', paddingLeft: '8px' }}>
+                        <strong>Số dư công nợ phải thu chuyển sang từ kỳ trước</strong>
+                      </td>
+                      <td style={{ textAlign: 'right' }}></td>
+                      <td style={{ textAlign: 'right' }}></td>
+                      <td className="stmt-num-bal" style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
+                        {formatCurrency(summary?.opening_balance)}
+                      </td>
+                      <td style={{ textAlign: 'center', fontSize: '11.5px', color: '#64748b', whiteSpace: 'nowrap' }}>Đầu kỳ</td>
+                    </tr>
+                  ) : (
+                    <tr className="stmt-tr-opening" style={{ background: '#f8fafc' }}>
+                      <td style={{ textAlign: 'center', color: '#94a3b8' }}>…</td>
+                      <td style={{ textAlign: 'center' }}></td>
+                      <td style={{ textAlign: 'center' }}></td>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <span
+                          style={{
+                            fontSize: '10.5px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            whiteSpace: 'nowrap',
+                            display: 'inline-block',
+                            border: '1px solid #e2e8f0',
+                          }}
+                        >
+                          CHUYỂN TIẾP
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'left', paddingLeft: '8px', fontStyle: 'italic', color: '#475569' }}>
+                        Số dư chuyển tiếp từ các nghiệp vụ trang trước (Trang {safePage - 1})
+                      </td>
+                      <td style={{ textAlign: 'right' }}></td>
+                      <td style={{ textAlign: 'right' }}></td>
+                      <td className="stmt-num-bal" style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
+                        {formatCurrency(transactions[startIndex - 1]?.running_balance ?? summary?.opening_balance)}
+                      </td>
+                      <td style={{ textAlign: 'center', fontSize: '11.5px', color: '#64748b', whiteSpace: 'nowrap' }}>Trang {safePage - 1}</td>
+                    </tr>
+                  )}
 
-                  {/* Danh sách các dòng nghiệp vụ phát sinh */}
+                  {/* Danh sách các dòng nghiệp vụ phát sinh theo trang */}
                   {transactions.length === 0 ? (
                     <tr>
                       <td
@@ -803,34 +833,37 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                       </td>
                     </tr>
                   ) : (
-                    transactions.map((tx: DebtStatementItem, idx: number) => (
-                      <tr key={tx.id || idx}>
-                        <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 2}</td>
-                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{formatDate(tx.date)}</td>
-                        <td style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 700, color: '#1e40af', whiteSpace: 'nowrap' }}>
-                          {tx.doc_code}
-                        </td>
-                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                          <span
-                            className={tx.doc_type === 'ORDER' ? 'badge-doc-order' : 'badge-doc-voucher'}
-                            style={{ whiteSpace: 'nowrap' }}
-                          >
-                            {tx.doc_type_label}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'left', paddingLeft: '8px', wordBreak: 'break-word' }}>{tx.description}</td>
-                        <td className="stmt-num-inc" style={{ whiteSpace: 'nowrap' }}>
-                          {tx.increase_amount > 0 ? `+ ${formatCurrency(tx.increase_amount)}` : ''}
-                        </td>
-                        <td className="stmt-num-dec" style={{ whiteSpace: 'nowrap' }}>
-                          {tx.decrease_amount > 0 ? `- ${formatCurrency(tx.decrease_amount)}` : ''}
-                        </td>
-                        <td className="stmt-num-bal" style={{ whiteSpace: 'nowrap' }}>{formatCurrency(tx.running_balance)}</td>
-                        <td style={{ textAlign: 'center', fontSize: '11.5px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                          {tx.payment_method || tx.status || ''}
-                        </td>
-                      </tr>
-                    ))
+                    paginatedTransactions.map((tx: DebtStatementItem, idx: number) => {
+                      const itemNumber = startIndex + idx + 2;
+                      return (
+                        <tr key={tx.id || `${safePage}-${idx}`}>
+                          <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{itemNumber}</td>
+                          <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{formatDate(tx.date)}</td>
+                          <td style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 700, color: '#1e40af', whiteSpace: 'nowrap' }}>
+                            {tx.doc_code}
+                          </td>
+                          <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            <span
+                              className={tx.doc_type === 'ORDER' ? 'badge-doc-order' : 'badge-doc-voucher'}
+                              style={{ whiteSpace: 'nowrap' }}
+                            >
+                              {tx.doc_type_label}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'left', paddingLeft: '8px', wordBreak: 'break-word' }}>{tx.description}</td>
+                          <td className="stmt-num-inc" style={{ whiteSpace: 'nowrap' }}>
+                            {tx.increase_amount > 0 ? `+ ${formatCurrency(tx.increase_amount)}` : ''}
+                          </td>
+                          <td className="stmt-num-dec" style={{ whiteSpace: 'nowrap' }}>
+                            {tx.decrease_amount > 0 ? `- ${formatCurrency(tx.decrease_amount)}` : ''}
+                          </td>
+                          <td className="stmt-num-bal" style={{ whiteSpace: 'nowrap' }}>{formatCurrency(tx.running_balance)}</td>
+                          <td style={{ textAlign: 'center', fontSize: '11.5px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                            {tx.payment_method || tx.status || ''}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
 
                   {/* Dòng Tổng cộng phát sinh trong kỳ */}
@@ -867,6 +900,119 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
               </table>
             </div>
 
+            {/* Thanh Phân Trang - Luôn hiển thị kể cả khi chỉ có 1 trang hoặc <= 10 mục */}
+            <div className="stmt-pagination-bar">
+              <div className="stmt-pagination-info">
+                <span>
+                  Hiển thị <strong>{totalTransactions === 0 ? 0 : `${startIndex + 1} - ${endIndex}`}</strong> trong tổng số <strong>{totalTransactions}</strong> nghiệp vụ
+                </span>
+                {totalTransactions > 0 && (
+                  <span className="stmt-pagination-page-label">
+                    (Trang <strong>{safePage}</strong> / <strong>{totalPages}</strong>)
+                  </span>
+                )}
+              </div>
+
+              <div className="stmt-pagination-controls">
+                <div className="stmt-pagination-size-wrap">
+                  <span>Hiển thị:</span>
+                  <select
+                    value={statementPageSize}
+                    onChange={(e) => {
+                      setStatementPageSize(Number(e.target.value));
+                      setStatementPage(1);
+                    }}
+                    className="stmt-pagination-select"
+                    title="Số lượng nghiệp vụ trên mỗi trang"
+                  >
+                    <option value={10}>10 nghiệp vụ / trang</option>
+                    <option value={20}>20 nghiệp vụ / trang</option>
+                    <option value={50}>50 nghiệp vụ / trang</option>
+                    <option value={100}>100 nghiệp vụ / trang</option>
+                  </select>
+                </div>
+
+                <div className="stmt-pagination-nav">
+                  <button
+                    type="button"
+                    title="Về trang đầu"
+                    disabled={safePage <= 1}
+                    onClick={() => setStatementPage(1)}
+                    className="stmt-page-btn"
+                  >
+                    «
+                  </button>
+                  <button
+                    type="button"
+                    title="Trang trước"
+                    disabled={safePage <= 1}
+                    onClick={() => setStatementPage((p) => Math.max(1, p - 1))}
+                    className="stmt-page-btn"
+                  >
+                    ‹ Trước
+                  </button>
+
+                  {/* Danh sách các nút trang */}
+                  {(() => {
+                    let pages: (number | string)[] = [];
+                    if (totalPages <= 7) {
+                      pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+                    } else {
+                      if (safePage <= 4) {
+                        pages = [1, 2, 3, 4, 5, '...', totalPages];
+                      } else if (safePage >= totalPages - 3) {
+                        pages = [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+                      } else {
+                        pages = [1, '...', safePage - 1, safePage, safePage + 1, '...', totalPages];
+                      }
+                    }
+
+                    return pages.map((item, pIdx) => {
+                      if (item === '...') {
+                        return (
+                          <span key={`ellipsis-${pIdx}`} className="stmt-page-ellipsis">
+                            …
+                          </span>
+                        );
+                      }
+                      const pageNum = Number(item);
+                      const isActive = pageNum === safePage;
+                      return (
+                        <button
+                          key={`page-${pageNum}`}
+                          type="button"
+                          onClick={() => setStatementPage(pageNum)}
+                          className={`stmt-page-btn ${isActive ? 'active' : ''}`}
+                          title={`Trang ${pageNum}`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    });
+                  })()}
+
+                  <button
+                    type="button"
+                    title="Trang sau"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setStatementPage((p) => Math.min(totalPages, p + 1))}
+                    className="stmt-page-btn"
+                  >
+                    Sau ›
+                  </button>
+                  <button
+                    type="button"
+                    title="Đến trang cuối"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setStatementPage(totalPages)}
+                    className="stmt-page-btn"
+                  >
+                    »
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Dòng tóm tắt chữ ký & bằng chữ */}
             {summary && (
               <div className="statement-words-bar">
@@ -896,42 +1042,6 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
           onClose={() => setIsPrintModalOpen(false)}
           onExportExcel={handleExportExcel}
           isExportingExcel={isExportingExcel}
-        />
-      )}
-
-      {/* 2. Modal Lập phiếu thu tiền nhanh */}
-      {isCreateReceiptOpen && currentDealer && (
-        <CreateReceiptVoucherModal
-          isOpen={isCreateReceiptOpen}
-          dealer={currentDealer}
-          currentUser={currentUser}
-          token={token}
-          onClose={() => setIsCreateReceiptOpen(false)}
-          onSuccess={(voucher) => {
-            setIsCreateReceiptOpen(false);
-            setCreatedVoucher(voucher);
-            setIsPrintVoucherOpen(true);
-            emitStatusToast({
-              title: 'Lập phiếu thu thành công',
-              message: `Đã ghi nhận phiếu thu ${voucher.receipt_code} (${(voucher.amount || 0).toLocaleString(
-                'vi-VN'
-              )} đ).`,
-            });
-            loadDebtStatement();
-            fetchDealers();
-          }}
-        />
-      )}
-
-      {/* 3. Modal In phiếu thu vừa lập */}
-      {isPrintVoucherOpen && createdVoucher && (
-        <ReceiptVoucherPrintModal
-          voucher={createdVoucher}
-          currentUser={currentUser}
-          onClose={() => {
-            setIsPrintVoucherOpen(false);
-            setCreatedVoucher(null);
-          }}
         />
       )}
     </div>

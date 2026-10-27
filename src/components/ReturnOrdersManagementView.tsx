@@ -619,7 +619,7 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
                           </button>
 
                           {openActionMenuId === ro.id && (() => {
-                            const openUpward = returnOrders.length > 2 && idx >= returnOrders.length - 2;
+                            const openUpward = idx > 0 && (idx >= returnOrders.length - 1 || (returnOrders.length >= 3 && idx >= returnOrders.length - 2));
                             return (
                               <div
                                 style={{

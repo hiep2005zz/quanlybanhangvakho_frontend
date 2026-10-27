@@ -255,14 +255,20 @@ export default function DealerSearchView({
     const [historyLogs, setHistoryLogs] = useState<any[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [historyFilterTab, setHistoryFilterTab] = useState<'ALL' | 'ASSIGNMENT' | 'STATUS' | 'DEBT'>('ALL');
+    const [historyPage, setHistoryPage] = useState<number>(1);
+    const [historyPageSize, setHistoryPageSize] = useState<number>(10);
 
     const handleViewHistory = async (dealer: DealerSearchItem) => {
         if (!dealer.code) return;
         setHistoryTargetDealer(dealer);
         setHistoryFilterTab('ALL');
+        setHistoryPage(1);
         setIsHistoryModalOpen(true);
         setLoadingHistory(true);
         setHistoryLogs([]);
+        try {
+            window.history.pushState({}, '', `/dealers?history=${encodeURIComponent(dealer.code)}`);
+        } catch {}
         try {
             const logs = await getDealerHistory(dealer.code, token);
             // Lọc các log liên quan đến công nợ hoặc phân công
@@ -276,6 +282,14 @@ export default function DealerSearchView({
         } finally {
             setLoadingHistory(false);
         }
+    };
+
+    const handleBackFromHistory = () => {
+        setIsHistoryModalOpen(false);
+        setHistoryTargetDealer(null);
+        try {
+            window.history.pushState({}, '', '/dealers');
+        } catch {}
     };
 
     // Modal Xác nhận xóa Đại lý (thay thế window.confirm bằng modal hệ thống)
@@ -460,7 +474,7 @@ export default function DealerSearchView({
                 note: paymentNote.trim() || undefined,
             }, token);
             emitStatusToast({
-                title: 'Ghi nhận thanh toán thành công (S7-02)',
+                title: 'Ghi nhận thanh toán thành công',
                 message: `Đã thu ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(res.amount)}. Đối trừ hoàn tất ${res.cleared_orders_count} đơn hàng và tự động đánh giá lại cờ công nợ.`,
                 type: 'success',
             });
@@ -957,6 +971,667 @@ export default function DealerSearchView({
     const totalPages = Math.max(1, Math.ceil(dealers.length / pageSize));
     const safePage = Math.min(Math.max(1, currentPage), totalPages);
     const paginatedDealers = dealers.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+    // Đồng bộ URL và sự kiện popstate cho trang Lịch sử biến động
+    useEffect(() => {
+        const handlePopState = () => {
+            const params = new URLSearchParams(window.location.search);
+            const historyCode = params.get('history');
+            if (historyCode) {
+                const found = dealers.find((d) => d.code === historyCode);
+                if (found) {
+                    handleViewHistory(found);
+                }
+            } else if (isHistoryModalOpen) {
+                setIsHistoryModalOpen(false);
+                setHistoryTargetDealer(null);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [dealers, isHistoryModalOpen]);
+
+    useEffect(() => {
+        if (dealers.length > 0 && !isHistoryModalOpen) {
+            const params = new URLSearchParams(window.location.search);
+            const historyCode = params.get('history');
+            if (historyCode) {
+                const found = dealers.find((d) => d.code === historyCode);
+                if (found) {
+                    handleViewHistory(found);
+                }
+            }
+        }
+    }, [dealers]);
+
+    // GIAO DIỆN 1 TRANG: LỊCH SỬ CHUYỂN GIAO & BIẾN ĐỘNG ĐẠI LÝ
+    if (isHistoryModalOpen && historyTargetDealer) {
+        const assignmentCount = historyLogs.filter((l: any) => l.action_type === 'DEALER_ASSIGNMENT').length;
+        const statusCount = historyLogs.filter((l: any) => l.action_type === 'DEALER_STATUS_CHANGE').length;
+        const debtCount = historyLogs.filter((l: any) => l.action_type === 'DEBT_LIMIT_CHANGE').length;
+
+        const displayedLogs = historyLogs.filter((l: any) => {
+            if (historyFilterTab === 'ASSIGNMENT') return l.action_type === 'DEALER_ASSIGNMENT';
+            if (historyFilterTab === 'STATUS') return l.action_type === 'DEALER_STATUS_CHANGE';
+            if (historyFilterTab === 'DEBT') return l.action_type === 'DEBT_LIMIT_CHANGE';
+            return true;
+        });
+
+        const historyTotalPages = Math.max(1, Math.ceil(displayedLogs.length / historyPageSize));
+        const safeHistoryPage = Math.min(Math.max(1, historyPage), historyTotalPages);
+        const paginatedLogs = displayedLogs.slice((safeHistoryPage - 1) * historyPageSize, safeHistoryPage * historyPageSize);
+
+        const isLocked = isDealerStatusLocked(historyTargetDealer.status);
+        const displayStatus = formatDealerStatus(historyTargetDealer.status);
+        const creditInfo = getDealerCreditStatusInfo(historyTargetDealer);
+
+        return (
+            <div className="dealer-search-page dealer-history-view">
+                {/* 1. Header & Điều hướng Quay lại */}
+                <div className="dealer-search-header" style={{ marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                            <button
+                                type="button"
+                                className="dealer-back-btn"
+                                onClick={handleBackFromHistory}
+                                title="Quay lại danh sách đại lý"
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '9px 18px',
+                                    background: '#ffffff',
+                                    color: '#0f766e',
+                                    border: '1px solid #ccfbf1',
+                                    borderRadius: '10px',
+                                    fontSize: '13.5px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 1px 3px rgba(15, 118, 110, 0.08)',
+                                    transition: 'all 0.15s ease'
+                                }}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                                    <polyline points="12 19 5 12 12 5"></polyline>
+                                </svg>
+                                <span>Quay lại danh sách đại lý</span>
+                            </button>
+
+                            <div>
+                                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    Lịch sử chuyển giao &amp; biến động
+                                </h2>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <button
+                                type="button"
+                                onClick={() => handleViewHistory(historyTargetDealer)}
+                                disabled={loadingHistory}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    padding: '9px 16px',
+                                    borderRadius: '10px',
+                                    border: '1px solid #cbd5e1',
+                                    background: '#ffffff',
+                                    color: '#334155',
+                                    fontSize: '13.5px',
+                                    fontWeight: '600',
+                                    cursor: loadingHistory ? 'not-allowed' : 'pointer',
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                }}
+                            >
+                                <span>{loadingHistory ? 'Đang tải...' : 'Làm mới dữ liệu'}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Khối Bảng Thống Nhất: Thông Tin Đại Lý & Lịch Sử Biến Động */}
+                <div style={{
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '14px',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    flex: '1 1 auto',
+                    minHeight: '400px'
+                }}>
+                    {/* Phần Thông Tin Tóm Tắt Đại Lý Trên Cùng Bảng */}
+                    <div style={{
+                        padding: '18px 24px',
+                        borderBottom: '1px solid #e2e8f0',
+                        background: '#ffffff'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                                <div style={{
+                                    width: '52px',
+                                    height: '52px',
+                                    borderRadius: '14px',
+                                    background: 'linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)',
+                                    color: '#ffffff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '22px',
+                                    fontWeight: '700',
+                                    boxShadow: '0 4px 12px rgba(15, 118, 110, 0.25)'
+                                }}>
+                                    {historyTargetDealer.name ? historyTargetDealer.name.charAt(0).toUpperCase() : 'Đ'}
+                                </div>
+                                <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>
+                                            {historyTargetDealer.name}
+                                        </h3>
+                                        <span style={{
+                                            fontFamily: 'monospace',
+                                            fontSize: '13px',
+                                            padding: '3px 10px',
+                                            borderRadius: '6px',
+                                            background: '#f1f5f9',
+                                            color: '#334155',
+                                            fontWeight: '700',
+                                            border: '1px solid #cbd5e1'
+                                        }}>
+                                            {historyTargetDealer.code}
+                                        </span>
+                                        <span style={{
+                                            fontSize: '12.5px',
+                                            padding: '3px 12px',
+                                            borderRadius: '20px',
+                                            fontWeight: '600',
+                                            background: isLocked ? '#fee2e2' : '#dcfce7',
+                                            color: isLocked ? '#dc2626' : '#16a34a',
+                                            border: `1px solid ${isLocked ? '#fca5a5' : '#86efac'}`
+                                        }}>
+                                            {displayStatus}
+                                        </span>
+                                        {historyTargetDealer.customer_group && (
+                                            <span style={{
+                                                fontSize: '12.5px',
+                                                padding: '3px 12px',
+                                                borderRadius: '20px',
+                                                fontWeight: '600',
+                                                background: '#f0fdf4',
+                                                color: '#166534',
+                                                border: '1px solid #bbf7d0'
+                                            }}>
+                                                {formatGroupName(historyTargetDealer.customer_group)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div style={{ fontSize: '13.5px', color: '#64748b', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                        {historyTargetDealer.address && (
+                                            <span>{historyTargetDealer.address}</span>
+                                        )}
+                                        {historyTargetDealer.region && (
+                                            <span>Vùng: {historyTargetDealer.region}</span>
+                                        )}
+                                        {historyTargetDealer.phone && (
+                                            <span>SĐT: {historyTargetDealer.phone}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Metrics Pills */}
+                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                <div className="dealer-history-metric-box">
+                                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>NV Phụ trách hiện tại</div>
+                                    <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a', marginTop: '3px' }}>
+                                        {historyTargetDealer.assigned_sale_name || 'Chưa phân công'}
+                                    </div>
+                                </div>
+                                <div className="dealer-history-metric-box">
+                                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Hạn mức công nợ</div>
+                                    <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f766e', marginTop: '3px' }}>
+                                        {new Intl.NumberFormat('vi-VN').format(historyTargetDealer.credit_limit ?? 50000000)} đ
+                                    </div>
+                                </div>
+                                <div className="dealer-history-metric-box">
+                                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Thời hạn nợ / Tình trạng</div>
+                                    <div style={{ fontSize: '14.5px', fontWeight: '700', color: creditInfo.isWarning ? '#dc2626' : '#16a34a', marginTop: '3px' }}>
+                                        {historyTargetDealer.max_debt_days ?? 30} ngày &bull; {creditInfo.label}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Header Tabs */}
+                    <div style={{
+                        padding: '14px 20px',
+                        borderBottom: '1px solid #e2e8f0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        background: '#fafbfc'
+                    }}>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button
+                                type="button"
+                                className={`dealer-history-tab-btn ${historyFilterTab === 'ALL' ? 'active' : ''}`}
+                                onClick={() => { setHistoryFilterTab('ALL'); setHistoryPage(1); }}
+                            >
+                                <span>Tất cả</span>
+                                <span className="dealer-history-tab-count">{historyLogs.length}</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`dealer-history-tab-btn ${historyFilterTab === 'ASSIGNMENT' ? 'active' : ''}`}
+                                onClick={() => { setHistoryFilterTab('ASSIGNMENT'); setHistoryPage(1); }}
+                            >
+                                <span>Chuyển giao NV</span>
+                                <span className="dealer-history-tab-count">{assignmentCount}</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`dealer-history-tab-btn ${historyFilterTab === 'STATUS' ? 'active' : ''}`}
+                                onClick={() => { setHistoryFilterTab('STATUS'); setHistoryPage(1); }}
+                            >
+                                <span>Đổi trạng thái</span>
+                                <span className="dealer-history-tab-count">{statusCount}</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`dealer-history-tab-btn ${historyFilterTab === 'DEBT' ? 'active' : ''}`}
+                                onClick={() => { setHistoryFilterTab('DEBT'); setHistoryPage(1); }}
+                            >
+                                <span>Hạn mức nợ</span>
+                                <span className="dealer-history-tab-count">{debtCount}</span>
+                            </button>
+                        </div>
+
+                        <div style={{ fontSize: '13px', color: '#64748b' }}>
+                            Hiển thị <strong>{displayedLogs.length === 0 ? 0 : `${(safeHistoryPage - 1) * historyPageSize + 1}–${Math.min(safeHistoryPage * historyPageSize, displayedLogs.length)}`}</strong> trong <strong>{displayedLogs.length}</strong> biến động
+                        </div>
+                    </div>
+
+                    {/* Table Body or Empty / Loading State */}
+                    {loadingHistory ? (
+                        <div style={{ padding: '80px 20px', textAlign: 'center', color: '#64748b' }}>
+                            <div style={{ display: 'inline-block', marginBottom: '12px' }}>
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0f766e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
+                                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                                </svg>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '14.5px', fontWeight: '500' }}>Đang tải lịch sử chuyển giao và biến động đại lý...</p>
+                        </div>
+                    ) : displayedLogs.length === 0 ? (
+                        <div style={{
+                            padding: '80px 20px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            textAlign: 'center',
+                            color: '#64748b'
+                        }}>
+                            <div style={{
+                                width: '64px',
+                                height: '64px',
+                                borderRadius: '50%',
+                                background: '#f1f5f9',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginBottom: '16px',
+                                color: '#94a3b8'
+                            }}>
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                            </div>
+                            <h4 style={{ margin: '0 0 8px 0', fontSize: '17px', fontWeight: '600', color: '#334155' }}>
+                                Chưa có bản ghi lịch sử nào
+                            </h4>
+                            <p style={{ margin: 0, fontSize: '14px', maxWidth: '440px', lineHeight: 1.5, color: '#64748b' }}>
+                                {historyFilterTab === 'ASSIGNMENT'
+                                    ? 'Đại lý này chưa từng có lịch sử điều chuyển nhân viên kinh doanh phụ trách.'
+                                    : historyFilterTab === 'STATUS'
+                                        ? 'Chưa có lịch sử thay đổi trạng thái hoạt động (Khóa / Mở khóa).'
+                                        : historyFilterTab === 'DEBT'
+                                            ? 'Chưa có lịch sử điều chỉnh hạn mức công nợ hoặc thời hạn nợ.'
+                                            : 'Đại lý này chưa có bất kỳ lịch sử chuyển giao hoặc thay đổi thiết lập nào trong hệ thống.'}
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="dealer-history-table-wrap">
+                                <table className="dealer-history-table">
+                                    <thead>
+                                        <tr>
+                                            <th style={{ width: '160px', minWidth: '160px' }}>Thời gian</th>
+                                            <th style={{ width: '190px', minWidth: '190px' }}>Người thực hiện</th>
+                                            <th style={{ width: '140px', minWidth: '140px' }}>Hành động</th>
+                                            <th style={{ minWidth: '340px' }}>Chi tiết biến động (Cũ &rarr; Mới)</th>
+                                            <th style={{ minWidth: '220px' }}>Lý do / Ghi chú</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedLogs.map((log, idx) => {
+                                            let oldObj: any = {};
+                                            let newObj: any = {};
+                                            try { if (log.old_values) oldObj = typeof log.old_values === 'string' ? JSON.parse(log.old_values) : log.old_values; } catch { }
+                                            try { if (log.new_values) newObj = typeof log.new_values === 'string' ? JSON.parse(log.new_values) : log.new_values; } catch { }
+
+                                            let actionName = 'Khác';
+                                            let badgeBg = '#f1f5f9';
+                                            let badgeColor = '#334155';
+                                            let badgeBorder = '#cbd5e1';
+
+                                            if (log.action_type === 'DEALER_ASSIGNMENT') {
+                                                actionName = 'Chuyển giao NV';
+                                                badgeBg = '#dcfce7';
+                                                badgeColor = '#15803d';
+                                                badgeBorder = '#bbf7d0';
+                                            } else if (log.action_type === 'DEBT_LIMIT_CHANGE') {
+                                                actionName = 'Đổi hạn mức';
+                                                badgeBg = '#e0f2fe';
+                                                badgeColor = '#0369a1';
+                                                badgeBorder = '#bae6fd';
+                                            } else if (log.action_type === 'DEALER_STATUS_CHANGE') {
+                                                actionName = 'Đổi trạng thái';
+                                                badgeBg = '#fef3c7';
+                                                badgeColor = '#b45309';
+                                                badgeBorder = '#fde68a';
+                                            }
+
+                                            return (
+                                                <tr key={log.id || idx}>
+                                                    <td style={{ whiteSpace: 'nowrap', color: '#475569', fontSize: '13px' }}>
+                                                        {new Date(log.created_at).toLocaleString('vi-VN')}
+                                                    </td>
+                                                    <td>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <span style={{
+                                                                width: '26px',
+                                                                height: '26px',
+                                                                borderRadius: '50%',
+                                                                background: '#e2e8f0',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                fontSize: '11px',
+                                                                fontWeight: '700',
+                                                                color: '#475569',
+                                                                flexShrink: 0
+                                                            }}>
+                                                                {(log.user_name || 'H')[0].toUpperCase()}
+                                                            </span>
+                                                            <span style={{ color: '#0f172a', fontWeight: '600' }}>{log.user_name || 'Hệ thống'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ whiteSpace: 'nowrap' }}>
+                                                        <span style={{
+                                                            background: badgeBg,
+                                                            color: badgeColor,
+                                                            border: `1px solid ${badgeBorder}`,
+                                                            padding: '4px 10px',
+                                                            borderRadius: '6px',
+                                                            fontSize: '12px',
+                                                            fontWeight: '600',
+                                                            display: 'inline-block'
+                                                        }}>
+                                                            {actionName}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {log.action_type === 'DEALER_ASSIGNMENT' ? (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                <span style={{
+                                                                    color: '#475569',
+                                                                    fontWeight: 500,
+                                                                    padding: '2px 8px',
+                                                                    background: '#f1f5f9',
+                                                                    borderRadius: '5px',
+                                                                    border: '1px solid #e2e8f0',
+                                                                    fontSize: '13px'
+                                                                }}>
+                                                                    {oldObj.assigned_sale_name || 'Chưa phân công'}
+                                                                </span>
+                                                                <span style={{ color: '#0f766e', fontWeight: 700, fontSize: '14px' }}>➔</span>
+                                                                <span style={{
+                                                                    color: '#0f766e',
+                                                                    fontWeight: 700,
+                                                                    padding: '2px 8px',
+                                                                    background: '#f0fdf4',
+                                                                    borderRadius: '5px',
+                                                                    border: '1px solid #bbf7d0',
+                                                                    fontSize: '13px'
+                                                                }}>
+                                                                    {newObj.assigned_sale_name || 'Chưa phân công'}
+                                                                </span>
+                                                            </div>
+                                                        ) : log.action_type === 'DEALER_STATUS_CHANGE' ? (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                <span style={{
+                                                                    fontSize: '12px',
+                                                                    padding: '2px 9px',
+                                                                    borderRadius: '12px',
+                                                                    background: (oldObj.status === 'ACTIVE' || oldObj.status === 'Đang hoạt động') ? '#dcfce7' : '#fee2e2',
+                                                                    color: (oldObj.status === 'ACTIVE' || oldObj.status === 'Đang hoạt động') ? '#15803d' : '#dc2626',
+                                                                    fontWeight: 600,
+                                                                    border: `1px solid ${(oldObj.status === 'ACTIVE' || oldObj.status === 'Đang hoạt động') ? '#bbf7d0' : '#fecaca'}`
+                                                                }}>
+                                                                    {oldObj.status || '-'}
+                                                                </span>
+                                                                <span style={{ color: '#94a3b8', fontWeight: 700 }}>➔</span>
+                                                                <span style={{
+                                                                    fontSize: '12px',
+                                                                    padding: '2px 9px',
+                                                                    borderRadius: '12px',
+                                                                    background: (newObj.status === 'ACTIVE' || newObj.status === 'Đang hoạt động') ? '#dcfce7' : '#fee2e2',
+                                                                    color: (newObj.status === 'ACTIVE' || newObj.status === 'Đang hoạt động') ? '#15803d' : '#dc2626',
+                                                                    fontWeight: 600,
+                                                                    border: `1px solid ${(newObj.status === 'ACTIVE' || newObj.status === 'Đang hoạt động') ? '#bbf7d0' : '#fecaca'}`
+                                                                }}>
+                                                                    {newObj.status || '-'}
+                                                                </span>
+                                                            </div>
+                                                        ) : log.action_type === 'DEBT_LIMIT_CHANGE' ? (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                                                                    <span style={{ color: '#64748b' }}>Hạn mức:</span>
+                                                                    <span style={{ color: '#475569' }}>{oldObj.credit_limit != null ? `${new Intl.NumberFormat('vi-VN').format(oldObj.credit_limit)} đ` : '-'}</span>
+                                                                    <span style={{ color: '#0369a1', fontWeight: 700 }}>➔</span>
+                                                                    <strong style={{ color: '#0f766e' }}>{newObj.credit_limit != null ? `${new Intl.NumberFormat('vi-VN').format(newObj.credit_limit)} đ` : '-'}</strong>
+                                                                </div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#64748b' }}>
+                                                                    <span>Thời hạn:</span>
+                                                                    <span>{oldObj.max_debt_days != null ? `${oldObj.max_debt_days} ngày` : '-'}</span>
+                                                                    <span>➔</span>
+                                                                    <strong>{newObj.max_debt_days != null ? `${newObj.max_debt_days} ngày` : '-'}</strong>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span style={{ color: '#1e293b' }}>-</span>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ color: '#475569', fontSize: '13px', lineHeight: 1.45 }}>
+                                                        {log.reason ? (
+                                                            <span style={{ fontStyle: 'italic' }}>{log.reason}</span>
+                                                        ) : (
+                                                            <span style={{ color: '#94a3b8' }}>-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* FOOTER PHÂN TRANG LỊCH SỬ BIẾN ĐỘNG */}
+                            <div
+                                style={{
+                                    padding: '12px 20px',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    flexWrap: 'wrap',
+                                    gap: '12px',
+                                    borderTop: '1px solid #e2e8f0',
+                                    background: '#f8fafc',
+                                    fontSize: '13px',
+                                    color: '#64748b',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                                    <span>
+                                        Hiển thị <strong>{(safeHistoryPage - 1) * historyPageSize + 1}</strong>–<strong>{Math.min(safeHistoryPage * historyPageSize, displayedLogs.length)}</strong> trên <strong>{displayedLogs.length}</strong> biến động
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ fontSize: '12.5px' }}>Số dòng:</span>
+                                        <select
+                                            value={historyPageSize}
+                                            onChange={(e) => {
+                                                setHistoryPageSize(Number(e.target.value));
+                                                setHistoryPage(1);
+                                            }}
+                                            style={{
+                                                padding: '4px 8px',
+                                                borderRadius: '6px',
+                                                border: '1px solid #cbd5e1',
+                                                fontSize: '12.5px',
+                                                background: '#ffffff',
+                                                color: '#334155',
+                                                cursor: 'pointer',
+                                                outline: 'none',
+                                            }}
+                                        >
+                                            <option value={5}>5 dòng / trang</option>
+                                            <option value={10}>10 dòng / trang</option>
+                                            <option value={20}>20 dòng / trang</option>
+                                            <option value={50}>50 dòng / trang</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                                        disabled={safeHistoryPage === 1}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            padding: '0 10px',
+                                            height: '32px',
+                                            borderRadius: '6px',
+                                            border: '1px solid #cbd5e1',
+                                            backgroundColor: '#ffffff',
+                                            color: safeHistoryPage === 1 ? '#94a3b8' : '#334155',
+                                            fontSize: '13px',
+                                            fontWeight: '500',
+                                            cursor: safeHistoryPage === 1 ? 'not-allowed' : 'pointer',
+                                            opacity: safeHistoryPage === 1 ? 0.6 : 1,
+                                            transition: 'all 0.15s ease',
+                                        }}
+                                    >
+                                        ‹ Trước
+                                    </button>
+
+                                    {Array.from({ length: historyTotalPages }, (_, i) => i + 1)
+                                        .filter((p) => p === 1 || p === historyTotalPages || Math.abs(p - safeHistoryPage) <= 1)
+                                        .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                                            if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                                                acc.push('...');
+                                            }
+                                            acc.push(p);
+                                            return acc;
+                                        }, [])
+                                        .map((p, idx) => {
+                                            if (typeof p === 'string') {
+                                                return (
+                                                    <span key={`dots-${idx}`} style={{ padding: '0 4px', color: '#94a3b8', fontSize: '12px' }}>
+                                                        ...
+                                                    </span>
+                                                );
+                                            }
+                                            const isActive = p === safeHistoryPage;
+                                            return (
+                                                <button
+                                                    key={p}
+                                                    type="button"
+                                                    onClick={() => setHistoryPage(p)}
+                                                    style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        minWidth: '32px',
+                                                        height: '32px',
+                                                        padding: '0 8px',
+                                                        borderRadius: '6px',
+                                                        border: isActive ? '1px solid #0f766e' : '1px solid #cbd5e1',
+                                                        backgroundColor: isActive ? '#0f766e' : '#ffffff',
+                                                        color: isActive ? '#ffffff' : '#334155',
+                                                        fontSize: '13px',
+                                                        fontWeight: '600',
+                                                        cursor: 'pointer',
+                                                        boxShadow: isActive ? '0 1px 3px rgba(15, 118, 110, 0.25)' : 'none',
+                                                        transition: 'all 0.15s ease',
+                                                    }}
+                                                >
+                                                    {p}
+                                                </button>
+                                            );
+                                        })}
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))}
+                                        disabled={safeHistoryPage === historyTotalPages}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            padding: '0 10px',
+                                            height: '32px',
+                                            borderRadius: '6px',
+                                            border: '1px solid #cbd5e1',
+                                            backgroundColor: '#ffffff',
+                                            color: safeHistoryPage === historyTotalPages ? '#94a3b8' : '#334155',
+                                            fontSize: '13px',
+                                            fontWeight: '500',
+                                            cursor: safeHistoryPage === historyTotalPages ? 'not-allowed' : 'pointer',
+                                            opacity: safeHistoryPage === historyTotalPages ? 0.6 : 1,
+                                            transition: 'all 0.15s ease',
+                                        }}
+                                    >
+                                        Sau ›
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="dealer-search-page">
@@ -1736,6 +2411,14 @@ export default function DealerSearchView({
                                                 Hạn mức
                                             </button>
                                         )}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleViewHistory(dealer)}
+                                            className="dealer-btn-call"
+                                            style={{ background: '#0f766e', color: '#fff', borderColor: '#0f766e' }}
+                                        >
+                                            Lịch sử
+                                        </button>
                                         {dealer.phone && (
                                             <a
                                                 href={`tel:${dealer.phone}`}
@@ -2136,212 +2819,6 @@ export default function DealerSearchView({
                     </div>
                 </ModalPortal>
             )}
-            {/* Modal Lịch sử phân công & biến động */}
-            {isHistoryModalOpen && historyTargetDealer && (() => {
-                const assignmentCount = historyLogs.filter((l: any) => l.action_type === 'DEALER_ASSIGNMENT').length;
-                const statusCount = historyLogs.filter((l: any) => l.action_type === 'DEALER_STATUS_CHANGE').length;
-                const debtCount = historyLogs.filter((l: any) => l.action_type === 'DEBT_LIMIT_CHANGE').length;
-
-                const displayedLogs = historyLogs.filter((l: any) => {
-                    if (historyFilterTab === 'ASSIGNMENT') return l.action_type === 'DEALER_ASSIGNMENT';
-                    if (historyFilterTab === 'STATUS') return l.action_type === 'DEALER_STATUS_CHANGE';
-                    if (historyFilterTab === 'DEBT') return l.action_type === 'DEBT_LIMIT_CHANGE';
-                    return true;
-                });
-
-                return (
-                    <ModalPortal>
-                        <div className="dealer-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
-                            <div className="dealer-modal-box" style={{ maxWidth: '750px' }} onClick={(e) => e.stopPropagation()}>
-                                <div className="dealer-modal-header">
-                                    <div className="dealer-modal-title-wrap">
-                                        <div>
-                                            <h3>Lịch sử chuyển giao &amp; biến động</h3>
-                                            <p style={{ margin: '4px 0 0 0', color: '#475569', fontSize: '13.5px' }}>
-                                                Đại lý: <strong>{historyTargetDealer.name}</strong> ({historyTargetDealer.code}) &bull; NV phụ trách hiện tại: <strong>{historyTargetDealer.assigned_sale_name || 'Chưa phân công'}</strong>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button type="button" className="dealer-modal-close-btn" onClick={() => setIsHistoryModalOpen(false)} title="Đóng">✕</button>
-                                </div>
-                                <div className="dealer-modal-body">
-                                    {/* Bộ lọc Tabs */}
-                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', flexWrap: 'wrap' }}>
-                                        <button
-                                            type="button"
-                                            style={{
-                                                padding: '6px 14px',
-                                                borderRadius: '6px',
-                                                border: historyFilterTab === 'ALL' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '13px',
-                                                fontWeight: historyFilterTab === 'ALL' ? '600' : '500',
-                                                background: historyFilterTab === 'ALL' ? '#0f766e' : '#ffffff',
-                                                color: historyFilterTab === 'ALL' ? '#ffffff' : '#334155',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.15s ease'
-                                            }}
-                                            onClick={() => setHistoryFilterTab('ALL')}
-                                        >
-                                            Tất cả ({historyLogs.length})
-                                        </button>
-                                        <button
-                                            type="button"
-                                            style={{
-                                                padding: '6px 14px',
-                                                borderRadius: '6px',
-                                                border: historyFilterTab === 'ASSIGNMENT' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '13px',
-                                                fontWeight: historyFilterTab === 'ASSIGNMENT' ? '600' : '500',
-                                                background: historyFilterTab === 'ASSIGNMENT' ? '#0f766e' : '#ffffff',
-                                                color: historyFilterTab === 'ASSIGNMENT' ? '#ffffff' : '#334155',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.15s ease'
-                                            }}
-                                            onClick={() => setHistoryFilterTab('ASSIGNMENT')}
-                                        >
-                                            Chuyển giao NV ({assignmentCount})
-                                        </button>
-                                        <button
-                                            type="button"
-                                            style={{
-                                                padding: '6px 14px',
-                                                borderRadius: '6px',
-                                                border: historyFilterTab === 'STATUS' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '13px',
-                                                fontWeight: historyFilterTab === 'STATUS' ? '600' : '500',
-                                                background: historyFilterTab === 'STATUS' ? '#0f766e' : '#ffffff',
-                                                color: historyFilterTab === 'STATUS' ? '#ffffff' : '#334155',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.15s ease'
-                                            }}
-                                            onClick={() => setHistoryFilterTab('STATUS')}
-                                        >
-                                            Đổi trạng thái ({statusCount})
-                                        </button>
-                                        <button
-                                            type="button"
-                                            style={{
-                                                padding: '6px 14px',
-                                                borderRadius: '6px',
-                                                border: historyFilterTab === 'DEBT' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '13px',
-                                                fontWeight: historyFilterTab === 'DEBT' ? '600' : '500',
-                                                background: historyFilterTab === 'DEBT' ? '#0f766e' : '#ffffff',
-                                                color: historyFilterTab === 'DEBT' ? '#ffffff' : '#334155',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.15s ease'
-                                            }}
-                                            onClick={() => setHistoryFilterTab('DEBT')}
-                                        >
-                                            Hạn mức nợ ({debtCount})
-                                        </button>
-                                    </div>
-
-                                    {loadingHistory ? (
-                                        <p style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>Đang tải dữ liệu...</p>
-                                    ) : displayedLogs.length === 0 ? (
-                                        <p style={{ textAlign: 'center', padding: '24px', color: '#64748b', fontStyle: 'italic' }}>
-                                            {historyFilterTab === 'ASSIGNMENT'
-                                                ? 'Đại lý này chưa từng có lịch sử chuyển giao nhân viên phụ trách.'
-                                                : historyFilterTab === 'STATUS'
-                                                    ? 'Chưa có lịch sử thay đổi trạng thái hoạt động.'
-                                                    : historyFilterTab === 'DEBT'
-                                                        ? 'Chưa có lịch sử thay đổi hạn mức công nợ.'
-                                                        : 'Đại lý này chưa có lịch sử biến động nào.'}
-                                        </p>
-                                    ) : (
-                                        <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                                                <thead>
-                                                    <tr style={{ borderBottom: '2px solid #cbd5e1', background: '#f8fafc' }}>
-                                                        <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Thời gian</th>
-                                                        <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Người thực hiện</th>
-                                                        <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Hành động</th>
-                                                        <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Chi tiết (Cũ &rarr; Mới)</th>
-                                                        <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Lý do</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {displayedLogs.map(log => {
-                                                        let oldObj: any = {};
-                                                        let newObj: any = {};
-                                                        try { if (log.old_values) oldObj = typeof log.old_values === 'string' ? JSON.parse(log.old_values) : log.old_values; } catch { }
-                                                        try { if (log.new_values) newObj = typeof log.new_values === 'string' ? JSON.parse(log.new_values) : log.new_values; } catch { }
-
-                                                        let actionName = 'Khác';
-                                                        let badgeBg = '#f1f5f9';
-                                                        let badgeColor = '#334155';
-                                                        let badgeBorder = '#cbd5e1';
-                                                        let detail = '';
-
-                                                        if (log.action_type === 'DEALER_ASSIGNMENT') {
-                                                            actionName = 'Chuyển giao NV';
-                                                            badgeBg = '#dcfce7';
-                                                            badgeColor = '#15803d';
-                                                            badgeBorder = '#bbf7d0';
-                                                            const oldSale = oldObj.assigned_sale_name || 'Chưa phân công';
-                                                            const newSale = newObj.assigned_sale_name || 'Chưa phân công';
-                                                            detail = `${oldSale} ➔ ${newSale}`;
-                                                        } else if (log.action_type === 'DEBT_LIMIT_CHANGE') {
-                                                            actionName = 'Đổi hạn mức';
-                                                            badgeBg = '#e0f2fe';
-                                                            badgeColor = '#0369a1';
-                                                            badgeBorder = '#bae6fd';
-                                                            const oldL = oldObj.credit_limit != null ? `${new Intl.NumberFormat('vi-VN').format(oldObj.credit_limit)} đ` : '-';
-                                                            const newL = newObj.credit_limit != null ? `${new Intl.NumberFormat('vi-VN').format(newObj.credit_limit)} đ` : '-';
-                                                            const oldD = oldObj.max_debt_days != null ? `${oldObj.max_debt_days} ngày` : '-';
-                                                            const newD = newObj.max_debt_days != null ? `${newObj.max_debt_days} ngày` : '-';
-                                                            detail = `Hạn mức: ${oldL} ➔ ${newL} | Thời hạn: ${oldD} ➔ ${newD}`;
-                                                        } else if (log.action_type === 'DEALER_STATUS_CHANGE') {
-                                                            actionName = 'Đổi trạng thái';
-                                                            badgeBg = '#fef3c7';
-                                                            badgeColor = '#b45309';
-                                                            badgeBorder = '#fde68a';
-                                                            detail = `${oldObj.status || '-'} ➔ ${newObj.status || '-'}`;
-                                                        }
-
-                                                        return (
-                                                            <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                                                <td style={{ padding: '10px 8px', whiteSpace: 'nowrap', color: '#475569' }}>
-                                                                    {new Date(log.created_at).toLocaleString('vi-VN')}
-                                                                </td>
-                                                                <td style={{ padding: '10px 8px', color: '#0f172a', fontWeight: '600' }}>
-                                                                    {log.user_name || 'Hệ thống'}
-                                                                </td>
-                                                                <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
-                                                                    <span style={{
-                                                                        background: badgeBg,
-                                                                        color: badgeColor,
-                                                                        border: `1px solid ${badgeBorder}`,
-                                                                        padding: '3px 8px',
-                                                                        borderRadius: '4px',
-                                                                        fontSize: '12px',
-                                                                        fontWeight: '600',
-                                                                        display: 'inline-block'
-                                                                    }}>
-                                                                        {actionName}
-                                                                    </span>
-                                                                </td>
-                                                                <td style={{ padding: '10px 8px', color: '#1e293b', fontWeight: log.action_type === 'DEALER_ASSIGNMENT' ? '600' : 'normal' }}>
-                                                                    {detail}
-                                                                </td>
-                                                                <td style={{ padding: '10px 8px', color: '#64748b', fontStyle: 'italic' }}>
-                                                                    {log.reason || '-'}
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </ModalPortal>
-                );
-            })()}
-
             {/* Modal Cập nhật hạn mức công nợ */}
             {isCreditModalOpen && creditTargetDealer && (
                 <ModalPortal>
@@ -2759,36 +3236,64 @@ export default function DealerSearchView({
                             }}
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="dealer-modal-header" style={{ borderBottom: '1px solid #e2e8f0', background: '#f0f9ff', padding: '12px 18px', flexShrink: 0 }}>
+                            <div className="dealer-modal-header" style={{
+                                background: 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)',
+                                padding: '14px 20px',
+                                flexShrink: 0,
+                                borderBottom: '1px solid rgba(255, 255, 255, 0.15)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                            }}>
                                 <div className="dealer-modal-title-wrap">
                                     <div>
-                                        <h3 style={{ color: '#0369a1', fontSize: '15px', fontWeight: 700, margin: 0, lineHeight: 1.3 }}>
-                                            Cấu hình cảnh báo & kiểm soát rủi ro công nợ (S7-04)
+                                        <h3 style={{ color: '#ffffff', fontSize: '15px', fontWeight: 700, margin: 0, lineHeight: 1.3 }}>
+                                            Cấu hình cảnh báo & kiểm soát rủi ro công nợ
                                         </h3>
-                                        <p style={{ color: '#0284c7', fontSize: '12px', margin: '2px 0 0 0' }}>
+                                        <p style={{ color: '#e6f7f2', fontSize: '12px', margin: '3px 0 0 0' }}>
                                             Thiết lập hành vi tự động khi đại lý vượt hạn mức hoặc quá số ngày nợ cho phép
                                         </p>
                                     </div>
                                 </div>
-                                <button type="button" className="dealer-modal-close-btn" onClick={() => setIsPolicyModalOpen(false)} title="Đóng">✕</button>
+                                <button
+                                    type="button"
+                                    className="dealer-modal-close-btn"
+                                    onClick={() => setIsPolicyModalOpen(false)}
+                                    title="Đóng"
+                                    style={{
+                                        color: '#ffffff',
+                                        background: 'rgba(255, 255, 255, 0.15)',
+                                        borderRadius: '6px',
+                                        width: '28px',
+                                        height: '28px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '16px',
+                                        cursor: 'pointer',
+                                        border: 'none',
+                                    }}
+                                >
+                                    ✕
+                                </button>
                             </div>
 
-                            <div className="dealer-modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 18px' }}>
+                            <div className="dealer-modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px 20px' }}>
                                 {loadingPolicy ? (
                                     <div style={{ textAlign: 'center', padding: '24px', color: '#64748b', fontSize: '13px' }}>
                                         Đang tải cấu hình chính sách...
                                     </div>
                                 ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                         {/* 1. Xử lý khi vượt hạn mức tiền */}
-                                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px' }}>
+                                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px' }}>
                                             <label style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '3px' }}>
                                                 1. Hành vi khi Đại lý VƯỢT HẠN MỨC TIỀN:
                                             </label>
                                             <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 8px 0' }}>
                                                 Áp dụng khi tổng dư nợ hiện tại lớn hơn Hạn mức công nợ tối đa được cấp.
                                             </p>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '12.5px' }}>
                                                     <input
                                                         type="radio"
@@ -2796,12 +3301,12 @@ export default function DealerSearchView({
                                                         value="REQUIRE_APPROVAL"
                                                         checked={policyConfig.over_limit_action === 'REQUIRE_APPROVAL'}
                                                         onChange={() => setPolicyConfig(prev => ({ ...prev, over_limit_action: 'REQUIRE_APPROVAL' }))}
-                                                        style={{ marginTop: '2px' }}
+                                                        style={{ marginTop: '2px', accentColor: '#0fad89' }}
                                                     />
                                                     <div>
-                                                        <strong style={{ color: '#b45309', fontSize: '12.5px' }}>Chuyển sang Cần duyệt (REQUIRE_APPROVAL)</strong>
-                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35 }}>
-                                                            Cho phép lên đơn nhưng tự động chuyển trạng thái Chờ duyệt để Quản lý kinh doanh duyệt ngoại lệ (S4-05).
+                                                        <strong style={{ color: '#b45309', fontSize: '12.5px' }}>Chuyển sang Cần duyệt</strong>
+                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35, marginTop: '2px' }}>
+                                                            Cho phép lên đơn nhưng tự động chuyển trạng thái Chờ duyệt để Quản lý kinh doanh duyệt ngoại lệ.
                                                         </span>
                                                     </div>
                                                 </label>
@@ -2813,11 +3318,11 @@ export default function DealerSearchView({
                                                         value="BLOCK"
                                                         checked={policyConfig.over_limit_action === 'BLOCK'}
                                                         onChange={() => setPolicyConfig(prev => ({ ...prev, over_limit_action: 'BLOCK' }))}
-                                                        style={{ marginTop: '2px' }}
+                                                        style={{ marginTop: '2px', accentColor: '#0fad89' }}
                                                     />
                                                     <div>
-                                                        <strong style={{ color: '#dc2626', fontSize: '12.5px' }}>Chặn tạo đơn hoàn toàn (BLOCK)</strong>
-                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35 }}>
+                                                        <strong style={{ color: '#dc2626', fontSize: '12.5px' }}>Chặn tạo đơn hoàn toàn</strong>
+                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35, marginTop: '2px' }}>
                                                             Chặn mọi đơn hàng mới và trả về thông báo lỗi yêu cầu thanh toán trước khi tiếp tục.
                                                         </span>
                                                     </div>
@@ -2826,14 +3331,14 @@ export default function DealerSearchView({
                                         </div>
 
                                         {/* 2. Xử lý khi quá số ngày nợ cho phép */}
-                                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px' }}>
+                                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px' }}>
                                             <label style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '3px' }}>
                                                 2. Hành vi khi Đại lý CÓ NỢ QUÁ HẠN:
                                             </label>
                                             <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 8px 0' }}>
-                                                Áp dụng khi đại lý có bất kỳ hóa đơn nào quá số ngày nợ cho phép (tuổi nợ &gt; max_debt_days).
+                                                Áp dụng khi đại lý có bất kỳ hóa đơn nào quá số ngày nợ cho phép (tuổi nợ vượt hạn).
                                             </p>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '12.5px' }}>
                                                     <input
                                                         type="radio"
@@ -2841,11 +3346,11 @@ export default function DealerSearchView({
                                                         value="BLOCK"
                                                         checked={policyConfig.overdue_action === 'BLOCK'}
                                                         onChange={() => setPolicyConfig(prev => ({ ...prev, overdue_action: 'BLOCK' }))}
-                                                        style={{ marginTop: '2px' }}
+                                                        style={{ marginTop: '2px', accentColor: '#0fad89' }}
                                                     />
                                                     <div>
-                                                        <strong style={{ color: '#dc2626', fontSize: '12.5px' }}>Chặn tạo đơn hoàn toàn (BLOCK - Khuyến nghị)</strong>
-                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35 }}>
+                                                        <strong style={{ color: '#dc2626', fontSize: '12.5px' }}>Chặn tạo đơn hoàn toàn</strong>
+                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35, marginTop: '2px' }}>
                                                             Khóa bán tự động, chặn không cho tạo đơn mới đến khi các hóa đơn quá hạn được thanh toán.
                                                         </span>
                                                     </div>
@@ -2858,11 +3363,11 @@ export default function DealerSearchView({
                                                         value="REQUIRE_APPROVAL"
                                                         checked={policyConfig.overdue_action === 'REQUIRE_APPROVAL'}
                                                         onChange={() => setPolicyConfig(prev => ({ ...prev, overdue_action: 'REQUIRE_APPROVAL' }))}
-                                                        style={{ marginTop: '2px' }}
+                                                        style={{ marginTop: '2px', accentColor: '#0fad89' }}
                                                     />
                                                     <div>
-                                                        <strong style={{ color: '#b45309', fontSize: '12.5px' }}>Chuyển sang Cần duyệt (REQUIRE_APPROVAL)</strong>
-                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35 }}>
+                                                        <strong style={{ color: '#b45309', fontSize: '12.5px' }}>Chuyển sang Cần duyệt</strong>
+                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35, marginTop: '2px' }}>
                                                             Cho phép gửi đơn nhưng chuyển sang Chờ duyệt kèm cảnh báo tuổi nợ quá hạn.
                                                         </span>
                                                     </div>
@@ -2871,14 +3376,15 @@ export default function DealerSearchView({
                                         </div>
 
                                         {/* 3. Tác vụ Cron Job & Thông tin tự động */}
-                                        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px' }}>
+                                        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '12px 14px' }}>
                                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: 700, color: '#166534' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={policyConfig.auto_eval_enabled}
                                                     onChange={(e) => setPolicyConfig(prev => ({ ...prev, auto_eval_enabled: e.target.checked }))}
+                                                    style={{ accentColor: '#0fad89' }}
                                                 />
-                                                <span>Bật tác vụ tự động đánh giá công nợ định kỳ mỗi ngày (AC3)</span>
+                                                <span>Bật tác vụ tự động đánh giá công nợ định kỳ mỗi ngày</span>
                                             </label>
                                             <p style={{ fontSize: '11.5px', color: '#15803d', margin: '3px 0 8px 22px', lineHeight: 1.35 }}>
                                                 Hệ thống tự động rà soát toàn bộ đại lý mỗi ngày 1 lần và gắn/gỡ cờ cảnh báo chính xác theo thực tế công nợ.
@@ -2897,17 +3403,18 @@ export default function DealerSearchView({
                                                     onClick={handleRunEvaluation}
                                                     disabled={evaluatingPolicy}
                                                     style={{
-                                                        background: '#16a34a',
+                                                        background: 'linear-gradient(135deg, #0fad89, #0a8f70)',
                                                         color: '#ffffff',
                                                         border: 'none',
-                                                        borderRadius: '5px',
-                                                        padding: '5px 12px',
+                                                        borderRadius: '6px',
+                                                        padding: '6px 14px',
                                                         fontSize: '12px',
                                                         fontWeight: 600,
                                                         cursor: evaluatingPolicy ? 'not-allowed' : 'pointer',
                                                         display: 'inline-flex',
                                                         alignItems: 'center',
                                                         gap: '4px',
+                                                        boxShadow: '0 2px 4px rgba(15, 173, 137, 0.25)',
                                                     }}
                                                 >
                                                     <span>{evaluatingPolicy ? 'Đang đánh giá...' : 'Chạy đánh giá ngay'}</span>
@@ -2918,22 +3425,40 @@ export default function DealerSearchView({
                                 )}
                             </div>
 
-                            <div className="dealer-modal-footer" style={{ borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '10px 18px', flexShrink: 0 }}>
+                            <div className="dealer-modal-footer" style={{ borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '12px 20px', flexShrink: 0 }}>
                                 <button
                                     type="button"
                                     className="dealer-btn-cancel"
                                     onClick={() => setIsPolicyModalOpen(false)}
                                     disabled={savingPolicy}
-                                    style={{ padding: '6px 14px', fontSize: '13px' }}
+                                    style={{ padding: '7px 16px', fontSize: '13px' }}
                                 >
                                     Đóng
                                 </button>
                                 <button
                                     type="button"
-                                    className="btn-search-primary"
+                                    className="dealer-btn-save"
                                     onClick={handleSavePolicyConfig}
                                     disabled={savingPolicy || loadingPolicy}
-                                    style={{ background: '#0284c7', borderColor: '#0284c7', padding: '6px 14px', fontSize: '13px' }}
+                                    style={{
+                                        background: '#0fad89',
+                                        border: 'none',
+                                        color: '#ffffff',
+                                        padding: '7px 18px',
+                                        fontSize: '13px',
+                                        fontWeight: 600,
+                                        borderRadius: '6px',
+                                        cursor: savingPolicy || loadingPolicy ? 'not-allowed' : 'pointer',
+                                        boxShadow: 'none',
+                                        transition: 'background-color 0.15s ease',
+                                        animation: 'none',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!savingPolicy && !loadingPolicy) e.currentTarget.style.background = '#0c9576';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!savingPolicy && !loadingPolicy) e.currentTarget.style.background = '#0fad89';
+                                    }}
                                 >
                                     {savingPolicy ? 'Đang lưu...' : 'Lưu cấu hình'}
                                 </button>
@@ -2959,18 +3484,46 @@ export default function DealerSearchView({
                             }}
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="dealer-modal-header" style={{ borderBottom: '1px solid #ccfbf1', background: '#f0fdfa', padding: '12px 18px', flexShrink: 0 }}>
+                            <div className="dealer-modal-header" style={{
+                                background: 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)',
+                                padding: '14px 20px',
+                                flexShrink: 0,
+                                borderBottom: '1px solid rgba(255, 255, 255, 0.15)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                            }}>
                                 <div className="dealer-modal-title-wrap">
                                     <div>
-                                        <h3 style={{ color: '#0f766e', fontSize: '15px', fontWeight: 700, margin: 0, lineHeight: 1.3 }}>
-                                            Ghi nhận thu tiền & đối trừ công nợ (S7-02)
+                                        <h3 style={{ color: '#ffffff', fontSize: '15px', fontWeight: 700, margin: 0, lineHeight: 1.3 }}>
+                                            Ghi nhận thu tiền & đối trừ công nợ
                                         </h3>
-                                        <p style={{ color: '#115e59', fontSize: '12px', margin: '2px 0 0 0' }}>
-                                            Thu tiền để trừ dần nợ và tự động gỡ cờ cảnh báo rủi ro (AC3)
+                                        <p style={{ color: '#e6f7f2', fontSize: '12px', margin: '3px 0 0 0' }}>
+                                            Thu tiền để trừ dần nợ và tự động cập nhật cảnh báo rủi ro công nợ
                                         </p>
                                     </div>
                                 </div>
-                                <button type="button" className="dealer-modal-close-btn" onClick={() => setIsPaymentModalOpen(false)} title="Đóng">✕</button>
+                                <button
+                                    type="button"
+                                    className="dealer-modal-close-btn"
+                                    onClick={() => setIsPaymentModalOpen(false)}
+                                    title="Đóng"
+                                    style={{
+                                        color: '#ffffff',
+                                        background: 'rgba(255, 255, 255, 0.15)',
+                                        borderRadius: '6px',
+                                        width: '28px',
+                                        height: '28px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '16px',
+                                        cursor: 'pointer',
+                                        border: 'none',
+                                    }}
+                                >
+                                    ✕
+                                </button>
                             </div>
 
                             <form onSubmit={handleSubmitPayment} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
@@ -3044,26 +3597,36 @@ export default function DealerSearchView({
                                         />
                                     </div>
 
-                                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', padding: '8px 10px', fontSize: '11.5px', color: '#166534', lineHeight: 1.4 }}>
-                                        <strong>Tự động hóa (AC3):</strong> Ngay sau khi lưu phiếu thu, hệ thống sẽ tự động đối trừ các đơn nợ cũ nhất (FIFO), tính toán lại dư nợ và tự động gỡ bỏ cờ cảnh báo nếu đại lý không còn vi phạm.
+                                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 12px', fontSize: '11.5px', color: '#166534', lineHeight: 1.4 }}>
+                                        <strong>Tự động hóa:</strong> Ngay sau khi lưu phiếu thu, hệ thống sẽ tự động đối trừ các đơn nợ cũ nhất (FIFO), tính toán lại dư nợ và tự động gỡ bỏ cờ cảnh báo nếu đại lý không còn vi phạm.
                                     </div>
                                 </div>
 
-                                <div className="dealer-modal-footer" style={{ borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '10px 18px', flexShrink: 0 }}>
+                                <div className="dealer-modal-footer" style={{ borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '12px 20px', flexShrink: 0 }}>
                                     <button
                                         type="button"
                                         className="dealer-btn-cancel"
                                         onClick={() => setIsPaymentModalOpen(false)}
                                         disabled={submittingPayment}
-                                        style={{ padding: '6px 14px', fontSize: '13px' }}
+                                        style={{ padding: '7px 16px', fontSize: '13px' }}
                                     >
                                         Hủy
                                     </button>
                                     <button
                                         type="submit"
-                                        className="btn-search-primary"
+                                        className="dealer-btn-save"
                                         disabled={submittingPayment}
-                                        style={{ background: '#0d9488', borderColor: '#0d9488', padding: '6px 14px', fontSize: '13px' }}
+                                        style={{
+                                            background: 'linear-gradient(135deg, #0fad89, #0a8f70)',
+                                            border: 'none',
+                                            color: '#ffffff',
+                                            padding: '7px 18px',
+                                            fontSize: '13px',
+                                            fontWeight: 600,
+                                            borderRadius: '6px',
+                                            cursor: submittingPayment ? 'not-allowed' : 'pointer',
+                                            boxShadow: '0 2px 4px rgba(15, 173, 137, 0.25)',
+                                        }}
                                     >
                                         {submittingPayment ? 'Đang lưu...' : 'Xác nhận thu tiền & đối trừ'}
                                     </button>
