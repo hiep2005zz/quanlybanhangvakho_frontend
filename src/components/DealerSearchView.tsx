@@ -22,7 +22,6 @@ import {
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { OrderCreateModal } from './OrderCreateModal';
-import DeliveryPointManager from './DeliveryPointManager';
 import { ModalPortal } from './ModalPortal';
 import { CreateDealerPageView } from './CreateDealerPageView';
 import './dealer-search.css';
@@ -247,10 +246,6 @@ export default function DealerSearchView({
     // State cho Tạo đơn hàng đại lý (Customer portal)
     const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false);
     const [productsForOrder, setProductsForOrder] = useState<ProductItem[]>([]);
-
-    // State cho Modal Điểm giao hàng
-    const [isDeliveryPointModalOpen, setIsDeliveryPointModalOpen] = useState(false);
-    const [deliveryPointTargetDealer, setDeliveryPointTargetDealer] = useState<DealerSearchItem | null>(null);
 
     // State cho Phân công
     const [selectedDealerIds, setSelectedDealerIds] = useState<number[]>([]);
@@ -2150,18 +2145,7 @@ export default function DealerSearchView({
                                                                     Chuyển giao
                                                                 </button>
                                                             )}
-                                                            <button
-                                                                type="button"
-                                                                className="dealer-dropdown-item"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setDeliveryPointTargetDealer(dealer);
-                                                                    setIsDeliveryPointModalOpen(true);
-                                                                    setOpenDropdownId(null);
-                                                                }}
-                                                            >
-                                                                Điểm giao hàng
-                                                            </button>
+
                                                             <button
                                                                 type="button"
                                                                 className="dealer-dropdown-item"
@@ -2902,34 +2886,6 @@ export default function DealerSearchView({
                 </div>
             )}
 
-            {/* Modal Quản lý Điểm giao hàng */}
-            {isDeliveryPointModalOpen && deliveryPointTargetDealer && (
-                <div className="dealer-modal-overlay" onClick={() => setIsDeliveryPointModalOpen(false)}>
-                    <div className="dealer-modal-box" style={{ maxWidth: '640px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
-                        <div className="dealer-modal-header" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                            <div className="dealer-modal-title-wrap">
-                                <div>
-                                    <h3 style={{ color: '#0f172a' }}>Điểm giao hàng — {deliveryPointTargetDealer.name}</h3>
-                                    <p style={{ color: '#64748b' }}>Mã: {deliveryPointTargetDealer.code} | Địa chỉ đại lý: {deliveryPointTargetDealer.address || 'Chưa cập nhật'}</p>
-                                </div>
-                            </div>
-                            <button type="button" className="dealer-modal-close-btn" onClick={() => setIsDeliveryPointModalOpen(false)} title="Đóng">✕</button>
-                        </div>
-                        <div className="dealer-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                            <DeliveryPointManager
-                                token={token || ''}
-                                dealerId={deliveryPointTargetDealer.id}
-                                onChanged={handleSearch}
-                            />
-                        </div>
-                        <div className="dealer-modal-footer">
-                            <button type="button" className="dealer-btn-cancel" onClick={() => setIsDeliveryPointModalOpen(false)}>
-                                Đóng
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Modal Tạo đơn hàng cho Customer */}
             {isCreateOrderModalOpen && dealers.length > 0 && (

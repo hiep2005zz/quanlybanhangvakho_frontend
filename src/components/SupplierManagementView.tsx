@@ -5,11 +5,11 @@ import {
   Supplier,
   getSuppliersApi,
   createSupplierApi,
+  updateSupplierApi,
   deactivateSupplierApi,
   activateSupplierApi,
   deleteSupplierApi,
 } from '../services/api';
-import SupplierModal from './SupplierModal';
 import { emitStatusToast } from './StatusToast';
 import { ModalPortal } from './ModalPortal';
 
@@ -109,10 +109,19 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
     }
   }, [currentPage]);
 
-  // Modal thêm / sửa
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Trang thêm / sửa nhà cung cấp (Full-Page View)
   const [isCreatePageOpen, setIsCreatePageOpen] = useState(false);
+  const [isEditPageOpen, setIsEditPageOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [editForm, setEditForm] = useState({
+    code: '',
+    name: '',
+    tax_code: '',
+    contact_person: '',
+    payment_terms: '',
+  });
+  const [editFormError, setEditFormError] = useState<string | null>(null);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   // Dropdown 3 chấm (Action Menu) theo từng hàng
   const [dropdownMenu, setDropdownMenu] = useState<{
@@ -289,12 +298,66 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
 
   const openEdit = (s: Supplier) => {
     setEditingSupplier(s);
-    setIsModalOpen(true);
+    setEditForm({
+      code: s.code || '',
+      name: s.name || '',
+      tax_code: s.tax_code || '',
+      contact_person: s.contact_person || '',
+      payment_terms: s.payment_terms || '',
+    });
+    setEditFormError(null);
+    setIsEditPageOpen(true);
   };
 
-  const handleModalSuccess = (message: string) => {
-    emitStatusToast({ message });
-    loadSuppliers();
+  const handleCloseEditPage = () => {
+    setIsEditPageOpen(false);
+    setEditingSupplier(null);
+    setEditFormError(null);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSupplier) return;
+    setEditFormError(null);
+
+    const TAX_REGEX = /^\d{10}(-?\d{3})?$/;
+    const name = editForm.name.trim();
+    const taxCode = editForm.tax_code.trim().replace(/\s/g, '');
+
+    if (name.length < 2) {
+      setEditFormError('Tên nhà cung cấp phải có ít nhất 2 ký tự.');
+      return;
+    }
+    if (!taxCode) {
+      setEditFormError('Vui lòng nhập mã số thuế.');
+      return;
+    }
+    if (!TAX_REGEX.test(taxCode)) {
+      setEditFormError(
+        `Mã số thuế không hợp lệ (hiện có ${taxCode.length} ký tự). Nhập 10 chữ số (doanh nghiệp) hoặc 13 chữ số (chi nhánh, ví dụ: 0123456789 hoặc 0123456789-001).`
+      );
+      return;
+    }
+
+    const payload = {
+      name,
+      tax_code: taxCode,
+      contact_person: editForm.contact_person.trim() || null,
+      payment_terms: editForm.payment_terms.trim() || null,
+    };
+
+    setIsEditSubmitting(true);
+    try {
+      const res = await updateSupplierApi(token, editingSupplier.code, payload);
+      emitStatusToast({ message: `✅ Đã cập nhật nhà cung cấp "${res.name}" (${res.code}).` });
+      setIsEditPageOpen(false);
+      setEditingSupplier(null);
+      loadSuppliers();
+    } catch (err: any) {
+      setEditFormError(err.message || 'Có lỗi xảy ra khi cập nhật nhà cung cấp.');
+    } finally {
+      setIsEditSubmitting(false);
+    }
   };
 
   const openDeactivate = (s: Supplier) => {
@@ -355,6 +418,340 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
     }
   };
 
+
+  // NẾU ĐANG Ở CHẾ ĐỘ TRANG SỬA NHÀ CUNG CẤP (FULL PAGE VIEW THAY CHO POPUP MODAL)
+  if (isEditPageOpen && editingSupplier) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '1680px',
+          margin: '0 auto',
+          padding: '16px 20px',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          boxSizing: 'border-box',
+          fontFamily: 'inherit',
+        }}
+      >
+        {/* Header Breadcrumb & Nút Quay lại */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            marginBottom: '10px',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={handleCloseEditPage}
+              style={{
+                padding: '6px 16px',
+                fontSize: '12.5px',
+                fontWeight: '600',
+                color: '#334155',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '9999px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f8fafc';
+                e.currentTarget.style.borderColor = '#94a3b8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              <span>Quay lại</span>
+            </button>
+            <span style={{ color: '#cbd5e1', fontSize: '15px' }}>/</span>
+            <div>
+              <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+                Sửa Thông Tin Nhà Cung Cấp
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Khối Card Form Thông Tin */}
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '100%',
+            background: '#ffffff',
+            borderRadius: '14px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 2px 12px -2px rgba(15, 23, 42, 0.05)',
+            padding: '20px 28px',
+            boxSizing: 'border-box',
+          }}
+        >
+          {/* Header Card */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              marginBottom: '14px',
+              paddingBottom: '12px',
+              borderBottom: '1px solid #f1f5f9',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  background: '#ecfdf5',
+                  color: '#0fad89',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
+                  Thông tin nhà cung cấp
+                </h3>
+                <span style={{ fontSize: '12.5px', color: '#64748b' }}>
+                  Mã nhà cung cấp: <strong style={{ color: '#0f172a' }}>{editingSupplier.code}</strong>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
+            {editFormError && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#dc2626',
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{editFormError}</span>
+              </div>
+            )}
+
+            {/* Hàng 1: Mã NCC & Mã số thuế */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  Mã nhà cung cấp
+                </label>
+                <input
+                  type="text"
+                  value={editForm.code}
+                  disabled
+                  style={{
+                    width: '100%',
+                    padding: '9px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    background: '#f8fafc',
+                    color: '#64748b',
+                    cursor: 'not-allowed',
+                  }}
+                />
+                <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
+                  Mã nhà cung cấp cố định, không thể thay đổi.
+                </span>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  Mã số thuế <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="10 hoặc 13 chữ số"
+                  maxLength={20}
+                  value={editForm.tax_code}
+                  onChange={(e) => setEditForm({ ...editForm, tax_code: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '9px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
+                  Bắt buộc. Không được trùng với nhà cung cấp khác.
+                </span>
+              </div>
+            </div>
+
+            {/* Hàng 2: Tên nhà cung cấp */}
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                Tên nhà cung cấp <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Ví dụ: Công ty TNHH May Mặc Á Châu"
+                maxLength={255}
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                required
+                style={{
+                  width: '100%',
+                  padding: '9px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '13.5px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Hàng 3: Người liên hệ & Điều khoản thanh toán */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  Người liên hệ
+                </label>
+                <input
+                  type="text"
+                  placeholder="Họ tên người phụ trách bên nhà cung cấp"
+                  maxLength={255}
+                  value={editForm.contact_person}
+                  onChange={(e) => setEditForm({ ...editForm, contact_person: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '9px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  Điều khoản thanh toán
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Thanh toán sau 30 ngày kể từ ngày nhận hàng"
+                  maxLength={255}
+                  value={editForm.payment_terms}
+                  onChange={(e) => setEditForm({ ...editForm, payment_terms: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '9px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div
+              style={{
+                marginTop: '16px',
+                paddingTop: '20px',
+                borderTop: '1px solid #f1f5f9',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleCloseEditPage}
+                disabled={isEditSubmitting}
+                style={{
+                  padding: '9px 24px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                Hủy bỏ
+              </button>
+
+              <button
+                type="submit"
+                disabled={isEditSubmitting}
+                style={{
+                  padding: '9px 28px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                  color: '#ffffff',
+                  fontSize: '13.5px',
+                  fontWeight: '700',
+                  cursor: isEditSubmitting ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 2px 6px rgba(15, 173, 137, 0.25)',
+                  transition: 'all 0.15s ease',
+                  opacity: isEditSubmitting ? 0.7 : 1,
+                }}
+              >
+                {isEditSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   // NẾU ĐANG Ở CHẾ ĐỘ TRANG THÊM NHÀ CUNG CẤP (FULL PAGE VIEW)
   if (isCreatePageOpen) {
@@ -1276,14 +1673,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
         )}
       </div>
 
-      {/* Modal sửa nhà cung cấp (khi tạo mới đã có trang Full-Page View riêng) */}
-      <SupplierModal
-        isOpen={isModalOpen && Boolean(editingSupplier)}
-        onClose={() => setIsModalOpen(false)}
-        token={token}
-        supplier={editingSupplier}
-        onSuccess={handleModalSuccess}
-      />
+
 
       {/* Popup xác nhận ngừng giao dịch */}
       {supplierToDeactivate && (
