@@ -370,9 +370,8 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('info')}
-            className={`pb-3 px-1 text-sm sm:text-base font-bold transition-all relative cursor-pointer border-0 bg-transparent ${
-              activeTab === 'info' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
-            }`}
+            className={`pb-3 px-1 text-sm sm:text-base font-bold transition-all relative cursor-pointer border-0 bg-transparent ${activeTab === 'info' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
+              }`}
           >
             Thông tin chung
             {activeTab === 'info' && (
@@ -382,17 +381,15 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('items')}
-            className={`pb-3 px-1 text-sm sm:text-base font-bold transition-all relative flex items-center gap-2 cursor-pointer border-0 bg-transparent ${
-              activeTab === 'items' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
-            }`}
+            className={`pb-3 px-1 text-sm sm:text-base font-bold transition-all relative flex items-center gap-2 cursor-pointer border-0 bg-transparent ${activeTab === 'items' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
+              }`}
           >
             <span>Danh sách sản phẩm</span>
             <span
-              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                activeTab === 'items'
+              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${activeTab === 'items'
                   ? 'bg-blue-100 text-blue-700'
                   : 'bg-slate-200/80 text-slate-700'
-              }`}
+                }`}
             >
               {formItems.length}
             </span>
@@ -418,11 +415,10 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   placeholder="Ví dụ: BG-312810"
-                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                    isEditMode
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium transition-all ${isEditMode
                       ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed font-mono font-bold'
                       : 'border-slate-300 text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
-                  }`}
+                    }`}
                 />
                 {isEditMode && (
                   <p className="text-xs text-slate-400 mt-1">Mã bảng giá là định danh duy nhất và không thể thay đổi.</p>
@@ -501,11 +497,10 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                   min={formData.valid_from}
                   value={formData.valid_to}
                   onChange={(e) => setFormData({ ...formData, valid_to: e.target.value })}
-                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium text-slate-900 bg-white focus:outline-none focus:ring-2 transition-all ${
-                    isDateInvalid
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium text-slate-900 bg-white focus:outline-none focus:ring-2 transition-all ${isDateInvalid
                       ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
                       : 'border-slate-300 focus:ring-emerald-500/20 focus:border-emerald-500'
-                  }`}
+                    }`}
                 />
                 {isDateInvalid && (
                   <p className="text-xs text-red-600 mt-1 font-medium">
@@ -590,11 +585,10 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                     placeholder="Giá niêm yết (đồng)..."
                     value={newSalePrice}
                     onChange={(e) => setNewSalePrice(e.target.value)}
-                    className={`w-full px-3 py-2.5 rounded-xl border text-sm font-semibold focus:outline-none focus:ring-2 ${
-                      isAddingWarning
+                    className={`w-full px-3 py-2.5 rounded-xl border text-sm font-semibold focus:outline-none focus:ring-2 ${isAddingWarning
                         ? 'border-red-500 text-red-600 focus:ring-red-500/20'
                         : 'border-slate-300 text-slate-900 focus:ring-emerald-500/20 focus:border-emerald-500'
-                    }`}
+                      }`}
                   />
                 </div>
 
@@ -651,9 +645,8 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                       return (
                         <tr
                           key={item.product_id}
-                          className={`transition-colors ${
-                            isBelowFloor ? 'bg-red-50/70 hover:bg-red-50' : 'hover:bg-slate-50'
-                          }`}
+                          className={`transition-colors ${isBelowFloor ? 'bg-red-50/70 hover:bg-red-50' : 'hover:bg-slate-50'
+                            }`}
                         >
                           <td className="py-3.5 px-6 font-mono font-bold text-slate-800 text-xs">
                             <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
@@ -670,11 +663,10 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                               onChange={(e) =>
                                 handleInlineEdit(item.product_id, 'sale_price', e.target.value)
                               }
-                              className={`w-36 px-2.5 py-1.5 text-right font-bold text-sm rounded-lg border focus:outline-none focus:ring-2 ${
-                                isBelowFloor
+                              className={`w-36 px-2.5 py-1.5 text-right font-bold text-sm rounded-lg border focus:outline-none focus:ring-2 ${isBelowFloor
                                   ? 'border-red-400 text-red-600 focus:ring-red-400/20'
                                   : 'border-slate-300 text-slate-900 focus:ring-emerald-500/20 focus:border-emerald-500'
-                              }`}
+                                }`}
                             />
                           </td>
                           <td className="py-2.5 px-6 text-right">
