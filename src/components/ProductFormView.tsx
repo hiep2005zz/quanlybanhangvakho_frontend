@@ -463,8 +463,9 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
       <form onSubmit={handleSubmit} className="sales-order-layout">
         {/* CỘT CHÍNH (TRÁI): CÁC KHỐI NHẬP LIỆU */}
         <section className="sales-order-main">
-          {/* Card 1: Thông tin cơ bản */}
+          {/* KHỐI FORM THÔNG TIN SẢN PHẨM (GỘP THÀNH 1 KHUNG/CARD DUY NHẤT) */}
           <section className="sales-order-card">
+            {/* Phân mục 1: Thông tin cơ bản */}
             <div style={{ marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '750', color: '#0f172a' }}>
                 Thông tin cơ bản
@@ -566,11 +567,9 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                 )}
               </label>
             </div>
-          </section>
 
-          {/* Card 2: Đơn vị tính & Quy cách đóng gói */}
-          <section className="sales-order-card">
-            <div style={{ marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
+            {/* Phân mục 2: Đơn vị tính & Quy cách đóng gói */}
+            <div style={{ margin: '28px 0 16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '750', color: '#0f172a' }}>
                 Đơn vị tính & Quy cách đóng gói
               </h2>
@@ -745,11 +744,9 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                 </span>
               </label>
             </div>
-          </section>
 
-          {/* Card 3: Giá bán, Giá sàn, Giá vốn & Trạng thái kinh doanh */}
-          <section className="sales-order-card">
-            <div style={{ marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
+            {/* Phân mục 3: Giá bán, Giá sàn & Trạng thái kinh doanh */}
+            <div style={{ margin: '28px 0 16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '750', color: '#0f172a' }}>
                 Giá bán, Giá sàn & Trạng thái kinh doanh
               </h2>
@@ -904,10 +901,8 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                 </div>
               </div>
             </div>
-          </section>
 
-          {/* Card 4: Hình ảnh sản phẩm (1 ảnh) */}
-          <section className="sales-order-card">
+            {/* Phân mục 4: Hình ảnh sản phẩm (1 ảnh) */}
             <input
               ref={fileInputRef}
               type="file"
@@ -916,7 +911,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
               onChange={(e) => handleImageUpload(e.target.files)}
             />
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '28px 0 16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <div>
                 <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '750', color: '#0f172a' }}>
                   Ảnh sản phẩm

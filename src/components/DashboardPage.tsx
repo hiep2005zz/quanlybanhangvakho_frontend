@@ -371,6 +371,7 @@ export default function DashboardPage({
     const isDebtAdjustmentsPath = pathname === '/debt-adjustments' || pathname.startsWith('/debt-adjustments/');
     const isDebtStatementPath = pathname === '/debt-statement' || pathname.startsWith('/debt-statement/');
     const isReceiptVouchersPath = pathname === '/receipt-vouchers' || pathname.startsWith('/receipt-vouchers/');
+    const isReturnOrdersPath = pathname === '/return-orders' || pathname.startsWith('/return-orders');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -551,6 +552,12 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/orders'); } catch { }
       }
       return 'orders';
+    }
+    if (isReturnOrdersPath || oldTabVal === 'return-orders') {
+      if (hasOldTabParam || (!pathname.startsWith('/return-orders') && pathname !== '/return-orders')) {
+        try { window.history.replaceState({}, '', '/return-orders'); } catch { }
+      }
+      return 'return-orders';
     }
     if (isDeliveryPointsPath || oldTabVal === 'delivery-points') {
       if (hasOldTabParam || pathname !== '/delivery-points') {
