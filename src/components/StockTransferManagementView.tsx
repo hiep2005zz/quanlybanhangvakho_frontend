@@ -1656,6 +1656,420 @@ export function StockTransferManagementView({
     );
   }
 
+  // Render Modal Giao Bù Hàng Thiếu
+  const renderCompensateModal = () => {
+    if (!showCompensateModal || !compensatingTransfer) return null;
+    return (
+      <ModalPortal>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200/80 p-6 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">
+                  Lập phiếu chuyển kho giao bù
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Giao bù hàng thiếu cho phiếu <b>{compensatingTransfer.code}</b>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCompensateModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto py-4 space-y-4 flex-1">
+              {/* TUYẾN GIAO BÙ */}
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Kho gửi (Xuất bù)
+                  </span>
+                  <span className="text-sm font-semibold text-slate-800">
+                    {compensatingTransfer.from_warehouse_name}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Kho nhận (Đang thiếu hàng)
+                  </span>
+                  <span className="text-sm font-semibold text-slate-800">
+                    {compensatingTransfer.to_warehouse_name}
+                  </span>
+                </div>
+              </div>
+
+              {/* BẢNG SẢN PHẨM GIAO BÙ */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Danh sách sản phẩm giao bù
+                  </label>
+                  {loadingCompensateStock && (
+                    <span className="text-xs text-blue-600">Đang kiểm tra tồn kho xuất...</span>
+                  )}
+                </div>
+
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
+                      <tr>
+                        <th className="py-2.5 px-3 text-left">Mặt hàng</th>
+                        <th className="py-2.5 px-3 text-center">SL thiếu</th>
+                        <th className="py-2.5 px-3 text-center">Tồn khả dụng kho gửi</th>
+                        <th className="py-2.5 px-3 text-center w-32">SL giao bù</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {compensateItems.map((it, idx) => {
+                        const isOver = it.compensate_qty > it.available_stock;
+                        return (
+                          <tr key={it.product_id} className="hover:bg-slate-50">
+                            <td className="py-2.5 px-3">
+                              <div className="font-semibold text-slate-800">{it.product_name}</div>
+                              <div className="text-xs text-slate-400 font-mono">
+                                {it.product_code} ({it.unit})
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className="font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 text-xs">
+                                {it.shortage_qty}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className={`font-semibold ${it.available_stock < it.compensate_qty ? 'text-rose-600' : 'text-blue-600'}`}>
+                                {loadingCompensateStock ? '...' : it.available_stock}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <input
+                                type="number"
+                                min="1"
+                                max={it.available_stock}
+                                value={it.compensate_qty}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) =>
+                                  handleUpdateCompensateQty(idx, parseInt(e.target.value, 10) || 1)
+                                }
+                                className={`w-24 text-center px-2 py-1 text-sm border rounded-lg font-semibold focus:outline-none focus:ring-2 ${
+                                  isOver
+                                    ? 'border-rose-400 text-rose-600 bg-rose-50 ring-rose-200'
+                                    : 'border-slate-200 focus:ring-blue-500'
+                                }`}
+                              />
+                              {isOver && (
+                                <div className="text-[10px] text-rose-600 font-medium mt-0.5">
+                                  Vượt tồn kho!
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* GHI CHÚ XUẤT BÙ */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Ghi chú phiếu giao bù
+                </label>
+                <input
+                  type="text"
+                  value={compensateNote}
+                  onChange={(e) => setCompensateNote(e.target.value)}
+                  placeholder="Nhập ghi chú giao bù..."
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCompensateModal(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={loadingCompensateStock || submittingCompensate}
+                onClick={handleSubmitCompensateTransfer}
+                className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] disabled:opacity-50 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border-0"
+              >
+                {submittingCompensate ? 'Đang xuất chuyển bù...' : 'Xác nhận xuất giao bù'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>
+    );
+  };
+
+  // NẾU ĐANG Ở CHẾ ĐỘ XEM CHI TIẾT PHIẾU CHUYỂN KHO NỘI BỘ (FULL PAGE VIEW THAY CHO POPUP MODAL)
+  if (showDetailModal && detailTransfer) {
+    const comp = getTransferCompensationStatus(detailTransfer);
+
+    return (
+      <div className="w-full min-h-full flex-1 flex flex-col p-4 md:p-6 bg-slate-100/60 overflow-y-auto font-sans">
+        {/* Khối khung chính của trang chi tiết */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col overflow-hidden max-w-[1600px] w-full mx-auto">
+          {/* Header Bar */}
+          <div className="px-6 py-4.5 border-b border-slate-200/80 bg-gradient-to-r from-slate-50/90 via-white to-blue-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowDetailModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-full shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>Quay lại</span>
+              </button>
+              <span className="text-slate-300 text-lg">/</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                  Phiếu chuyển kho: {detailTransfer.code}
+                </h1>
+                {renderStatusBadge(detailTransfer.status)}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDetailModal(false)}
+                className="px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer border border-slate-200"
+              >
+                Đóng
+              </button>
+              {canWriteInventory &&
+                detailTransfer.status === 'COMPLETED' &&
+                detailTotalShortage > 0 &&
+                !comp.isFullyCompensated && (
+                  <button
+                    onClick={() => handleOpenCompensateModal(detailTransfer)}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer border-0"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14" />
+                      <path d="M12 5l7 7-7 7" />
+                    </svg>
+                    Giao bù hàng thiếu ({detailTotalShortage} SP)
+                  </button>
+                )}
+            </div>
+          </div>
+
+          {/* Body Content */}
+          <div className="p-6 md:p-8 space-y-6">
+            {/* Khối Thông tin tổng quan */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 text-sm">
+              <div>
+                <span className="text-slate-400 text-xs block mb-1">Kho xuất:</span>
+                <span className="font-bold text-slate-800 text-base">
+                  {detailTransfer.from_warehouse_name}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs block mb-1">Kho nhận:</span>
+                <span className="font-bold text-slate-800 text-base">
+                  {detailTransfer.to_warehouse_name}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs block mb-1">Người tạo phiếu:</span>
+                <span className="font-bold text-slate-800 text-base">
+                  {detailTransfer.created_by}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs block mb-1">Ngày tạo:</span>
+                <span className="font-bold text-slate-800 text-base">
+                  {new Date(detailTransfer.created_at).toLocaleString('vi-VN')}
+                </span>
+              </div>
+              {detailTransfer.received_by && (
+                <div>
+                  <span className="text-slate-400 text-xs block mb-1">Người tiếp nhận:</span>
+                  <span className="font-bold text-slate-800 text-base">
+                    {detailTransfer.received_by}
+                  </span>
+                </div>
+              )}
+              {detailTransfer.received_at && (
+                <div>
+                  <span className="text-slate-400 text-xs block mb-1">Thời gian nhận:</span>
+                  <span className="font-bold text-slate-800 text-base">
+                    {new Date(detailTransfer.received_at).toLocaleString('vi-VN')}
+                  </span>
+                </div>
+              )}
+              {detailTransfer.note && (
+                <div className="col-span-2 md:col-span-4 mt-1">
+                  <span className="text-slate-400 text-xs block mb-1">Ghi chú xuất:</span>
+                  <span className="text-slate-700 italic bg-white px-3 py-1.5 rounded-lg border border-slate-200 block">{detailTransfer.note}</span>
+                </div>
+              )}
+              {detailTransfer.discrepancy_reason && (
+                <div className="col-span-2 md:col-span-4 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 break-words text-sm mt-1">
+                  <b>Lý do chênh lệch khi nhận:</b> "{detailTransfer.discrepancy_reason}"
+                </div>
+              )}
+              {detailTransfer.status === 'CANCELLED' && (
+                <div className="col-span-2 md:col-span-4 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 break-words text-sm mt-1">
+                  <b>Trạng thái:</b> Phiếu chuyển kho đã hủy
+                  {(() => {
+                    const cancelReason =
+                      (detailTransfer as any).cancel_reason ||
+                      (detailTransfer.note?.includes('[Hủy:')
+                        ? detailTransfer.note.split('[Hủy:')[1]?.replace(/\]$/, '').trim()
+                        : null);
+                    return cancelReason ? (
+                      <span> — <b>Lý do hủy:</b> "{cancelReason}"</span>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Bảng danh sách mặt hàng */}
+            <div className="border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs">
+              <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 font-bold text-slate-700 text-sm">
+                Danh sách mặt hàng điều chuyển ({(detailTransfer.items || []).length})
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50/60 text-xs font-semibold text-slate-500 border-b border-slate-200">
+                  <tr>
+                    <th className="py-3 px-4 text-left">Mặt hàng</th>
+                    <th className="py-3 px-4 text-center">SL gửi đi</th>
+                    <th className="py-3 px-4 text-center">SL thực nhận</th>
+                    <th className="py-3 px-4 text-center">Chênh lệch</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(detailTransfer.items || []).map((it) => (
+                    <tr key={it.product_id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-800 text-[14px]">{it.product_name}</div>
+                        <div className="text-xs text-slate-400 font-mono mt-0.5">
+                          {it.product_code} ({it.unit})
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-bold text-slate-700 text-base">
+                        {it.transfer_qty}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        {it.received_qty !== null && it.received_qty !== undefined ? (
+                          <span className="font-bold text-emerald-700 text-base">
+                            {it.received_qty}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic">Chưa nhận</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        {(() => {
+                          if (detailTransfer.status === 'CANCELLED') {
+                            return <span className="text-xs text-rose-600 font-medium whitespace-nowrap">Đã hủy</span>;
+                          }
+                          if (it.received_qty === null || it.received_qty === undefined) {
+                            return <span className="text-slate-400">-</span>;
+                          }
+                          const diff = it.received_qty - it.transfer_qty;
+                          if (diff > 0) {
+                            return (
+                              <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">
+                                +{diff} (Dư)
+                              </span>
+                            );
+                          }
+                          if (diff < 0) {
+                            const shortageQty = Math.abs(diff);
+                            return getTransferCompensationStatus(detailTransfer).isFullyCompensated ? (
+                              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                                Đã bù {shortageQty}
+                              </span>
+                            ) : (
+                              <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">
+                                -{shortageQty} (Hụt)
+                              </span>
+                            );
+                          }
+                          return <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">✓ Đủ</span>;
+                        })()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Bottom Status & Actions */}
+            <div className="pt-4 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                {comp.isFullyCompensated ? (
+                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
+                    ✓ Đã giao bù đủ {detailTotalShortage} sản phẩm
+                  </span>
+                ) : comp.isCompensating ? (
+                  <span className="text-xs font-medium text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                    Đang giao bù {comp.inTransitCompensateQty} sản phẩm
+                  </span>
+                ) : detailTotalShortage > 0 ? (
+                  <span className="text-xs font-medium text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200">
+                    Thiếu {detailTotalShortage} sản phẩm
+                  </span>
+                ) : null}
+
+                {detailTotalSurplus > 0 && (
+                  <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
+                    Dư {detailTotalSurplus} sản phẩm
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDetailModal(false)}
+                  className="px-6 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
+                >
+                  Đóng
+                </button>
+                {canWriteInventory &&
+                  detailTransfer.status === 'COMPLETED' &&
+                  detailTotalShortage > 0 &&
+                  !comp.isFullyCompensated && (
+                    <button
+                      onClick={() => handleOpenCompensateModal(detailTransfer)}
+                      className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer border-0"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14" />
+                        <path d="M12 5l7 7-7 7" />
+                      </svg>
+                      Giao bù hàng thiếu ({detailTotalShortage} SP)
+                    </button>
+                  )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Giao Bù Hàng Thiếu hiển thị trực tiếp trên trang chi tiết */}
+        {renderCompensateModal()}
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -2306,378 +2720,11 @@ export function StockTransferManagementView({
         </ModalPortal>
       )}
 
-      {/* ============================================================== */}
-      {/* MODAL 3: XEM CHI TIẾT PHIẾU CHUYỂN KHO                        */}
-      {/* ============================================================== */}
-      {showDetailModal && detailTransfer && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-bold text-slate-800">
-                    Phiếu chuyển kho: {detailTransfer.code}
-                  </h3>
-                  {renderStatusBadge(detailTransfer.status)}
-                </div>
-                <button
-                  onClick={() => setShowDetailModal(false)}
-                  className="text-slate-400 hover:text-slate-600 text-lg p-1"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="overflow-y-auto py-4 space-y-4 flex-1">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200/80 text-xs">
-                  <div>
-                    <span className="text-slate-400 block">Kho xuất:</span>
-                    <span className="font-semibold text-slate-800">
-                      {detailTransfer.from_warehouse_name}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block">Kho nhận:</span>
-                    <span className="font-semibold text-slate-800">
-                      {detailTransfer.to_warehouse_name}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block">Người tạo phiếu:</span>
-                    <span className="font-semibold text-slate-800">
-                      {detailTransfer.created_by}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block">Ngày tạo:</span>
-                    <span className="font-semibold text-slate-800">
-                      {new Date(detailTransfer.created_at).toLocaleString('vi-VN')}
-                    </span>
-                  </div>
-                  {detailTransfer.received_by && (
-                    <div>
-                      <span className="text-slate-400 block">Người tiếp nhận:</span>
-                      <span className="font-semibold text-slate-800">
-                        {detailTransfer.received_by}
-                      </span>
-                    </div>
-                  )}
-                  {detailTransfer.received_at && (
-                    <div>
-                      <span className="text-slate-400 block">Thời gian nhận:</span>
-                      <span className="font-semibold text-slate-800">
-                        {new Date(detailTransfer.received_at).toLocaleString('vi-VN')}
-                      </span>
-                    </div>
-                  )}
-                  {detailTransfer.note && (
-                    <div className="col-span-2 md:col-span-4">
-                      <span className="text-slate-400 block">Ghi chú xuất:</span>
-                      <span className="text-slate-700 italic">{detailTransfer.note}</span>
-                    </div>
-                  )}
-                  {detailTransfer.discrepancy_reason && (
-                    <div className="col-span-2 md:col-span-4 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 break-words">
-                      <b>Lý do chênh lệch khi nhận:</b> "{detailTransfer.discrepancy_reason}"
-                    </div>
-                  )}
-                  {detailTransfer.status === 'CANCELLED' && (
-                    <div className="col-span-2 md:col-span-4 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 break-words">
-                      <b>Trạng thái:</b> Phiếu chuyển kho đã hủy
-                      {(() => {
-                        const cancelReason =
-                          (detailTransfer as any).cancel_reason ||
-                          (detailTransfer.note?.includes('[Hủy:')
-                            ? detailTransfer.note.split('[Hủy:')[1]?.replace(/\]$/, '').trim()
-                            : null);
-                        return cancelReason ? (
-                          <span> — <b>Lý do hủy:</b> "{cancelReason}"</span>
-                        ) : null;
-                      })()}
-                    </div>
-                  )}
-
-                </div>
-
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
-                      <tr>
-                        <th className="py-2.5 px-3 text-left">Mặt hàng</th>
-                        <th className="py-2.5 px-3 text-center">SL gửi đi</th>
-                        <th className="py-2.5 px-3 text-center">SL thực nhận</th>
-                        <th className="py-2.5 px-3 text-center">Chênh lệch</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {(detailTransfer.items || []).map((it) => (
-                        <tr key={it.product_id} className="hover:bg-slate-50">
-                          <td className="py-2.5 px-3">
-                            <div className="font-semibold text-slate-800">{it.product_name}</div>
-                            <div className="text-xs text-slate-400 font-mono">
-                              {it.product_code} ({it.unit})
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-center font-semibold">
-                            {it.transfer_qty}
-                          </td>
-                          <td className="py-2.5 px-3 text-center">
-                            {it.received_qty !== null && it.received_qty !== undefined ? (
-                              <span className="font-semibold text-emerald-700">
-                                {it.received_qty}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic">Chưa nhận</span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 text-center">
-                            {(() => {
-                              if (detailTransfer.status === 'CANCELLED') {
-                                return <span className="text-xs text-rose-600 font-medium whitespace-nowrap">Đã hủy</span>;
-                              }
-                              if (it.received_qty === null || it.received_qty === undefined) {
-                                return <span className="text-slate-400">-</span>;
-                              }
-                              const diff = it.received_qty - it.transfer_qty;
-                              if (diff > 0) {
-                                return (
-                                  <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                                    +{diff} (Dư)
-                                  </span>
-                                );
-                              }
-                              if (diff < 0) {
-                                const shortageQty = Math.abs(diff);
-                                return getTransferCompensationStatus(detailTransfer).isFullyCompensated ? (
-                                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                    Đã bù {shortageQty}
-                                  </span>
-                                ) : (
-                                  <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                                    -{shortageQty} (Hụt)
-                                  </span>
-                                );
-                              }
-                              return <span className="text-xs text-emerald-600 font-medium">✓ Đủ</span>;
-                            })()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {(() => {
-                const comp = getTransferCompensationStatus(detailTransfer);
-                return (
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {comp.isFullyCompensated ? (
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-                          ✓ Đã giao bù đủ {detailTotalShortage} sản phẩm
-                        </span>
-                      ) : comp.isCompensating ? (
-                        <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
-                          Đang giao bù {comp.inTransitCompensateQty} sản phẩm
-                        </span>
-                      ) : detailTotalShortage > 0 ? (
-                        <span className="text-xs font-medium text-rose-600 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">
-                          Thiếu {detailTotalShortage} sản phẩm
-                        </span>
-                      ) : null}
-
-                      {detailTotalSurplus > 0 && (
-                        <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">
-                          Dư {detailTotalSurplus} sản phẩm
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setShowDetailModal(false)}
-                        className="px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                      >
-                        Đóng
-                      </button>
-                      {canWriteInventory &&
-                        detailTransfer.status === 'COMPLETED' &&
-                        detailTotalShortage > 0 &&
-                        !comp.isFullyCompensated && (
-                          <button
-                            onClick={() => handleOpenCompensateModal(detailTransfer)}
-                            className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer border-0"
-                          >
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M5 12h14" />
-                              <path d="M12 5l7 7-7 7" />
-                            </svg>
-                            Giao bù hàng thiếu ({detailTotalShortage} SP)
-                          </button>
-                        )}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        </ModalPortal>
-      )}
 
       {/* ============================================================== */}
       {/* MODAL 5: GIAO BÙ HÀNG THIẾU                                  */}
       {/* ============================================================== */}
-      {showCompensateModal && compensatingTransfer && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
-            <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200/80 p-6 max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">
-                    Lập phiếu chuyển kho giao bù
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Giao bù hàng thiếu cho phiếu <b>{compensatingTransfer.code}</b>
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowCompensateModal(false)}
-                  className="text-slate-400 hover:text-slate-600 text-lg p-1"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="overflow-y-auto py-4 space-y-4 flex-1">
-                {/* TUYẾN GIAO BÙ */}
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
-                  <div>
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Kho gửi (Xuất bù)
-                    </span>
-                    <span className="text-sm font-semibold text-slate-800">
-                      {compensatingTransfer.from_warehouse_name}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Kho nhận (Đang thiếu hàng)
-                    </span>
-                    <span className="text-sm font-semibold text-slate-800">
-                      {compensatingTransfer.to_warehouse_name}
-                    </span>
-                  </div>
-                </div>
-
-                {/* BẢNG SẢN PHẨM GIAO BÙ */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Danh sách sản phẩm giao bù
-                    </label>
-                    {loadingCompensateStock && (
-                      <span className="text-xs text-blue-600">Đang kiểm tra tồn kho xuất...</span>
-                    )}
-                  </div>
-
-                  <div className="border border-slate-200 rounded-xl overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
-                        <tr>
-                          <th className="py-2.5 px-3 text-left">Mặt hàng</th>
-                          <th className="py-2.5 px-3 text-center">SL thiếu</th>
-                          <th className="py-2.5 px-3 text-center">Tồn khả dụng kho gửi</th>
-                          <th className="py-2.5 px-3 text-center w-32">SL giao bù</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {compensateItems.map((it, idx) => {
-                          const isOver = it.compensate_qty > it.available_stock;
-                          return (
-                            <tr key={it.product_id} className="hover:bg-slate-50">
-                              <td className="py-2.5 px-3">
-                                <div className="font-semibold text-slate-800">{it.product_name}</div>
-                                <div className="text-xs text-slate-400 font-mono">
-                                  {it.product_code} ({it.unit})
-                                </div>
-                              </td>
-                              <td className="py-2.5 px-3 text-center">
-                                <span className="font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 text-xs">
-                                  {it.shortage_qty}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-3 text-center">
-                                <span className={`font-semibold ${it.available_stock < it.compensate_qty ? 'text-rose-600' : 'text-blue-600'}`}>
-                                  {loadingCompensateStock ? '...' : it.available_stock}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-3 text-center">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max={it.available_stock}
-                                  value={it.compensate_qty}
-                                  onFocus={(e) => e.target.select()}
-                                  onChange={(e) =>
-                                    handleUpdateCompensateQty(idx, parseInt(e.target.value, 10) || 1)
-                                  }
-                                  className={`w-24 text-center px-2 py-1 text-sm border rounded-lg font-semibold focus:outline-none focus:ring-2 ${
-                                    isOver
-                                      ? 'border-rose-400 text-rose-600 bg-rose-50 ring-rose-200'
-                                      : 'border-slate-200 focus:ring-blue-500'
-                                  }`}
-                                />
-                                {isOver && (
-                                  <div className="text-[10px] text-rose-600 font-medium mt-0.5">
-                                    Vượt tồn kho!
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* GHI CHÚ XUẤT BÙ */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Ghi chú phiếu giao bù
-                  </label>
-                  <input
-                    type="text"
-                    value={compensateNote}
-                    onChange={(e) => setCompensateNote(e.target.value)}
-                    placeholder="Nhập ghi chú giao bù..."
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* FOOTER */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCompensateModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  disabled={loadingCompensateStock || submittingCompensate}
-                  onClick={handleSubmitCompensateTransfer}
-                  className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#0fad89] to-[#0F8A5F] hover:from-[#0c734f] hover:to-[#065f46] disabled:opacity-50 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border-0"
-                >
-                  {submittingCompensate ? 'Đang xuất chuyển bù...' : 'Xác nhận xuất giao bù'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
+      {renderCompensateModal()}
 
       {/* ============================================================== */}
       {/* MODAL 4: XÁC NHẬN HỦY PHIẾU CHUYỂN KHO                        */}
