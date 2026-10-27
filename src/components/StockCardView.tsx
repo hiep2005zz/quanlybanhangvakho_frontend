@@ -32,10 +32,11 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Bộ lọc theo kho và khoảng thời gian (Tiêu chí 3)
+  // Bộ lọc theo kho, chứng từ gốc và khoảng thời gian (Tiêu chí 3)
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('all');
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
+  const [searchDocTerm, setSearchDocTerm] = useState<string>('');
   const [activeVoucher, setActiveVoucher] = useState<{
     code: string;
     type: string;
@@ -126,8 +127,21 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   }, [selectedProductId, fetchStockCard]);
 
   const summary = data?.summary;
-  const entries = useMemo(() => data?.entries || [], [data?.entries]);
+  const rawEntries = useMemo(() => data?.entries || [], [data?.entries]);
   const warehouses = data?.warehouses || [];
+
+  // Lọc theo mã chứng từ gốc (hoặc ghi chú/loại nghiệp vụ)
+  const entries = useMemo(() => {
+    if (!searchDocTerm.trim()) return rawEntries;
+    const term = searchDocTerm.trim().toLowerCase();
+    return rawEntries.filter((item) => {
+      const ref = (item.reference_code || item.voucher_info?.voucher_code || '').toLowerCase();
+      const note = (item.note || '').toLowerCase();
+      const label = (item.transaction_label || '').toLowerCase();
+      const user = (item.created_by_name || '').toLowerCase();
+      return ref.includes(term) || note.includes(term) || label.includes(term) || user.includes(term);
+    });
+  }, [rawEntries, searchDocTerm]);
 
   // Tính toán phân trang 20 dòng / trang
   const totalEntries = entries.length;
@@ -254,6 +268,8 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
     setSelectedWarehouse('all');
     setFromDate('');
     setToDate('');
+    setSearchDocTerm('');
+    setCurrentPage(1);
   };
 
   const currentProductFromList = productsList.find((p) => p.id === selectedProductId);
@@ -931,8 +947,93 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                 />
               </div>
 
+              {/* Tìm kiếm chứng từ gốc */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', position: 'relative' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
+                  Chứng từ gốc:
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <svg
+                    style={{
+                      width: '13px',
+                      height: '13px',
+                      color: '#94a3b8',
+                      position: 'absolute',
+                      left: '8px',
+                      pointerEvents: 'none',
+                    }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2.2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchDocTerm}
+                    onChange={(e) => {
+                      setSearchDocTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    placeholder="Tìm mã CT (CK-, PN-, PX...)"
+                    style={{
+                      height: '30px',
+                      paddingLeft: '26px',
+                      paddingRight: searchDocTerm ? '24px' : '8px',
+                      fontSize: '11.5px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      backgroundColor: '#ffffff',
+                      color: '#1e293b',
+                      outline: 'none',
+                      width: '165px',
+                      transition: 'border-color 0.15s ease',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#0fad89';
+                      e.currentTarget.style.boxShadow = '0 0 0 2px rgba(15, 173, 137, 0.15)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#cbd5e1';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  />
+                  {searchDocTerm && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchDocTerm('');
+                        setCurrentPage(1);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        right: '6px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        fontSize: '12px',
+                        lineHeight: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      title="Xóa tìm kiếm"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Nút Xóa lọc */}
-              {(selectedWarehouse !== 'all' || fromDate || toDate) && (
+              {(selectedWarehouse !== 'all' || fromDate || toDate || searchDocTerm) && (
                 <button
                   type="button"
                   onClick={handleResetFilters}
