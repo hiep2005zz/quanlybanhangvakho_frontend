@@ -135,12 +135,13 @@ export default function DeliveryPointsView({
   }, [loadDealers]);
 
   // Load delivery points for current dealer
-  const loadPoints = useCallback(async () => {
+  const loadPoints = useCallback(async (opts?: { silent?: boolean } | unknown) => {
+    const silent = typeof opts === 'object' && opts !== null && 'silent' in opts ? Boolean((opts as { silent?: boolean }).silent) : false;
     if (!selectedDealerId) {
       setPoints([]);
       return;
     }
-    setLoadingPoints(true);
+    if (!silent) setLoadingPoints(true);
     setPointsError('');
     try {
       const data = await listDeliveryPointsApi(token, selectedDealerId);
@@ -149,7 +150,7 @@ export default function DeliveryPointsView({
       const msg = err instanceof Error ? err.message : 'Không thể tải danh sách điểm giao hàng';
       setPointsError(msg);
     } finally {
-      setLoadingPoints(false);
+      if (!silent) setLoadingPoints(false);
     }
   }, [token, selectedDealerId]);
 
@@ -158,8 +159,9 @@ export default function DeliveryPointsView({
   }, [loadPoints]);
 
   // Load all delivery points
-  const loadAllPoints = useCallback(async () => {
-    setLoadingAllPoints(true);
+  const loadAllPoints = useCallback(async (opts?: { silent?: boolean } | unknown) => {
+    const silent = typeof opts === 'object' && opts !== null && 'silent' in opts ? Boolean((opts as { silent?: boolean }).silent) : false;
+    if (!silent) setLoadingAllPoints(true);
     try {
       const data = await listAllDeliveryPointsApi(token);
       setAllPoints(data);
@@ -167,7 +169,7 @@ export default function DeliveryPointsView({
       const msg = err instanceof Error ? err.message : 'Không thể tải danh sách tất cả điểm giao';
       emitStatusToast({ title: 'Lỗi', message: msg, type: 'error' });
     } finally {
-      setLoadingAllPoints(false);
+      if (!silent) setLoadingAllPoints(false);
     }
   }, [token]);
 
@@ -307,7 +309,7 @@ export default function DeliveryPointsView({
     setSelectingPointId(item.id);
     try {
       const willBeDefault = points.length === 0;
-      await createDeliveryPointApi(token, selectedDealerId, {
+      const created = await createDeliveryPointApi(token, selectedDealerId, {
         label: item.label,
         address: item.address,
         receiver_name: item.receiver_name || selectedDealer?.name || '',
@@ -315,13 +317,15 @@ export default function DeliveryPointsView({
         route_note: item.route_note || '',
         is_default: willBeDefault,
       });
+      if (created) {
+        setPoints((prev) => [...prev.filter((p) => p.id !== created.id), created]);
+      }
       emitStatusToast({
         title: 'Đã thêm điểm giao',
         message: `Đã thêm điểm giao "${item.label}" cho đại lý "${selectedDealer?.name || ''}"`,
         type: 'success',
       });
-      await loadPoints();
-      await loadAllPoints();
+      await Promise.all([loadPoints({ silent: true }), loadAllPoints({ silent: true })]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Không thể thêm điểm giao này';
       emitStatusToast({
@@ -355,8 +359,7 @@ export default function DeliveryPointsView({
         message: `Đã bỏ chọn điểm giao "${item.label}" khỏi đại lý "${selectedDealer?.name || ''}"`,
         type: 'info',
       });
-      await loadPoints();
-      await loadAllPoints();
+      await Promise.all([loadPoints({ silent: true }), loadAllPoints({ silent: true })]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Không thể bỏ chọn điểm giao';
       emitStatusToast({
@@ -1134,38 +1137,6 @@ export default function DeliveryPointsView({
               </div>
             </div>
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button
-              type="button"
-              onClick={() => {
-                setIsSelectPointModalOpen(false);
-                setSelectPointSearch('');
-              }}
-              style={{
-                padding: '8px 20px',
-                borderRadius: '10px',
-                background: '#0fad89',
-                color: '#ffffff',
-                border: 'none',
-                fontSize: '13.5px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: '0 2px 8px rgba(15, 173, 137, 0.25)',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#0a8f70')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0fad89')}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <span>Xong</span>
-            </button>
-          </div>
         </div>
 
         {/* Khối Card Danh Sách Điểm Giao */}
@@ -1250,7 +1221,7 @@ export default function DeliveryPointsView({
 
           {/* Table Container */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 20px 24px' }}>
-            {loadingAllPoints ? (
+            {loadingAllPoints && allPoints.length === 0 ? (
               <div style={{ padding: '80px 20px', textAlign: 'center', color: '#94a3b8' }}>
                 Đang tải danh sách điểm giao hàng...
               </div>
@@ -1385,7 +1356,8 @@ export default function DeliveryPointsView({
                                 cursor: (isDeselecting || assignedPoint.is_default) ? 'not-allowed' : 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '5px',
+                                justifyContent: 'center',
+                                minWidth: '76px',
                                 transition: 'all 0.15s ease',
                                 whiteSpace: 'nowrap',
                                 opacity: assignedPoint.is_default ? 0.6 : 1,
@@ -1407,13 +1379,7 @@ export default function DeliveryPointsView({
                               {isDeselecting ? (
                                 'Đang bỏ...'
                               ) : (
-                                <>
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                  </svg>
-                                  <span>Bỏ chọn</span>
-                                </>
+                                <span>Bỏ chọn</span>
                               )}
                             </button>
                           ) : (
@@ -1432,7 +1398,8 @@ export default function DeliveryPointsView({
                                 cursor: isSelecting ? 'not-allowed' : 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '5px',
+                                justifyContent: 'center',
+                                minWidth: '76px',
                                 boxShadow: '0 2px 6px rgba(15, 173, 137, 0.2)',
                                 transition: 'all 0.15s ease',
                                 whiteSpace: 'nowrap',
@@ -1447,13 +1414,7 @@ export default function DeliveryPointsView({
                               {isSelecting ? (
                                 'Đang thêm...'
                               ) : (
-                                <>
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <line x1="12" y1="5" x2="12" y2="19" />
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                  </svg>
-                                  <span>Thêm</span>
-                                </>
+                                <span>Thêm</span>
                               )}
                             </button>
                           )}
@@ -1748,7 +1709,7 @@ export default function DeliveryPointsView({
 
             {/* Table Container */}
             <div style={{ flex: 1, overflowY: 'auto' }}>
-              {loadingAllPoints ? (
+              {loadingAllPoints && allPoints.length === 0 ? (
                 <div style={{ padding: '80px 20px', textAlign: 'center', color: '#94a3b8' }}>
                   <div style={{ display: 'inline-block', width: '28px', height: '28px', border: '3px solid #cbd5e1', borderTopColor: '#0fad89', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginBottom: '12px' }} />
                   <div>Đang tải danh sách điểm giao hàng...</div>

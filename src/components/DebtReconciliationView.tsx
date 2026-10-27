@@ -915,7 +915,6 @@ export const DebtReconciliationView: React.FC<DebtReconciliationViewProps> = ({
               <option value="SENT">Chờ đại lý xác nhận</option>
               <option value="CONFIRMED">Đã đối chiếu khớp</option>
               <option value="DISPUTED">Báo lệch / Khiếu nại</option>
-              <option value="DRAFT">Bản nháp</option>
             </select>
             <svg
               width="13"

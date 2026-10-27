@@ -8,6 +8,7 @@ import {
 } from '../services/api';
 import { ModalPortal } from './ModalPortal';
 import { emitStatusToast } from './StatusToast';
+import { WarehouseSelectDropdown } from './WarehouseSelectDropdown';
 
 interface StockThresholdModalProps {
   isOpen: boolean;
@@ -222,87 +223,81 @@ export const StockThresholdModal: React.FC<StockThresholdModalProps> = ({
               flexWrap: 'wrap',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              {/* Warehouse selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>Chọn kho:</span>
-                <select
-                  value={selectedWarehouseId}
-                  onChange={(e) => setSelectedWarehouseId(e.target.value)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flex: 1 }}>
+              {/* Search Input */}
+              <div style={{ position: 'relative', minWidth: '220px', flex: '1 1 220px', maxWidth: '300px' }}>
+                <input
+                  type="text"
+                  placeholder="Tìm mã SKU, tên SP..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   style={{
-                    padding: '6px 12px',
+                    width: '100%',
+                    height: '35px',
+                    padding: '7px 12px',
                     borderRadius: '8px',
                     border: '1px solid #cbd5e1',
                     fontSize: '13px',
-                    fontWeight: '600',
-                    color: '#1e293b',
-                    background: '#f8fafc',
-                    cursor: 'pointer',
+                    boxSizing: 'border-box',
+                    outline: 'none',
                   }}
-                >
-                  <option value="ALL">Tất cả các kho</option>
-                  {warehouses.map((w) => (
-                    <option key={w.warehouse_id} value={w.warehouse_id}>
-                      {w.warehouse_name} ({w.warehouse_id})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
-              {/* Quick filter tabs */}
-              <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setFilterMode('ALL')}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: filterMode === 'ALL' ? '#ffffff' : 'transparent',
-                    color: filterMode === 'ALL' ? '#0f172a' : '#64748b',
-                    fontWeight: filterMode === 'ALL' ? '700' : '500',
-                    fontSize: '12.5px',
-                    cursor: 'pointer',
-                    boxShadow: filterMode === 'ALL' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                  }}
-                >
-                  Tất cả ({items.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterMode('LOW_ONLY')}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: filterMode === 'LOW_ONLY' ? '#fee2e2' : 'transparent',
-                    color: filterMode === 'LOW_ONLY' ? '#b91c1c' : '#64748b',
-                    fontWeight: filterMode === 'LOW_ONLY' ? '700' : '500',
-                    fontSize: '12.5px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Dưới định mức ({items.filter((i) => i.is_low_stock).length})
-                </button>
+              {/* Warehouse selector */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>Chọn kho:</span>
+                <div style={{ minWidth: '190px' }}>
+                  <WarehouseSelectDropdown
+                    warehouses={warehouses}
+                    selectedId={selectedWarehouseId}
+                    onSelect={(whId) => setSelectedWarehouseId(whId)}
+                    allowAll={true}
+                    allLabel="Tất cả kho"
+                    allValue="ALL"
+                    compact={true}
+                    placeholder="Tất cả kho"
+                    id="modal-threshold-warehouse-select"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Search Input */}
-            <div style={{ position: 'relative', width: '260px' }}>
-              <input
-                type="text"
-                placeholder="Tìm mã SKU, tên SP..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+            {/* Quick filter tabs */}
+            <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setFilterMode('ALL')}
                 style={{
-                  width: '100%',
-                  padding: '7px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  boxSizing: 'border-box',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: filterMode === 'ALL' ? '#ffffff' : 'transparent',
+                  color: filterMode === 'ALL' ? '#0f172a' : '#64748b',
+                  fontWeight: filterMode === 'ALL' ? '700' : '500',
+                  fontSize: '12.5px',
+                  cursor: 'pointer',
+                  boxShadow: filterMode === 'ALL' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
                 }}
-              />
+              >
+                Tất cả ({items.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterMode('LOW_ONLY')}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: filterMode === 'LOW_ONLY' ? '#fee2e2' : 'transparent',
+                  color: filterMode === 'LOW_ONLY' ? '#b91c1c' : '#64748b',
+                  fontWeight: filterMode === 'LOW_ONLY' ? '700' : '500',
+                  fontSize: '12.5px',
+                  cursor: 'pointer',
+                }}
+              >
+                Dưới định mức ({items.filter((i) => i.is_low_stock).length})
+              </button>
             </div>
           </div>
 
