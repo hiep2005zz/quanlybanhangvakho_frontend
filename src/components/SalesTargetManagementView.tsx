@@ -803,7 +803,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
           </div>
 
           <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đạt mục tiêu (≥ 100%)</div>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đạt mục tiêu</div>
             <div className="text-2xl font-bold text-slate-900 mt-1">
               {summary.completed_count} / {summary.total_count}
             </div>

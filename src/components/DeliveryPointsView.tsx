@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   listDealersApi,
   listDeliveryPointsApi,
@@ -60,6 +60,9 @@ export default function DeliveryPointsView({
   // Modal: Chọn điểm giao có sẵn cho đại lý
   const [isSelectPointModalOpen, setIsSelectPointModalOpen] = useState(false);
   const [selectPointSearch, setSelectPointSearch] = useState('');
+  const [selectPointPage, setSelectPointPage] = useState<number>(1);
+  const selectPointPageSize = 10;
+  const selectPointTableContainerRef = useRef<HTMLDivElement>(null);
   const [selectingPointId, setSelectingPointId] = useState<number | null>(null);
   const [deselectingPointId, setDeselectingPointId] = useState<number | null>(null);
 
@@ -184,6 +187,31 @@ export default function DeliveryPointsView({
     loadPoints();
   };
 
+  // Làm mới trang danh sách tất cả các điểm giao đang có
+  const handleRefreshAllPointsPage = async () => {
+    setAllPointsSearch('');
+    setAllPointsPage(1);
+    await loadAllPoints();
+    emitStatusToast({
+      title: 'Đã làm mới',
+      message: 'Đã cập nhật danh sách các điểm giao đang có.',
+      type: 'info',
+    });
+  };
+
+  // Làm mới danh sách điểm giao của đại lý
+  const handleRefreshDealerPoints = async () => {
+    await Promise.all([
+      loadPoints(),
+      loadAllPoints({ silent: true }),
+    ]);
+    emitStatusToast({
+      title: 'Đã làm mới',
+      message: 'Đã cập nhật danh sách điểm giao của đại lý.',
+      type: 'info',
+    });
+  };
+
   
 
   // Selected dealer object
@@ -274,6 +302,13 @@ export default function DeliveryPointsView({
     return uniqueList;
   }, [allPoints, selectPointSearch]);
 
+  const totalSelectPointPages = Math.max(1, Math.ceil(availablePointsToSelect.length / selectPointPageSize));
+  const safeSelectPointPage = Math.min(Math.max(1, selectPointPage), totalSelectPointPages);
+  const paginatedAvailablePoints = useMemo(() => {
+    const start = (safeSelectPointPage - 1) * selectPointPageSize;
+    return availablePointsToSelect.slice(start, start + selectPointPageSize);
+  }, [availablePointsToSelect, safeSelectPointPage, selectPointPageSize]);
+
   // Tìm điểm giao tương ứng đã được gán cho đại lý hiện tại (nếu có)
   const getAssignedPointForDealer = useCallback(
     (targetPoint: AllDeliveryPointItem) => {
@@ -299,8 +334,24 @@ export default function DeliveryPointsView({
       return;
     }
     setSelectPointSearch('');
+    setSelectPointPage(1);
     setIsSelectPointModalOpen(true);
     loadAllPoints();
+  };
+
+  // Làm mới danh sách điểm giao có sẵn
+  const handleRefreshSelectPoints = async () => {
+    setSelectPointSearch('');
+    setSelectPointPage(1);
+    await Promise.all([
+      loadAllPoints(),
+      loadPoints({ silent: true }),
+    ]);
+    emitStatusToast({
+      title: 'Đã làm mới',
+      message: 'Đã cập nhật danh sách điểm giao có sẵn.',
+      type: 'info',
+    });
   };
 
   // Gán điểm giao có sẵn cho đại lý đang chọn
@@ -1137,6 +1188,37 @@ export default function DeliveryPointsView({
               </div>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsSelectPointModalOpen(false);
+              setSelectPointSearch('');
+            }}
+            style={{
+              padding: '7px 20px',
+              borderRadius: '9px',
+              border: 'none',
+              background: '#0fad89',
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(15, 173, 137, 0.25)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#0a8f70';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#0fad89';
+            }}
+          >
+            Xong
+          </button>
         </div>
 
         {/* Khối Card Danh Sách Điểm Giao */}
@@ -1181,7 +1263,10 @@ export default function DeliveryPointsView({
                 type="text"
                 placeholder="Tìm điểm giao theo tên, địa chỉ, người nhận, SĐT..."
                 value={selectPointSearch}
-                onChange={(e) => setSelectPointSearch(e.target.value)}
+                onChange={(e) => {
+                  setSelectPointSearch(e.target.value);
+                  setSelectPointPage(1);
+                }}
                 style={{
                   width: '100%',
                   padding: '10px 14px 10px 40px',
@@ -1196,31 +1281,49 @@ export default function DeliveryPointsView({
 
             <button
               type="button"
-              onClick={loadAllPoints}
+              disabled={loadingAllPoints}
+              onClick={handleRefreshSelectPoints}
               style={{
                 padding: '9px 14px',
                 borderRadius: '10px',
                 border: '1px solid #cbd5e1',
                 background: '#ffffff',
-                color: '#475569',
+                color: loadingAllPoints ? '#94a3b8' : '#475569',
                 fontSize: '13px',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: loadingAllPoints ? 'not-allowed' : 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!loadingAllPoints) e.currentTarget.style.backgroundColor = '#f8fafc';
+              }}
+              onMouseLeave={(e) => {
+                if (!loadingAllPoints) e.currentTarget.style.backgroundColor = '#ffffff';
               }}
               title="Tải lại danh sách"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={loadingAllPoints ? 'animate-spin' : ''}
+              >
                 <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
               </svg>
-              <span>Làm mới</span>
+              <span>{loadingAllPoints ? 'Đang tải...' : 'Làm mới'}</span>
             </button>
           </div>
 
           {/* Table Container */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 20px 24px' }}>
+          <div ref={selectPointTableContainerRef} style={{ flex: 1, overflowY: 'auto', padding: '0 24px 20px 24px' }}>
             {loadingAllPoints && allPoints.length === 0 ? (
               <div style={{ padding: '80px 20px', textAlign: 'center', color: '#94a3b8' }}>
                 Đang tải danh sách điểm giao hàng...
@@ -1267,7 +1370,7 @@ export default function DeliveryPointsView({
                   </tr>
                 </thead>
                 <tbody>
-                  {availablePointsToSelect.map((item) => {
+                  {paginatedAvailablePoints.map((item) => {
                     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address)}`;
                     const assignedPoint = getAssignedPointForDealer(item);
                     const isAssigned = Boolean(assignedPoint);
@@ -1430,37 +1533,107 @@ export default function DeliveryPointsView({
           {/* Footer Bar */}
           <div
             style={{
-              padding: '14px 24px',
+              padding: '10px 24px',
               borderTop: '1px solid #f1f5f9',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
               background: '#f8fafc',
+              flexWrap: 'wrap',
+              gap: '12px',
             }}
           >
             <span style={{ fontSize: '13px', color: '#64748b' }}>
               Hiển thị <strong>{availablePointsToSelect.length}</strong> điểm giao có sẵn
             </span>
 
-            <button
-              type="button"
-              onClick={() => {
-                setIsSelectPointModalOpen(false);
-                setSelectPointSearch('');
-              }}
-              style={{
-                padding: '8px 20px',
-                borderRadius: '9px',
-                border: '1px solid #0fad89',
-                background: '#0fad89',
-                color: '#ffffff',
-                fontSize: '13.5px',
-                fontWeight: '600',
-                cursor: 'pointer',
-              }}
-            >
-              Xong
-            </button>
+            {totalSelectPointPages > 1 && (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'stretch',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '5px',
+                  overflow: 'hidden',
+                  background: '#ffffff',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                  height: '24px',
+                }}
+              >
+                {Array.from({ length: totalSelectPointPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalSelectPointPages || Math.abs(p - safeSelectPointPage) <= 1)
+                  .reduce<(number | string)[]>((acc, p, i, arr) => {
+                    if (i > 0 && typeof arr[i - 1] === 'number' && (p as number) - (arr[i - 1] as number) > 1) {
+                      acc.push('...');
+                    }
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, i, arr) => {
+                    const isLastItem = i === arr.length - 1;
+                    if (typeof p === 'string') {
+                      return (
+                        <span
+                          key={`ellipsis-${i}`}
+                          style={{
+                            minWidth: '22px',
+                            height: '100%',
+                            padding: '0 4px',
+                            borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                            background: '#ffffff',
+                            color: '#6b7280',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '11px',
+                            userSelect: 'none',
+                          }}
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+
+                    const isActive = p === safeSelectPointPage;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => {
+                          setSelectPointPage(p);
+                          if (selectPointTableContainerRef.current) {
+                            selectPointTableContainerRef.current.scrollTop = 0;
+                          }
+                        }}
+                        style={{
+                          minWidth: '24px',
+                          height: '100%',
+                          padding: '0 7px',
+                          border: 'none',
+                          borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                          background: isActive ? '#0fad89' : '#ffffff',
+                          color: isActive ? '#ffffff' : '#374151',
+                          cursor: isActive ? 'default' : 'pointer',
+                          fontSize: '11.5px',
+                          fontWeight: isActive ? '700' : '500',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                        }}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1567,27 +1740,45 @@ export default function DeliveryPointsView({
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
                 type="button"
-                onClick={loadAllPoints}
+                disabled={loadingAllPoints}
+                onClick={handleRefreshAllPointsPage}
                 style={{
                   padding: '8px 14px',
                   borderRadius: '10px',
                   border: '1px solid #cbd5e1',
                   background: '#ffffff',
-                  color: '#475569',
+                  color: loadingAllPoints ? '#94a3b8' : '#475569',
                   fontSize: '13px',
                   fontWeight: '600',
-                  cursor: 'pointer',
+                  cursor: loadingAllPoints ? 'not-allowed' : 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!loadingAllPoints) e.currentTarget.style.backgroundColor = '#f8fafc';
+                }}
+                onMouseLeave={(e) => {
+                  if (!loadingAllPoints) e.currentTarget.style.backgroundColor = '#ffffff';
                 }}
                 title="Tải lại danh sách điểm giao"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={loadingAllPoints ? 'animate-spin' : ''}
+                >
                   <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
                 </svg>
-                <span>Làm mới</span>
+                <span>{loadingAllPoints ? 'Đang tải...' : 'Làm mới'}</span>
               </button>
 
               <button
@@ -2172,26 +2363,44 @@ export default function DeliveryPointsView({
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
             type="button"
-            onClick={loadPoints}
+            disabled={loadingPoints}
+            onClick={handleRefreshDealerPoints}
             style={{
               padding: '9px 14px',
               borderRadius: '10px',
               background: '#ffffff',
               border: '1px solid #cbd5e1',
-              color: '#475569',
+              color: loadingPoints ? '#94a3b8' : '#475569',
               fontSize: '13.5px',
               fontWeight: '600',
-              cursor: 'pointer',
+              cursor: loadingPoints ? 'not-allowed' : 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!loadingPoints) e.currentTarget.style.backgroundColor = '#f8fafc';
+            }}
+            onMouseLeave={(e) => {
+              if (!loadingPoints) e.currentTarget.style.backgroundColor = '#ffffff';
             }}
             title="Làm mới danh sách"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={loadingPoints ? 'animate-spin' : ''}
+            >
               <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
             </svg>
-            <span>Làm mới</span>
+            <span>{loadingPoints ? 'Đang tải...' : 'Làm mới'}</span>
           </button>
 
           {/* Nút Xem Danh sách điểm giao hệ thống */}

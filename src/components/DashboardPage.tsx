@@ -218,6 +218,14 @@ export default function DashboardPage({
     user.role === 'warehouse'
   );
 
+  // Quyền truy cập Hàng tồn kho (stock-book): Ẩn hoàn toàn với nhân viên mua hàng (purchasing / muahang)
+  const isPurchasing = !isAdmin && Boolean(
+    user.role?.toLowerCase() === 'purchasing' ||
+    user.role?.toLowerCase() === 'muahang' ||
+    officialRoles.some((r) => r?.toLowerCase() === 'purchasing' || r?.toLowerCase() === 'muahang')
+  );
+  const canAccessStockBook = !isCustomer && !isPurchasing;
+
   // Quyền truy cập Danh sách kho & Vị trí: Nhân viên kinh doanh không được xem chức năng này
   const isSalesPerson = Boolean(
     user.role === 'sales' ||
@@ -444,10 +452,14 @@ export default function DashboardPage({
     }
 
     if (isStockBookPath || oldTabVal === 'stock-book') {
-      if (hasOldTabParam || pathname !== '/stock-book') {
-        try { window.history.replaceState({}, '', '/stock-book'); } catch { }
+      if (canAccessStockBook) {
+        if (hasOldTabParam || pathname !== '/stock-book') {
+          try { window.history.replaceState({}, '', '/stock-book'); } catch { }
+        }
+        return 'stock-book';
       }
-      return 'stock-book';
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
     }
 
     if (isInventoryTurnoverPath || oldTabVal === 'inventory-turnover') {
@@ -826,6 +838,9 @@ export default function DashboardPage({
     }
 
     if (tab === 'stock-book') {
+      if (!canAccessStockBook) {
+        return;
+      }
       setActiveTabState('stock-book');
       try {
         window.history.pushState({}, '', '/stock-book');
@@ -1161,6 +1176,11 @@ export default function DashboardPage({
       }
 
       if (isStockBookPath || tabParam === 'stock-book') {
+        if (!canAccessStockBook) {
+          try { window.history.replaceState({}, '', '/'); } catch { }
+          setActiveTabState('inventory');
+          return;
+        }
         if (pathname !== '/stock-book' || tabParam) {
           try { window.history.replaceState({}, '', '/stock-book'); } catch { }
         }
@@ -2103,6 +2123,7 @@ export default function DashboardPage({
           canAccessDiscounts={canAccessDiscounts}
           canAccessStockAudit={canAccessStockAudit}
           canAccessStockTransfer={canAccessStockTransfer}
+          canAccessStockBook={canAccessStockBook}
           canAccessWarehouses={canAccessWarehouses}
           canWriteInventory={canWriteInventory}
           isWarehouseOrAdmin={isWarehouseOrAdmin}
@@ -2963,7 +2984,7 @@ export default function DashboardPage({
             />
           )
         ) : activeTab === 'stock-book' ? (
-          !isCustomer ? (
+          canAccessStockBook ? (
             <WarehouseStockBookView
               token={token}
               canAccessStockCard={canAccessStockCard}
@@ -2988,7 +3009,7 @@ export default function DashboardPage({
           ) : (
             <AccessDeniedView
               currentUser={user}
-              requiredPermission="Sổ kho & Thẻ kho (Chỉ dành cho nhân viên nội bộ)"
+              requiredPermission="Hàng tồn kho (Không áp dụng cho nhân viên mua hàng)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />
