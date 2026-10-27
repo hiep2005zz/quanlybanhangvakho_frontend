@@ -4,9 +4,10 @@ import { ApprovalHistoryItem, getOrderApprovalHistoryApi } from '../services/api
 interface OrderApprovalHistoryProps {
   orderCode: string;
   token: string;
+  embedded?: boolean;
 }
 
-export const OrderApprovalHistory: React.FC<OrderApprovalHistoryProps> = ({ orderCode, token }) => {
+export const OrderApprovalHistory: React.FC<OrderApprovalHistoryProps> = ({ orderCode, token, embedded = false }) => {
   const [history, setHistory] = useState<ApprovalHistoryItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +83,7 @@ export const OrderApprovalHistory: React.FC<OrderApprovalHistoryProps> = ({ orde
   };
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden my-4">
+    <div className={embedded ? "w-full" : "bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden my-4"}>
       <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-bold text-slate-900">

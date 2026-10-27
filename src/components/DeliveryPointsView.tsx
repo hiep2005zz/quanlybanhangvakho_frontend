@@ -1440,7 +1440,7 @@ export default function DeliveryPointsView({
 
                               {/* Dropdown Menu */}
                               {activeDropdownMasterPointId === item.id && (() => {
-                                const openUpward = paginatedAllPoints.length > 2 && idx >= paginatedAllPoints.length - 2;
+                                const openUpward = idx > 0 && (idx >= paginatedAllPoints.length - 1 || (paginatedAllPoints.length >= 3 && idx >= paginatedAllPoints.length - 2));
                                 return (
                                   <div
                                     style={{

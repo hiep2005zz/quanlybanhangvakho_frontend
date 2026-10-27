@@ -250,60 +250,61 @@ export const PriceBookDetailPage: React.FC<PriceBookDetailPageProps> = ({
         </div>
       </div>
 
-      {/* 2. Main Content Container - Full Width */}
-      <div className="flex-1 w-full px-4 sm:px-8 py-6 space-y-6 pb-16">
-        {/* Thẻ 1: Thông tin tổng quan */}
-        <div className="w-full bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4 pb-2 border-b border-slate-100">
-            Thông tin chi tiết bảng giá
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-sm">
-            {/* Nhóm khách hàng */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <span className="text-xs font-semibold text-slate-500 block mb-1">Nhóm khách hàng áp dụng</span>
-              <strong className="text-slate-900 text-base">{formatGroupName(book.customer_group)}</strong>
+      {/* 2. Main Content Container - Hợp nhất thành 1 khung bảng duy nhất liền mạch */}
+      <div className="flex-1 w-full px-4 sm:px-8 py-6 pb-16">
+        <div className="w-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs divide-y divide-slate-200">
+          {/* Phần 1: Thông tin tổng quan */}
+          <div className="p-6 sm:p-7 bg-white">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4 pb-2 border-b border-slate-100">
+              Thông tin chi tiết bảng giá
             </div>
 
-            {/* Thời hạn hiệu lực */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <span className="text-xs font-semibold text-slate-500 block mb-1">Thời hạn hiệu lực</span>
-              <div className="font-semibold text-slate-800 text-xs sm:text-sm leading-tight">
-                {new Date(book.valid_from).toLocaleDateString('vi-VN')} → {new Date(book.valid_to).toLocaleDateString('vi-VN')}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-sm">
+              {/* Nhóm khách hàng */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-xs font-semibold text-slate-500 block mb-1">Nhóm khách hàng áp dụng</span>
+                <strong className="text-slate-900 text-base">{formatGroupName(book.customer_group)}</strong>
+              </div>
+
+              {/* Thời hạn hiệu lực */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-xs font-semibold text-slate-500 block mb-1">Thời hạn hiệu lực</span>
+                <div className="font-semibold text-slate-800 text-xs sm:text-sm leading-tight">
+                  {new Date(book.valid_from).toLocaleDateString('vi-VN')} → {new Date(book.valid_to).toLocaleDateString('vi-VN')}
+                </div>
+              </div>
+
+              {/* Tình trạng khóa */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-xs font-semibold text-slate-500 block mb-1">Tình trạng chỉnh sửa</span>
+                {isLocked ? (
+                  <span className="inline-flex items-center gap-1 text-red-600 font-bold text-xs sm:text-sm">
+                    Đã khóa (Đã có đơn hàng)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-xs sm:text-sm">
+                    Cho phép chỉnh sửa
+                  </span>
+                )}
+              </div>
+
+              {/* Người tạo */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-xs font-semibold text-slate-500 block mb-1">Người tạo bảng giá</span>
+                <strong className="text-slate-800 text-sm">{book.created_by || 'admin'}</strong>
               </div>
             </div>
 
-            {/* Tình trạng khóa */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <span className="text-xs font-semibold text-slate-500 block mb-1">Tình trạng chỉnh sửa</span>
-              {isLocked ? (
-                <span className="inline-flex items-center gap-1 text-red-600 font-bold text-xs sm:text-sm">
-                  Đã khóa (Đã có đơn hàng)
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-xs sm:text-sm">
-                  Cho phép chỉnh sửa
-                </span>
-              )}
-            </div>
-
-            {/* Người tạo */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <span className="text-xs font-semibold text-slate-500 block mb-1">Người tạo bảng giá</span>
-              <strong className="text-slate-800 text-sm">{book.created_by || 'admin'}</strong>
-            </div>
+            {book.note && (
+              <div className="mt-4 p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl text-xs sm:text-sm text-slate-700">
+                <span className="font-bold text-blue-900">Ghi chú:</span> {book.note}
+              </div>
+            )}
           </div>
 
-          {book.note && (
-            <div className="mt-4 p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl text-xs sm:text-sm text-slate-700">
-              <span className="font-bold text-blue-900">Ghi chú:</span> {book.note}
-            </div>
-          )}
-        </div>
-
-        {/* Thẻ 2: Danh sách sản phẩm trong bảng giá */}
-        <div className="w-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+          {/* Phần 2: Danh sách sản phẩm trong bảng giá */}
+          <div className="w-full">
+            <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
             {/* Ô tìm kiếm nhanh trong bảng giá - Bên trái */}
             <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
               <span
@@ -459,6 +460,7 @@ export const PriceBookDetailPage: React.FC<PriceBookDetailPageProps> = ({
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

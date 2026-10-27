@@ -59,8 +59,7 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
     note: '',
   });
 
-  // 2. State điều hướng Tabs
-  const [activeTab, setActiveTab] = useState<'info' | 'items'>('info');
+
 
   // 3. State danh mục sản phẩm & sản phẩm đã chọn
   const [products, setProducts] = useState<ProductItem[]>(initialProducts || []);
@@ -70,6 +69,11 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
   const [newFloorPrice, setNewFloorPrice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+
+  // Phân trang & Tìm kiếm sản phẩm trong bảng giá
+  const [searchProduct, setSearchProduct] = useState('');
+  const [itemPage, setItemPage] = useState(1);
+  const itemPageSize = 20;
 
   // Tải danh mục sản phẩm nếu props chưa có
   useEffect(() => {
@@ -198,6 +202,7 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
     setSelectedProductObj(null);
     setNewSalePrice('');
     setNewFloorPrice('');
+    setItemPage(1);
   };
 
   // Xóa sản phẩm khỏi danh sách
@@ -230,7 +235,6 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
 
     if (!formData.name.trim()) {
       emitStatusToast({ message: 'Vui lòng nhập Tên Bảng Giá', title: 'Thông báo', type: 'warning' });
-      setActiveTab('info');
       return;
     }
 
@@ -240,7 +244,6 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
         title: 'Thông báo',
         type: 'warning',
       });
-      setActiveTab('info');
       return;
     }
 
@@ -250,7 +253,6 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
         title: 'Thông báo',
         type: 'warning',
       });
-      setActiveTab('items');
       return;
     }
 
@@ -365,47 +367,18 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
 
       {/* 2. Main Container & Form - 100% Full Width (Không khoảng trắng thừa 2 bên) */}
       <form onSubmit={handleSubmitForm} className="flex-1 w-full px-4 sm:px-8 py-6 space-y-6 pb-16">
-        {/* Navigation Tabs */}
-        <div className="w-full flex border-b border-slate-200 gap-8 bg-slate-50 pt-1">
-          <button
-            type="button"
-            onClick={() => setActiveTab('info')}
-            className={`pb-3 px-1 text-sm sm:text-base font-bold transition-all relative cursor-pointer border-0 bg-transparent ${
-              activeTab === 'info' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Thông tin chung
-            {activeTab === 'info' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.75 bg-blue-600 rounded-t-full"></span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('items')}
-            className={`pb-3 px-1 text-sm sm:text-base font-bold transition-all relative flex items-center gap-2 cursor-pointer border-0 bg-transparent ${
-              activeTab === 'items' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <span>Danh sách sản phẩm</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                activeTab === 'items'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-slate-200/80 text-slate-700'
-              }`}
-            >
-              {formItems.length}
-            </span>
-            {activeTab === 'items' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.75 bg-blue-600 rounded-t-full"></span>
-            )}
-          </button>
-        </div>
+        {/* CARD DUY NHẤT: THÔNG TIN CHUNG + NHẬP SẢN PHẨM + DANH SÁCH SẢN PHẨM */}
+        <div className="w-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs divide-y divide-slate-200">
+          {/* PHẦN 1: THÔNG TIN CHUNG BẢNG GIÁ */}
+          <div className="p-6 sm:p-7">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4 pb-2 border-b border-slate-100 flex items-center justify-between">
+              <span>Thông tin chung bảng giá</span>
+              <span className="text-xs normal-case font-medium text-slate-400">
+                Khai báo nhóm khách hàng, mã bảng giá và thời gian áp dụng
+              </span>
+            </div>
 
-        {/* TAB 1: THÔNG TIN CHUNG */}
-        {activeTab === 'info' && (
-          <div className="w-full bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {/* Mã Bảng Giá */}
               <div>
                 <label className="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5">
@@ -418,11 +391,10 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   placeholder="Ví dụ: BG-312810"
-                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                    isEditMode
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium transition-all ${isEditMode
                       ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed font-mono font-bold'
                       : 'border-slate-300 text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
-                  }`}
+                    }`}
                 />
                 {isEditMode && (
                   <p className="text-xs text-slate-400 mt-1">Mã bảng giá là định danh duy nhất và không thể thay đổi.</p>
@@ -501,11 +473,10 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                   min={formData.valid_from}
                   value={formData.valid_to}
                   onChange={(e) => setFormData({ ...formData, valid_to: e.target.value })}
-                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium text-slate-900 bg-white focus:outline-none focus:ring-2 transition-all ${
-                    isDateInvalid
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium text-slate-900 bg-white focus:outline-none focus:ring-2 transition-all ${isDateInvalid
                       ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
                       : 'border-slate-300 focus:ring-emerald-500/20 focus:border-emerald-500'
-                  }`}
+                    }`}
                 />
                 {isDateInvalid && (
                   <p className="text-xs text-red-600 mt-1 font-medium">
@@ -520,7 +491,7 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                   Ghi chú
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={formData.note}
                   onChange={(e) => setFormData({ ...formData, note: e.target.value })}
                   placeholder="Nhập ghi chú hoặc điều kiện áp dụng nếu có..."
@@ -528,156 +499,238 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                 />
               </div>
             </div>
-
-            {/* Action Buttons ở cuối card */}
-            <div className="mt-8 pt-5 border-t border-slate-100 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleBack}
-                disabled={isSubmitting}
-                className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2.5 text-sm font-bold text-white bg-[#0fad89] hover:bg-[#0c9576] rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
-              >
-                {isSubmitting ? 'Đang lưu...' : isEditMode ? 'Lưu Thay Đổi' : 'Lưu Bảng Giá'}
-              </button>
-            </div>
           </div>
-        )}
 
-        {/* TAB 2: DANH SÁCH SẢN PHẨM */}
-        {activeTab === 'items' && (
-          <div className="w-full space-y-6">
-            {/* Khối Thêm Sản Phẩm Mới Vào Bảng Giá */}
-            <div className="w-full bg-white rounded-2xl border border-slate-200 p-5 sm:p-7 shadow-xs">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                Thêm sản phẩm vào bảng giá
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                {/* Chọn Sản phẩm (5 cột) */}
-                <div className="md:col-span-5">
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Sản phẩm
-                  </label>
-                  <ProductSelectDropdown
-                    token={token}
-                    selectedProductId={newProductId ? parseInt(newProductId, 10) : 0}
-                    onSelectProduct={(p) => handleProductSelect(p)}
-                    placeholder="-- Chọn Sản phẩm --"
-                    autoSelectFirst={false}
-                    fallbackProduct={selectedProductObj ? {
-                      id: selectedProductObj.id,
-                      code: selectedProductObj.code,
-                      name: selectedProductObj.name,
-                      is_batch_managed: selectedProductObj.is_batch_managed,
-                    } : null}
-                  />
-                </div>
-
-                {/* Giá Niêm Yết (3 cột) */}
-                <div className="md:col-span-3">
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Giá niêm yết (đồng)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Giá niêm yết (đồng)..."
-                    value={newSalePrice}
-                    onChange={(e) => setNewSalePrice(e.target.value)}
-                    className={`w-full px-3 py-2.5 rounded-xl border text-sm font-semibold focus:outline-none focus:ring-2 ${
-                      isAddingWarning
-                        ? 'border-red-500 text-red-600 focus:ring-red-500/20'
-                        : 'border-slate-300 text-slate-900 focus:ring-emerald-500/20 focus:border-emerald-500'
-                    }`}
-                  />
-                </div>
-
-                {/* Giá Sàn (2 cột) */}
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Giá sàn (đồng)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Giá sàn (đồng)..."
-                    value={newFloorPrice}
-                    onChange={(e) => setNewFloorPrice(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-
-                {/* Nút Thêm sản phẩm (2 cột) */}
-                <div className="md:col-span-2">
-                  <button
-                    type="button"
-                    onClick={addFormItem}
-                    className="w-full h-11 px-3 bg-[#0fad89] hover:bg-[#0c9576] text-white font-bold text-sm rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1 shadow-xs"
-                  >
-                    <span>Thêm sản phẩm</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Cảnh báo Giá niêm yết < Giá sàn */}
-              {isAddingWarning && (
-                <div className="mt-2.5 text-xs text-red-600 font-semibold">
-                  Cảnh báo: Đơn giá niêm yết nhỏ hơn giá sàn quy định! Đơn hàng sẽ phải chuyển sang Quản lý phê duyệt.
-                </div>
-              )}
+          {/* PHẦN 2: THÊM SẢN PHẨM VÀO BẢNG GIÁ */}
+          <div className="p-5 sm:p-7 bg-slate-50/50">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+              Thêm sản phẩm vào bảng giá
             </div>
 
-            {/* Bảng Danh Sách Sản Phẩm Đã Thêm - Full Width */}
-            <div className="w-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              {/* Chọn Sản phẩm (5 cột) */}
+              <div className="md:col-span-5">
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  Sản phẩm
+                </label>
+                <ProductSelectDropdown
+                  token={token}
+                  selectedProductId={newProductId ? parseInt(newProductId, 10) : 0}
+                  onSelectProduct={(p) => handleProductSelect(p)}
+                  placeholder="-- Chọn Sản phẩm --"
+                  autoSelectFirst={false}
+                  fallbackProduct={selectedProductObj ? {
+                    id: selectedProductObj.id,
+                    code: selectedProductObj.code,
+                    name: selectedProductObj.name,
+                    is_batch_managed: selectedProductObj.is_batch_managed,
+                  } : null}
+                />
+              </div>
+
+              {/* Giá Niêm Yết (3 cột) */}
+              <div className="md:col-span-3">
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  Giá niêm yết (đồng)
+                </label>
+                <input
+                  type="number"
+                  placeholder="Giá niêm yết (đồng)..."
+                  value={newSalePrice}
+                  onChange={(e) => setNewSalePrice(e.target.value)}
+                  className={`w-full px-3 py-2.5 rounded-xl border text-sm font-semibold focus:outline-none focus:ring-2 ${isAddingWarning
+                      ? 'border-red-500 text-red-600 focus:ring-red-500/20'
+                      : 'border-slate-300 text-slate-900 focus:ring-emerald-500/20 focus:border-emerald-500'
+                    }`}
+                />
+              </div>
+
+              {/* Giá Sàn (2 cột) */}
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  Giá sàn (đồng)
+                </label>
+                <input
+                  type="number"
+                  placeholder="Giá sàn (đồng)..."
+                  value={newFloorPrice}
+                  onChange={(e) => setNewFloorPrice(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                />
+              </div>
+
+              {/* Nút Thêm sản phẩm (2 cột) */}
+              <div className="md:col-span-2">
+                <button
+                  type="button"
+                  onClick={addFormItem}
+                  className="w-full h-11 px-3 bg-[#0fad89] hover:bg-[#0c9576] text-white font-bold text-sm rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1 shadow-xs"
+                >
+                  <span>Thêm sản phẩm</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Cảnh báo Giá niêm yết < Giá sàn */}
+            {isAddingWarning && (
+              <div className="mt-2.5 text-xs text-red-600 font-semibold">
+                Cảnh báo: Đơn giá niêm yết nhỏ hơn giá sàn quy định! Đơn hàng sẽ phải chuyển sang Quản lý phê duyệt.
+              </div>
+            )}
+          </div>
+
+          {/* PHẦN 3: BẢNG DANH SÁCH SẢN PHẨM & PHÂN TRANG */}
+          {(() => {
+            const keyword = searchProduct.trim().toLowerCase();
+            const filteredItems = formItems.filter((item) => {
+              if (!keyword) return true;
+              const code = (item.product_code || `#${item.product_id}`).toLowerCase();
+              const name = (item.product_name || '').toLowerCase();
+              return code.includes(keyword) || name.includes(keyword);
+            });
+
+            const totalItems = filteredItems.length;
+            const totalPages = Math.max(1, Math.ceil(totalItems / itemPageSize));
+            const safePage = Math.min(Math.max(1, itemPage), totalPages);
+            const paginatedItems = filteredItems.slice(
+              (safePage - 1) * itemPageSize,
+              safePage * itemPageSize
+            );
+
+            return (
+              <div className="w-full">
+              {/* Header của bảng: Tiêu đề + Ô tìm kiếm */}
+              <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/70">
+                <div className="flex items-center gap-2.5">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                    Danh sách sản phẩm trong bảng giá ({formItems.length})
+                  </h3>
+                  {totalItems !== formItems.length && (
+                    <span className="text-xs text-slate-500 font-medium">
+                      (Khớp tìm kiếm: {totalItems})
+                    </span>
+                  )}
+                </div>
+
+                {/* Ô tìm kiếm nhanh mã hoặc tên sản phẩm */}
+                <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: '11px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      pointerEvents: 'none',
+                      color: '#94a3b8',
+                      zIndex: 2,
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    value={searchProduct}
+                    onChange={(e) => {
+                      setSearchProduct(e.target.value);
+                      setItemPage(1);
+                    }}
+                    placeholder="Tìm mã hoặc tên sản phẩm..."
+                    style={{
+                      width: '100%',
+                      paddingLeft: '34px',
+                      paddingRight: searchProduct ? '28px' : '12px',
+                      paddingTop: '7px',
+                      paddingBottom: '7px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      fontSize: '12.5px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {searchProduct && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchProduct('');
+                        setItemPage(1);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      title="Xoá tìm kiếm"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Bảng Danh Sách Sản Phẩm */}
               <div className="overflow-x-auto w-full">
                 <table className="w-full text-left text-sm border-collapse min-w-[640px]">
                   <thead>
                     <tr className="bg-slate-100 text-slate-600 text-xs uppercase font-extrabold tracking-wider border-b border-slate-200">
-                      <th className="py-3.5 px-6">Mã Sản Phẩm</th>
-                      <th className="py-3.5 px-6">Tên Sản Phẩm</th>
-                      <th className="py-3.5 px-6 text-right">Giá Niêm Yết (đồng)</th>
-                      <th className="py-3.5 px-6 text-right">Giá Sàn (đồng)</th>
-                      <th className="py-3.5 px-6 text-center w-24">Thao tác</th>
+                      <th className="py-3 px-4 text-center w-14">STT</th>
+                      <th className="py-3 px-6">Mã Sản Phẩm</th>
+                      <th className="py-3 px-6">Tên Sản Phẩm</th>
+                      <th className="py-3 px-6 text-right">Giá Niêm Yết (đồng)</th>
+                      <th className="py-3 px-6 text-right">Giá Sàn (đồng)</th>
+                      <th className="py-3 px-6 text-center w-24">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {formItems.map((item) => {
+                    {paginatedItems.map((item, idx) => {
                       const isBelowFloor = (item.sale_price || 0) < (item.floor_price || 0);
+                      const itemIndex = (safePage - 1) * itemPageSize + idx + 1;
                       return (
                         <tr
                           key={item.product_id}
-                          className={`transition-colors ${
-                            isBelowFloor ? 'bg-red-50/70 hover:bg-red-50' : 'hover:bg-slate-50'
-                          }`}
+                          className={`transition-colors ${isBelowFloor ? 'bg-red-50/70 hover:bg-red-50' : 'hover:bg-slate-50'
+                            }`}
                         >
-                          <td className="py-3.5 px-6 font-mono font-bold text-slate-800 text-xs">
+                          <td className="py-3 px-4 text-center font-medium text-slate-500 text-xs">
+                            {itemIndex}
+                          </td>
+                          <td className="py-3 px-6 font-mono font-bold text-slate-800 text-xs">
                             <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                               {item.product_code || `#${item.product_id}`}
                             </span>
                           </td>
-                          <td className="py-3.5 px-6 font-semibold text-slate-800">
+                          <td className="py-3 px-6 font-semibold text-slate-800">
                             {item.product_name || '-'}
                           </td>
-                          <td className="py-2.5 px-6 text-right">
+                          <td className="py-2 px-6 text-right">
                             <input
                               type="number"
                               value={item.sale_price != null ? item.sale_price : ''}
                               onChange={(e) =>
                                 handleInlineEdit(item.product_id, 'sale_price', e.target.value)
                               }
-                              className={`w-36 px-2.5 py-1.5 text-right font-bold text-sm rounded-lg border focus:outline-none focus:ring-2 ${
-                                isBelowFloor
+                              className={`w-36 px-2.5 py-1.5 text-right font-bold text-sm rounded-lg border focus:outline-none focus:ring-2 ${isBelowFloor
                                   ? 'border-red-400 text-red-600 focus:ring-red-400/20'
                                   : 'border-slate-300 text-slate-900 focus:ring-emerald-500/20 focus:border-emerald-500'
-                              }`}
+                                }`}
                             />
                           </td>
-                          <td className="py-2.5 px-6 text-right">
+                          <td className="py-2 px-6 text-right">
                             <input
                               type="number"
                               value={item.floor_price != null ? item.floor_price : ''}
@@ -687,7 +740,7 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                               className="w-36 px-2.5 py-1.5 text-right font-semibold text-sm text-slate-700 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                             />
                           </td>
-                          <td className="py-3.5 px-6 text-center">
+                          <td className="py-3 px-6 text-center">
                             <button
                               type="button"
                               onClick={() => removeFormItem(item.product_id)}
@@ -700,38 +753,155 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                         </tr>
                       );
                     })}
-                    {formItems.length === 0 && (
+                    {filteredItems.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="py-12 px-6 text-center text-slate-400">
-                          Chưa có sản phẩm nào trong bảng giá. Hãy chọn sản phẩm ở ô trên và nhấn "Thêm sản phẩm".
+                        <td colSpan={6} className="py-12 px-6 text-center text-slate-400">
+                          {searchProduct
+                            ? 'Không tìm thấy sản phẩm nào khớp với từ khóa tìm kiếm.'
+                            : 'Chưa có sản phẩm nào trong bảng giá. Hãy chọn sản phẩm ở ô trên và nhấn "Thêm sản phẩm".'}
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </div>
 
-            {/* Action Buttons ở cuối Tab 2 */}
-            <div className="w-full bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleBack}
-                disabled={isSubmitting}
-                className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2.5 text-sm font-bold text-white bg-[#0fad89] hover:bg-[#0c9576] rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
-              >
-                {isSubmitting ? 'Đang lưu...' : isEditMode ? 'Lưu Thay Đổi' : 'Lưu Bảng Giá'}
-              </button>
-            </div>
-          </div>
-        )}
+              {/* Phân trang mã sản phẩm (20 sản phẩm/trang) */}
+              {totalItems > 0 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 18px',
+                    borderTop: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ fontSize: '12.5px', color: '#64748b' }}>
+                    Hiển thị{' '}
+                    <strong style={{ color: '#0f172a' }}>
+                      {(safePage - 1) * itemPageSize + 1} -{' '}
+                      {Math.min(safePage * itemPageSize, totalItems)}
+                    </strong>{' '}
+                    / <strong style={{ color: '#0f172a' }}>{totalItems}</strong> sản phẩm
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
+                        background: '#ffffff',
+                        height: '28px',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        disabled={safePage <= 1}
+                        onClick={() => setItemPage((p) => Math.max(1, p - 1))}
+                        style={{
+                          minWidth: '28px',
+                          height: '100%',
+                          padding: '0 6px',
+                          border: 'none',
+                          borderRight: '1px solid #e2e8f0',
+                          background: '#ffffff',
+                          color: safePage <= 1 ? '#cbd5e1' : '#475569',
+                          cursor: safePage <= 1 ? 'not-allowed' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        title="Trang trước"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                      </button>
+
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+                        const isActive = p === safePage;
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setItemPage(p)}
+                            style={{
+                              minWidth: '26px',
+                              height: '100%',
+                              padding: '0 8px',
+                              border: 'none',
+                              borderRight: p === totalPages ? 'none' : '1px solid #e2e8f0',
+                              background: isActive ? '#0fad89' : '#ffffff',
+                              color: isActive ? '#ffffff' : '#334155',
+                              cursor: isActive ? 'default' : 'pointer',
+                              fontSize: '12px',
+                              fontWeight: isActive ? '700' : '500',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        disabled={safePage >= totalPages}
+                        onClick={() => setItemPage((p) => Math.min(totalPages, p + 1))}
+                        style={{
+                          minWidth: '28px',
+                          height: '100%',
+                          padding: '0 6px',
+                          border: 'none',
+                          background: '#ffffff',
+                          color: safePage >= totalPages ? '#cbd5e1' : '#475569',
+                          cursor: safePage >= totalPages ? 'not-allowed' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        title="Trang sau"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* Action Buttons ở cuối trang */}
+        <div className="w-full bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleBack}
+            disabled={isSubmitting}
+            className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
+          >
+            Hủy bỏ
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-6 py-2.5 text-sm font-bold text-white bg-[#0fad89] hover:bg-[#0c9576] rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+          >
+            {isSubmitting ? 'Đang lưu...' : isEditMode ? 'Lưu Thay Đổi' : 'Lưu Bảng Giá'}
+          </button>
+        </div>
       </form>
     </div>
   );
