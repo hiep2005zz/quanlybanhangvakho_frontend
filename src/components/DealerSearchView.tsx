@@ -824,10 +824,6 @@ export default function DealerSearchView({
         setCurrentPage(1);
     }, [dealers.length, keyword, region, customerGroup, assignedSaleId, status, onlyMyDealers]);
 
-    const totalPages = Math.max(1, Math.ceil(dealers.length / pageSize));
-    const safePage = Math.min(Math.max(1, currentPage), totalPages);
-    const paginatedDealers = dealers.slice((safePage - 1) * pageSize, safePage * pageSize);
-
     // Đồng bộ URL và sự kiện popstate cho trang Lịch sử biến động
     useEffect(() => {
         const handlePopState = () => {
@@ -861,6 +857,9 @@ export default function DealerSearchView({
         }
     }, [dealers]);
 
+    const totalPages = Math.max(1, Math.ceil(dealers.length / pageSize));
+    const safePage = Math.min(Math.max(1, currentPage), totalPages);
+    const paginatedDealers = dealers.slice((safePage - 1) * pageSize, safePage * pageSize);
     if (isAddPageOpen) {
         return (
             <CreateDealerPageView
