@@ -1,10 +1,11 @@
 import type { DeliveryPoint, DeliveryPointInput } from '../types/deliveryPoint';
-
-const BASE = 'http://127.0.0.1:8000/api/v1'; // sửa theo prefix backend của bạn
+import { API_BASE_URL, AUTH_STORAGE } from './api';
 
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('token'); // sửa theo cách bạn lưu token
-  const res = await fetch(BASE + url, {
+  const token = typeof window !== 'undefined'
+    ? (sessionStorage.getItem(AUTH_STORAGE.TOKEN) || localStorage.getItem(AUTH_STORAGE.TOKEN))
+    : null;
+  const res = await fetch(`${API_BASE_URL}${url}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',

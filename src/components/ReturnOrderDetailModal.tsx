@@ -153,7 +153,7 @@ export const ReturnOrderDetailModal: React.FC<ReturnOrderDetailModalProps> = ({
                 {renderStatusBadge(order.status)}
               </div>
               <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>
-                Đơn hàng gốc: <strong style={{ color: '#2563eb' }}>{order.order_code}</strong> &bull; Đại lý: <strong>{order.dealer_name}</strong>
+                Đơn hàng gốc: <strong style={{ color: '#0F8A5F' }}>{order.order_code}</strong> &bull; Đại lý: <strong>{order.dealer_name}</strong>
               </p>
             </div>
             <button
@@ -463,8 +463,8 @@ export const ReturnOrderDetailModal: React.FC<ReturnOrderDetailModalProps> = ({
                               borderRadius: '6px',
                               fontSize: '11.5px',
                               fontWeight: '700',
-                              background: item.is_damaged ? '#fee2e2' : '#eff6ff',
-                              color: item.is_damaged ? '#b91c1c' : '#1d4ed8',
+                              background: item.is_damaged ? '#fee2e2' : '#f0fdf4',
+                              color: item.is_damaged ? '#b91c1c' : '#166534',
                               whiteSpace: 'nowrap',
                             }}
                           >

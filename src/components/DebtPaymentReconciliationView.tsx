@@ -1756,21 +1756,41 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
         <ModalPortal>
           <div className="debt-modal-backdrop">
             <div className="debt-modal-panel">
-              <div className="debt-modal-header">
+              <div className="debt-modal-header" style={{ background: 'linear-gradient(135deg, #0f766e 0%, #115e59 100%)', color: '#ffffff' }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
                     Lập Bút Toán Điều Chỉnh Phiếu Thu
                   </h3>
-                  <span style={{ fontSize: '13px', color: '#64748b' }}>
-                    Mã phiếu thu gốc: <strong>{adjustingReceipt.receipt_code}</strong>
-                  </span>
+                  <div style={{ fontSize: '13px', color: '#ccfbf1', marginTop: '4px' }}>
+                    Mã phiếu thu gốc: <strong style={{ color: '#ffffff', fontWeight: '700' }}>{adjustingReceipt.receipt_code}</strong>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setAdjustingReceipt(null)}
-                  style={{ background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#64748b', fontWeight: '600' }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.18)',
+                    border: '1px solid rgba(255, 255, 255, 0.28)',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    fontSize: '15px',
+                    cursor: 'pointer',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.32)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)';
+                  }}
+                  title="Đóng"
                 >
-                  Đóng
+                  ✕
                 </button>
               </div>
 
@@ -2012,30 +2032,42 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                 style={{ maxWidth: '720px', width: '95%' }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="debt-modal-header">
+                <div className="debt-modal-header" style={{ background: 'linear-gradient(135deg, #0f766e 0%, #115e59 100%)', color: '#ffffff' }}>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0f172a' }}>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
                       Chi Tiết Hoá Đơn Đã Đối Trừ
                     </h3>
-                    <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-                      Phiếu thu: <strong style={{ color: '#0f172a' }}>{viewingReceiptDetail.receipt_code}</strong> • Đại lý: <strong style={{ color: '#0f172a' }}>{viewingReceiptDetail.dealer_name}</strong> {viewingReceiptDetail.dealer_code && `(${viewingReceiptDetail.dealer_code})`}
-                    </span>
+                    <div style={{ fontSize: '13px', color: '#ccfbf1', marginTop: '4px' }}>
+                      Phiếu thu: <strong style={{ color: '#ffffff', fontWeight: '700' }}>{viewingReceiptDetail.receipt_code}</strong>
+                      <span style={{ margin: '0 6px', opacity: 0.7 }}>•</span>
+                      Đại lý: <strong style={{ color: '#ffffff', fontWeight: '700' }}>{viewingReceiptDetail.dealer_name}</strong>
+                      {viewingReceiptDetail.dealer_code && (
+                        <span style={{ color: '#a7f3d0', marginLeft: '4px' }}>({viewingReceiptDetail.dealer_code})</span>
+                      )}
+                    </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setViewingReceiptDetail(null)}
                     style={{
-                      background: '#f1f5f9',
-                      border: 'none',
-                      width: '30px',
-                      height: '30px',
+                      background: 'rgba(255, 255, 255, 0.18)',
+                      border: '1px solid rgba(255, 255, 255, 0.28)',
+                      width: '32px',
+                      height: '32px',
                       borderRadius: '50%',
-                      fontSize: '16px',
+                      fontSize: '15px',
                       cursor: 'pointer',
-                      color: '#64748b',
+                      color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.32)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)';
                     }}
                     title="Đóng"
                   >
@@ -2059,10 +2091,10 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                     }}
                   >
                     <div>
-                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>
+                      <div style={{ color: '#475569', fontSize: '11.5px', fontWeight: '500', marginBottom: '2px' }}>
                         {isAdjusted ? 'Số tiền đối trừ hiện tại:' : 'Số tiền thu:'}
                       </div>
-                      <strong style={{ color: '#059669', fontSize: '15px' }}>
+                      <strong style={{ color: '#047857', fontSize: '15px' }}>
                         {formatVND(totalCurAllocated)}
                       </strong>
                       {isAdjusted && (
@@ -2074,8 +2106,8 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
 
                     {isAdjusted && (
                       <div>
-                        <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Đã điều chỉnh giảm:</div>
-                        <strong style={{ color: '#d97706', fontSize: '14px' }}>
+                        <div style={{ color: '#475569', fontSize: '11.5px', fontWeight: '500', marginBottom: '2px' }}>Đã điều chỉnh giảm:</div>
+                        <strong style={{ color: '#b45309', fontSize: '14px' }}>
                           -{formatVND(totalAdjustedAmount)}
                         </strong>
                         <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
@@ -2085,32 +2117,32 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                     )}
 
                     <div>
-                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Trạng thái:</div>
+                      <div style={{ color: '#475569', fontSize: '11.5px', fontWeight: '500', marginBottom: '2px' }}>Trạng thái:</div>
                       <span className={`badge ${viewingReceiptDetail.status === 'CONFIRMED' ? 'badge-confirmed' : 'badge-adjusted'}`}>
                         {viewingReceiptDetail.status === 'CONFIRMED' ? 'Đã ghi nhận' : 'Đã điều chỉnh'}
                       </span>
                     </div>
 
                     <div>
-                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Hình thức:</div>
-                      <strong style={{ color: '#1e293b' }}>{viewingReceiptDetail.payment_method}</strong>
+                      <div style={{ color: '#475569', fontSize: '11.5px', fontWeight: '500', marginBottom: '2px' }}>Hình thức:</div>
+                      <strong style={{ color: '#0f172a' }}>{viewingReceiptDetail.payment_method}</strong>
                     </div>
 
                     <div>
-                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Phương thức:</div>
-                      <strong style={{ color: '#1e293b' }}>
+                      <div style={{ color: '#475569', fontSize: '11.5px', fontWeight: '500', marginBottom: '2px' }}>Phương thức:</div>
+                      <strong style={{ color: '#0f172a' }}>
                         {viewingReceiptDetail.allocation_mode === 'AUTO_FIFO' ? 'FIFO (Tự động)' : 'Thủ công'}
                       </strong>
                     </div>
 
                     <div>
-                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Ngày thu:</div>
-                      <strong style={{ color: '#1e293b' }}>{formatDate(viewingReceiptDetail.payment_date)}</strong>
+                      <div style={{ color: '#475569', fontSize: '11.5px', fontWeight: '500', marginBottom: '2px' }}>Ngày thu:</div>
+                      <strong style={{ color: '#0f172a' }}>{formatDate(viewingReceiptDetail.payment_date)}</strong>
                     </div>
 
                     <div>
-                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Người thu:</div>
-                      <strong style={{ color: '#1e293b' }}>{viewingReceiptDetail.collector_name}</strong>
+                      <div style={{ color: '#475569', fontSize: '11.5px', fontWeight: '500', marginBottom: '2px' }}>Người thu:</div>
+                      <strong style={{ color: '#0f172a' }}>{viewingReceiptDetail.collector_name}</strong>
                     </div>
                   </div>
 
@@ -2132,23 +2164,23 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
 
                   {/* Bảng danh sách hoá đơn */}
                   <div style={{ marginBottom: '14px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
                       Danh sách hoá đơn đã được bù trừ ({viewingReceiptDetail.allocations?.length || 0} hoá đơn):
                     </div>
                     <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
                         <thead>
-                          <tr style={{ background: '#f1f5f9', color: '#475569', textAlign: 'left', borderBottom: '1px solid #cbd5e1' }}>
-                            <th style={{ padding: '8px 12px', width: '40px', textAlign: 'center' }}>STT</th>
-                            <th style={{ padding: '8px 12px' }}>Mã số hoá đơn</th>
+                          <tr style={{ background: '#f8fafc', color: '#334155', textAlign: 'left', borderBottom: '1px solid #cbd5e1' }}>
+                            <th style={{ padding: '9px 12px', width: '45px', textAlign: 'center', fontWeight: '600' }}>STT</th>
+                            <th style={{ padding: '9px 12px', fontWeight: '600' }}>Mã số hoá đơn</th>
                             {isAdjusted ? (
                               <>
-                                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đối trừ ban đầu</th>
-                                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Điều chỉnh giảm</th>
-                                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đối trừ hiện tại</th>
+                                <th style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '600' }}>Đối trừ ban đầu</th>
+                                <th style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '600' }}>Điều chỉnh giảm</th>
+                                <th style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '600' }}>Đối trừ hiện tại</th>
                               </>
                             ) : (
-                              <th style={{ padding: '8px 12px', textAlign: 'right' }}>Số tiền đối trừ</th>
+                              <th style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '600' }}>Số tiền đối trừ</th>
                             )}
                           </tr>
                         </thead>
@@ -2164,7 +2196,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
 
                               return (
                                 <tr key={a.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                  <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b' }}>
+                                  <td style={{ padding: '9px 12px', textAlign: 'center', color: '#475569', fontWeight: '500' }}>
                                     {idx + 1}
                                   </td>
                                   <td style={{ padding: '9px 12px' }}>
@@ -2174,18 +2206,18 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                                   </td>
                                   {isAdjusted ? (
                                     <>
-                                      <td style={{ padding: '9px 12px', textAlign: 'right', color: '#64748b', fontSize: '12.5px' }}>
+                                      <td style={{ padding: '9px 12px', textAlign: 'right', color: '#475569', fontSize: '12.5px' }}>
                                         {formatVND(origAmt)}
                                       </td>
-                                      <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '600', color: reducedAmt > 0 ? '#d97706' : '#94a3b8', fontSize: '12.5px' }}>
+                                      <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '600', color: reducedAmt > 0 ? '#b45309' : '#94a3b8', fontSize: '12.5px' }}>
                                         {reducedAmt > 0 ? `-${formatVND(reducedAmt)}` : '—'}
                                       </td>
-                                      <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#059669', fontSize: '13px' }}>
+                                      <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#047857', fontSize: '13px' }}>
                                         {formatVND(curAmt)}
                                       </td>
                                     </>
                                   ) : (
-                                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#059669', fontSize: '13px' }}>
+                                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#047857', fontSize: '13px' }}>
                                       {formatVND(curAmt)}
                                     </td>
                                   )}
@@ -2203,23 +2235,23 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                         {viewingReceiptDetail.allocations && viewingReceiptDetail.allocations.length > 0 && (
                           <tfoot>
                             <tr style={{ background: '#f8fafc', fontWeight: '700', borderTop: '1px solid #cbd5e1' }}>
-                              <td colSpan={2} style={{ padding: '10px 12px', textAlign: 'right', color: '#334155' }}>
+                              <td colSpan={2} style={{ padding: '10px 12px', textAlign: 'right', color: '#0f172a' }}>
                                 Tổng số tiền:
                               </td>
                               {isAdjusted ? (
                                 <>
-                                  <td style={{ padding: '10px 12px', textAlign: 'right', color: '#64748b', fontSize: '13px' }}>
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', color: '#475569', fontSize: '13px' }}>
                                     {formatVND(totalOrigAllocated)}
                                   </td>
-                                  <td style={{ padding: '10px 12px', textAlign: 'right', color: totalAdjustedAmount > 0 ? '#d97706' : '#94a3b8', fontSize: '13px' }}>
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', color: totalAdjustedAmount > 0 ? '#b45309' : '#94a3b8', fontSize: '13px' }}>
                                     {totalAdjustedAmount > 0 ? `-${formatVND(totalAdjustedAmount)}` : '—'}
                                   </td>
-                                  <td style={{ padding: '10px 12px', textAlign: 'right', color: '#059669', fontSize: '14px' }}>
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', color: '#047857', fontSize: '14px' }}>
                                     {formatVND(totalCurAllocated)}
                                   </td>
                                 </>
                               ) : (
-                                <td style={{ padding: '10px 12px', textAlign: 'right', color: '#059669', fontSize: '14px' }}>
+                                <td style={{ padding: '10px 12px', textAlign: 'right', color: '#047857', fontSize: '14px' }}>
                                   {formatVND(totalCurAllocated)}
                                 </td>
                               )}
